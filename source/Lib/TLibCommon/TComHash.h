@@ -98,16 +98,28 @@ public:
   const MapIterator getFirstIterator( UInt hashValue ) const;
   Bool hasExactMatch( UInt hashValue1, UInt hashValue2 );
 
+#if SCM_W0078_HASH_BOTTOM_UP
+  Void generateBlock2x2HashValue( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, const BitDepths bitDepths, UInt* picBlockHash[2], Bool* picBlockSameInfo[3]);
+  Void generateBlockHashValue( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, Int width, Int height, const BitDepths bitDepths, UInt* srcPicBlockHash[2], UInt* dstPicBlockHash[2], Bool* srcPicBlockSameInfo[3], Bool* dstPicBlockSameInfo[3]);
+  Void addToHashMapByRowWithPrecalData( UInt* srcHash[2], Bool* srcIsSame, Int picWidth, Int picHeight, Int width, Int height, const BitDepths& bitDepths);
+#else
   Void addToHashMapByRow( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, Int width, Int height, const BitDepths& bitDepths );
+#endif
 
 public:
   static UInt   getCRCValue1( UChar* p, Int length );
   static UInt   getCRCValue2( UChar* p, Int length );
+#if SCM_W0078_HASH_BOTTOM_UP
+  static Void getPixelsIn1DCharArrayByBlock2x2(const TComPicYuv* const pPicYuv, UChar* pPixelsIn1D, Int xStart, Int yStart, const BitDepths& bitDepths, Bool includeAllComponent = true);
+  static Bool isBlock2x2RowSameValue(UChar* p, Bool includeAllComponent = true);
+  static Bool isBlock2x2ColSameValue(UChar* p, Bool includeAllComponent = true);
+#else
   static UShort getCRCValue3( UChar* p, Int length );
   static UShort getCRCValue4( UChar* p, Int length );
 
   static Bool isRowSameValue( UChar* p, Int width, Bool includeAllComponent = true );
   static Void getPixelsIn1DCharArrayByRow( const TComPicYuv* const pPicYuv, UChar* pPixelsIn1D, Int width, Int xStart, Int yStart, const BitDepths& bitDepths, Bool includeAllComponent = true );
+#endif
   static Bool isHorizontalPerfect( TComPicYuv* pPicYuv, Int width, Int height, Int xStart, Int yStart, Bool includeAllComponent = true );
   static Bool isVerticalPerfect  ( TComPicYuv* pPicYuv, Int width, Int height, Int xStart, Int yStart, Bool includeAllComponent = true );
   static Bool getBlockHashValue( const TComPicYuv* const pPicYuv, Int width, Int height, Int xStart, Int yStart, const BitDepths bitDepths, UInt& hashValue1, UInt& hashValue2 );
@@ -123,8 +135,10 @@ private:
 
   static TCRCCalculatorLight m_crcCalculator1;
   static TCRCCalculatorLight m_crcCalculator2;
+#if !SCM_W0078_HASH_BOTTOM_UP
   static TCRCCalculatorLight m_crcCalculator3;
   static TCRCCalculatorLight m_crcCalculator4;
+#endif
 };
 
 //! \}

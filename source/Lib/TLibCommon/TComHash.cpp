@@ -48,8 +48,10 @@
 Int TComHash::m_blockSizeToIndex[65][65];
 TCRCCalculatorLight TComHash::m_crcCalculator1(24, 0x5D6DCB);
 TCRCCalculatorLight TComHash::m_crcCalculator2(24, 0x864CFB);
+#if !SCM_W0078_HASH_BOTTOM_UP
 TCRCCalculatorLight TComHash::m_crcCalculator3(16, 0x8005);
 TCRCCalculatorLight TComHash::m_crcCalculator4(16, 0xA001);
+#endif
 
 TCRCCalculatorLight::TCRCCalculatorLight( UInt bits, UInt truncPoly )
 {
@@ -215,7 +217,272 @@ Bool TComHash::hasExactMatch( UInt hashValue1, UInt hashValue2 )
   }
   return false;
 }
+#if SCM_W0078_HASH_BOTTOM_UP
+Void TComHash::generateBlock2x2HashValue( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, const BitDepths bitDepths, UInt* picBlockHash[2], Bool* picBlockSameInfo[3])
+{
+  const Int width = 2;
+  const Int height = 2;
+  Int xEnd = picWidth - width + 1;
+  Int yEnd = picHeight - height + 1;
 
+  Int length = width * 2;
+  Bool bIncludeChroma = false;
+  if (pPicYuv->getChromaFormat() == CHROMA_444)
+  {
+    length *= 3;
+    bIncludeChroma = true;
+  }
+  UChar* p = new UChar[length];
+
+  Int pos = 0;
+  for (Int yPos = 0; yPos < yEnd; yPos++)
+  {
+    for (Int xPos = 0; xPos < xEnd; xPos++)
+    {
+      TComHash::getPixelsIn1DCharArrayByBlock2x2(pPicYuv, p, xPos, yPos, bitDepths, bIncludeChroma);
+      picBlockSameInfo[0][pos] = isBlock2x2RowSameValue(p, bIncludeChroma);
+      picBlockSameInfo[1][pos] = isBlock2x2ColSameValue(p, bIncludeChroma);
+
+      picBlockHash[0][pos] = TComHash::getCRCValue1(p, length * sizeof(UChar));
+      picBlockHash[1][pos] = TComHash::getCRCValue2(p, length * sizeof(UChar));
+
+      pos++;
+    }
+    pos += width - 1;
+  }
+
+  delete[] p;
+}
+
+Void TComHash::generateBlockHashValue( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, Int width, Int height, const BitDepths bitDepths, UInt* srcPicBlockHash[2], UInt* dstPicBlockHash[2], Bool* srcPicBlockSameInfo[3], Bool* dstPicBlockSameInfo[3])
+{
+  Int xEnd = picWidth - width + 1;
+  Int yEnd = picHeight - height + 1;
+
+  Int srcWidth = width >> 1;
+  Int quadWidth = width >> 2;
+  Int srcHeight = height >> 1;
+  Int quadHeight = height >> 2;
+
+  Int length = 4 * sizeof(UInt);
+
+  UInt* p = new UInt[4];
+  Int pos = 0;
+  for (Int yPos = 0; yPos < yEnd; yPos++)
+  {
+    for (Int xPos = 0; xPos < xEnd; xPos++)
+    {
+      p[0] = srcPicBlockHash[0][pos];
+      p[1] = srcPicBlockHash[0][pos + srcWidth];
+      p[2] = srcPicBlockHash[0][pos + srcHeight*picWidth];
+      p[3] = srcPicBlockHash[0][pos + srcHeight*picWidth + srcWidth];
+      dstPicBlockHash[0][pos] = TComHash::getCRCValue1((UChar*)p, length);
+
+      p[0] = srcPicBlockHash[1][pos];
+      p[1] = srcPicBlockHash[1][pos + srcWidth];
+      p[2] = srcPicBlockHash[1][pos + srcHeight*picWidth];
+      p[3] = srcPicBlockHash[1][pos + srcHeight*picWidth + srcWidth];
+      dstPicBlockHash[1][pos] = TComHash::getCRCValue2((UChar*)p, length);
+
+      dstPicBlockSameInfo[0][pos] = srcPicBlockSameInfo[0][pos] && srcPicBlockSameInfo[0][pos + quadWidth] && srcPicBlockSameInfo[0][pos + srcWidth]
+        && srcPicBlockSameInfo[0][pos + srcHeight*picWidth] && srcPicBlockSameInfo[0][pos + srcHeight*picWidth + quadWidth] && srcPicBlockSameInfo[0][pos + srcHeight*picWidth + srcWidth];
+
+      dstPicBlockSameInfo[1][pos] = srcPicBlockSameInfo[1][pos] && srcPicBlockSameInfo[1][pos + srcWidth] && srcPicBlockSameInfo[1][pos + quadHeight*picWidth]
+        && srcPicBlockSameInfo[1][pos + quadHeight*picWidth + srcWidth] && srcPicBlockSameInfo[1][pos + srcHeight*picWidth] && srcPicBlockSameInfo[1][pos + srcHeight*picWidth + srcWidth];
+
+      pos++;
+    }
+    pos += width - 1;
+  }
+
+  if (width >= 8)
+  {
+    Int widthMinus1 = width - 1;
+    Int heightMinus1 = height - 1;
+    pos = 0;
+
+    for (Int yPos = 0; yPos < yEnd; yPos++)
+    {
+      for (Int xPos = 0; xPos < xEnd; xPos++)
+      {
+        dstPicBlockSameInfo[2][pos] = (!dstPicBlockSameInfo[0][pos] && !dstPicBlockSameInfo[1][pos]) || (((xPos & widthMinus1) == 0) && ((yPos & heightMinus1) == 0));
+        pos++;
+      }
+      pos += width - 1;
+    }
+  }
+
+  delete[] p;
+
+}
+
+Void TComHash::addToHashMapByRowWithPrecalData( UInt* picHash[2], Bool* picIsSame, Int picWidth, Int picHeight, Int width, Int height, const BitDepths& bitDepths)
+{
+  Int xEnd = picWidth - width + 1;
+  Int yEnd = picHeight - height + 1;
+
+  Bool* srcIsAdded = picIsSame;
+  UInt* srcHash[2] = { picHash[0], picHash[1] };
+
+  Int addValue = m_blockSizeToIndex[width][height];
+  assert(addValue >= 0);
+  addValue <<= m_CRCBits;
+  Int crcMask = 1 << m_CRCBits;
+  crcMask -= 1;
+
+  for (Int xPos = 0; xPos < xEnd; xPos++)
+  {
+    for (Int yPos = 0; yPos < yEnd; yPos++)
+    {
+      Int pos = yPos*picWidth + xPos;
+      //valid data
+      if (srcIsAdded[pos])
+      {
+        BlockHash blockHash;
+        blockHash.x = xPos;
+        blockHash.y = yPos;
+
+        UInt      hashValue1 = (srcHash[0][pos] & crcMask) + addValue;
+        blockHash.hashValue2 = srcHash[1][pos];
+
+        addToTable(hashValue1, blockHash);
+      }
+    }
+  }
+}
+
+Void TComHash::getPixelsIn1DCharArrayByBlock2x2( const TComPicYuv* const pPicYuv, UChar* pPixelsIn1D, Int xStart, Int yStart, const BitDepths& bitDepths, Bool includeAllComponent)
+{
+  if ( pPicYuv->getChromaFormat() != CHROMA_444 )
+  {
+    includeAllComponent = false;
+  }
+
+  if ( bitDepths.recon[CHANNEL_TYPE_LUMA] == 8 && bitDepths.recon[CHANNEL_TYPE_CHROMA] == 8 )
+  {
+    Pel* pPel[3];
+    Int stride[3];
+    for ( Int id=0; id<3; id++ )
+    {
+      ComponentID compID = ComponentID( id );
+      stride[id] = pPicYuv->getStride( compID );
+      pPel[id] = const_cast<Pel*>( pPicYuv->getAddr( compID ) );
+      pPel[id] += (yStart >> pPicYuv->getComponentScaleX( compID )) * stride[id] + (xStart >> pPicYuv->getComponentScaleX( compID ));
+    }
+
+    Int index = 0;
+    for (Int i = 0; i < 2; i++)
+    {
+      for (Int j = 0; j < 2; j++)
+      {
+        pPixelsIn1D[index++] = static_cast<UChar>(pPel[0][j]);
+        if (includeAllComponent)
+        {
+          pPixelsIn1D[index++] = static_cast<UChar>(pPel[1][j]);
+          pPixelsIn1D[index++] = static_cast<UChar>(pPel[2][j]);
+        }
+      }
+      pPel[0] += stride[0];
+      if (includeAllComponent)
+      {
+        pPel[1] += stride[1];
+        pPel[2] += stride[2];
+      }
+    }
+  }
+  else
+  {
+    Int shift = bitDepths.recon[CHANNEL_TYPE_LUMA] - 8;
+    Int shiftc = bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8;
+    Pel* pPel[3];
+    Int stride[3];
+    for ( Int id=0; id<3; id++ )
+    {
+      ComponentID compID = ComponentID( id );
+      stride[id] = pPicYuv->getStride( compID );
+      pPel[id] = const_cast<Pel*>( pPicYuv->getAddr( compID ) );
+      pPel[id] += (yStart >> pPicYuv->getComponentScaleX( compID )) * stride[id] + (xStart >> pPicYuv->getComponentScaleX( compID ));
+    }
+
+    Int index = 0;
+    for (Int i = 0; i < 2; i++)
+    {
+      for (Int j = 0; j < 2; j++)
+      {
+        pPixelsIn1D[index++] = static_cast<UChar>(pPel[0][j] >> shift);
+        if (includeAllComponent)
+        {
+          pPixelsIn1D[index++] = static_cast<UChar>(pPel[1][j] >> shiftc);
+          pPixelsIn1D[index++] = static_cast<UChar>(pPel[2][j] >> shiftc);
+        }
+      }
+      pPel[0] += stride[0];
+      if (includeAllComponent)
+      {
+        pPel[1] += stride[1];
+        pPel[2] += stride[2];
+      }
+    }
+  }
+}
+
+Bool TComHash::isBlock2x2RowSameValue( UChar* p, Bool includeAllComponent )
+{
+  if ( includeAllComponent )
+  {
+    if ( p[0] != p[3] || p[6] != p[9] )
+    {
+      return false;
+    }
+    if ( p[1] != p[4] || p[7] != p[10] )
+    {
+      return false;
+    }
+    if ( p[2] != p[5] || p[8] != p[11] )
+    {
+      return false;
+    }
+  }
+  else
+  {
+    if ( p[0] != p[1] || p[2] != p[3] )
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+Bool TComHash::isBlock2x2ColSameValue( UChar* p, Bool includeAllComponent )
+{
+  if ( includeAllComponent )
+  {
+    if ( p[0] != p[6] || p[3] != p[9] )
+    {
+      return false;
+    }
+    if ( p[1] != p[7] || p[4] != p[10] )
+    {
+      return false;
+    }
+    if ( p[2] != p[8] || p[5] != p[11] )
+    {
+      return false;
+    }
+  }
+  else
+  {
+    if ( (p[0] != p[2]) || (p[1] != p[3]) )
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+#else
 Void TComHash::addToHashMapByRow( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, Int width, Int height, const BitDepths& bitDepths )
 {
   Int xStart = 0;
@@ -388,6 +655,7 @@ Void TComHash::getPixelsIn1DCharArrayByRow( const TComPicYuv* const pPicYuv, UCh
     }
   }
 }
+#endif
 
 Bool TComHash::isHorizontalPerfect( TComPicYuv* pPicYuv, Int width, Int height, Int xStart, Int yStart, Bool includeAllComponent )
 {
@@ -455,7 +723,98 @@ Bool TComHash::getBlockHashValue( const TComPicYuv* const pPicYuv, Int width, In
   addValue <<= m_CRCBits;
   Int crcMask = 1<<m_CRCBits;
   crcMask -= 1;
+#if SCM_W0078_HASH_BOTTOM_UP//calculate block hash in a bottom-up way
+  Int length = 4;
+  Bool bIncludeChroma = false;
+  if (pPicYuv->getChromaFormat() == CHROMA_444)
+  {
+    length *= 3;
+    bIncludeChroma = true;
+  }
 
+  UChar* p = new UChar[length];
+  UInt* toHash = new UInt[4];
+
+  Int block2x2Num = (width*height) >> 2;
+
+  UInt* hashValueBuffer[2][2];
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      hashValueBuffer[i][j] = new UInt[block2x2Num];
+    }
+  }
+
+  //2x2 subblock hash values in current CU
+  Int subBlockInWidth = (width >> 1);
+  for (Int yPos = 0; yPos < height; yPos += 2)
+  {
+    for (Int xPos = 0; xPos < width; xPos += 2)
+    {
+      Int pos = (yPos >> 1)*subBlockInWidth + (xPos >> 1);
+      TComHash::getPixelsIn1DCharArrayByBlock2x2(pPicYuv, p, xStart + xPos, yStart + yPos, bitDepths, bIncludeChroma);
+
+      hashValueBuffer[0][0][pos] = TComHash::getCRCValue1(p, length * sizeof(UChar));
+      hashValueBuffer[1][0][pos] = TComHash::getCRCValue2(p, length * sizeof(UChar));
+    }
+  }
+
+  Int srcSubBlockInWidth = subBlockInWidth;
+  subBlockInWidth >>= 1;
+  length = 4 * sizeof(UInt);
+
+  Int srcIdx = 1;
+  Int dstIdx = 0;
+
+  //4x4 subblock hash values to current block hash values
+  for (Int subWidth = 4; subWidth <= width; subWidth *= 2)
+  {
+    Int srcBlockWidth = subWidth >> 1;
+    srcIdx = 1 - srcIdx;
+    dstIdx = 1 - dstIdx;
+
+    Int dstPos = 0;
+    for (Int yPos = 0; yPos < subBlockInWidth; yPos++)
+    {
+      for (Int xPos = 0; xPos < subBlockInWidth; xPos++)
+      {
+        Int srcPos = (yPos << 1)*srcSubBlockInWidth + (xPos << 1);
+
+        toHash[0] = hashValueBuffer[0][srcIdx][srcPos];
+        toHash[1] = hashValueBuffer[0][srcIdx][srcPos + 1];
+        toHash[2] = hashValueBuffer[0][srcIdx][srcPos + srcSubBlockInWidth];
+        toHash[3] = hashValueBuffer[0][srcIdx][srcPos + srcSubBlockInWidth + 1];
+
+        hashValueBuffer[0][dstIdx][dstPos] = TComHash::getCRCValue1((UChar*)toHash, length);
+
+        toHash[0] = hashValueBuffer[1][srcIdx][srcPos];
+        toHash[1] = hashValueBuffer[1][srcIdx][srcPos + 1];
+        toHash[2] = hashValueBuffer[1][srcIdx][srcPos + srcSubBlockInWidth];
+        toHash[3] = hashValueBuffer[1][srcIdx][srcPos + srcSubBlockInWidth + 1];
+        hashValueBuffer[1][dstIdx][dstPos] = TComHash::getCRCValue2((UChar*)toHash, length);
+
+        dstPos++;
+      }
+    }
+
+    srcSubBlockInWidth = subBlockInWidth;
+    subBlockInWidth >>= 1;
+  }
+
+  hashValue1 = (hashValueBuffer[0][dstIdx][0] & crcMask) + addValue;
+  hashValue2 = hashValueBuffer[1][dstIdx][0];
+
+  delete[] toHash;
+
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      delete[] hashValueBuffer[i][j];
+    }
+  }
+#else
   Int length = width; 
   Bool bIncludeChroma = false;
   if ( pPicYuv->getChromaFormat() == CHROMA_444 )
@@ -479,6 +838,7 @@ Bool TComHash::getBlockHashValue( const TComPicYuv* const pPicYuv, Int width, In
 
   delete[] toHash3;
   delete[] toHash4;
+#endif
   delete[] p;
 
   return true;
@@ -514,6 +874,7 @@ UInt TComHash::getCRCValue2( UChar* p, Int length )
   return m_crcCalculator2.getCRC();
 }
 
+#if !SCM_W0078_HASH_BOTTOM_UP
 UShort TComHash::getCRCValue3( UChar* p, Int length )
 {
   m_crcCalculator3.reset();
@@ -527,6 +888,7 @@ UShort TComHash::getCRCValue4( UChar* p, Int length )
   m_crcCalculator4.processData( p, length );
   return m_crcCalculator4.getCRC();
 }
+#endif
 
 
 

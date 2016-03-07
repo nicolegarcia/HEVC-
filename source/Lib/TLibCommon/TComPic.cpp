@@ -211,12 +211,58 @@ Void TComPic::addPictureToHashMapForInter()
 {
   Int picWidth = getSlice( 0 )->getSPS()->getPicWidthInLumaSamples();
   Int picHeight = getSlice( 0 )->getSPS()->getPicHeightInLumaSamples();
+#if SCM_W0078_HASH_BOTTOM_UP // add hash values to hash table
+  UInt* uiBlockHashValues[2][2];
+  Bool* bIsBlockSame[2][3];
 
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      uiBlockHashValues[i][j] = new UInt[picWidth*picHeight];
+    }
+
+    for (Int j = 0; j < 3; j++)
+    {
+      bIsBlockSame[i][j] = new Bool[picWidth*picHeight];
+    }
+  }
+
+  m_hashMap.create();
+  m_hashMap.generateBlock2x2HashValue(getPicYuvOrg(), picWidth, picHeight, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], bIsBlockSame[0]);//2x2
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 4, 4, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], uiBlockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//4x4
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 8, 8, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[1], uiBlockHashValues[0], bIsBlockSame[1], bIsBlockSame[0]);//8x8
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[0], bIsBlockSame[0][2], picWidth, picHeight, 8, 8, getSlice(0)->getSPS()->getBitDepths());
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 16, 16, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], uiBlockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//16x16
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[1], bIsBlockSame[1][2], picWidth, picHeight, 16, 16, getSlice(0)->getSPS()->getBitDepths());
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 32, 32, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[1], uiBlockHashValues[0], bIsBlockSame[1], bIsBlockSame[0]);//32x32
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[0], bIsBlockSame[0][2], picWidth, picHeight, 32, 32, getSlice(0)->getSPS()->getBitDepths());
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 64, 64, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], uiBlockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//64x64
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[1], bIsBlockSame[1][2], picWidth, picHeight, 64, 64, getSlice(0)->getSPS()->getBitDepths());
+
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      delete[] uiBlockHashValues[i][j];
+    }
+
+    for (Int j = 0; j<3; j++)
+    {
+      delete[] bIsBlockSame[i][j];
+    }
+  }
+#else
   m_hashMap.create();
   m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 8, 8, getSlice( 0 )->getSPS()->getBitDepths() );
   m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 16, 16, getSlice( 0 )->getSPS()->getBitDepths() );
   m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 32, 32, getSlice( 0 )->getSPS()->getBitDepths() );
   m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 64, 64, getSlice( 0 )->getSPS()->getBitDepths() );
+#endif
 }
 
 //! \}
