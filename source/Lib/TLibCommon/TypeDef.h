@@ -182,6 +182,7 @@
 #define SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     0 ///< JCTVC-U0181: storage of both versions of the current decoded picture into the DPB, treating pictures with in-loop filtering on/off differently, and increase the value of maxDpbPicBuf equal to 7 for profiles supporting IBC
 #define SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     0 ///< JCTVC-V0057: DPB considerations when current picture is a reference picture
 #define SCM_W0078_HASH_BOTTOM_UP                         1 ///< JCTVC-W0078: bottom up hash value calculation
+#define SCM_FIX_PARSING_ORDER_TICKET_1422                1 ///< Bug fix for Ticket#1422 : parsing order mismatch between spec and software.
 
 //------------------------------------------------
 // Derived macros
@@ -654,7 +655,11 @@ enum SPSExtensionFlagIndex
   SPS_EXT__REXT           = 0,
 //SPS_EXT__MVHEVC         = 1, //for use in future versions
 //SPS_EXT__SHVC           = 2, //for use in future versions
+#if SCM_FIX_PARSING_ORDER_TICKET_1422
+  SPS_EXT__SCC            = 3, // place holder
+#else
   SPS_EXT__SCC            = 6, // place holder
+#endif 
   NUM_SPS_EXTENSION_FLAGS = 8
 };
 
@@ -663,7 +668,11 @@ enum PPSExtensionFlagIndex
   PPS_EXT__REXT           = 0,
 //PPS_EXT__MVHEVC         = 1, //for use in future versions
 //PPS_EXT__SHVC           = 2, //for use in future versions
+#if SCM_FIX_PARSING_ORDER_TICKET_1422
+  PPS_EXT__SCC            = 3, 
+#else
   PPS_EXT__SCC            = 6, // place holder
+#endif 
   NUM_PPS_EXTENSION_FLAGS = 8
 };
 
