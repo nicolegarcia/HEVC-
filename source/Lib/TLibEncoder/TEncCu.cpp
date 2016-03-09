@@ -1081,6 +1081,10 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
               testedModes[uiIterNumber]=xCheckPLTMode( rpcBestCU, rpcTempCU, false, uiIterNumber, pltSize);
               rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
 
+#if SCM_W0075_PLT_LOSSLESS_SPEEDUP
+              if( !bIsLosslessMode )
+              {
+#endif
               if (pltSize[0]>2 && testedModes[0]>0)
               {
                 uiIterNumber = 2;
@@ -1101,6 +1105,9 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
                 testedModes[uiIterNumber]=xCheckPLTMode( rpcBestCU, rpcTempCU, true, uiIterNumber, pltSize+1);
                 rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
               }
+#if SCM_W0075_PLT_LOSSLESS_SPEEDUP
+              }
+#endif
             }
           }
         }

@@ -921,6 +921,31 @@ Void TComPrediction::preCalcPLTIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* p
       uiPLTIdx = 0;
       while (uiPLTIdx < uiPLTSize)
       {
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+        if( bLossless )
+        {
+          if( Palette[0][uiPLTIdx] != pSrc[0][uiPos] )
+          {
+            indError[uiPLTIdx] = uiAbsError = MAX_UINT;
+          }
+          else
+          {
+            uiAbsError  = abs(Palette[1][uiPLTIdx] - pSrc[1][uiPosC]);
+            uiAbsError += abs(Palette[2][uiPLTIdx] - pSrc[2][uiPosC]);
+            if (uiAbsError && !discardChroma)
+            {
+              indError[uiPLTIdx] = uiAbsError = MAX_UINT;
+            }
+            else
+            {
+              uiAbsError = std::min(1U, uiAbsError);
+              indError[uiPLTIdx] = 0;
+            }
+          }
+        }
+        else
+#endif
+        {
         iTemp = Palette[1][uiPLTIdx] - pSrc[1][uiPosC];
         uiAbsError = iTemp * iTemp;
         iTemp = Palette[2][uiPLTIdx] - pSrc[2][uiPosC];
@@ -929,6 +954,7 @@ Void TComPrediction::preCalcPLTIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* p
         iTemp = Palette[0][uiPLTIdx] - pSrc[0][uiPos];
         uiAbsError += (iTemp * iTemp) >> distAdjY;
         indError[uiPLTIdx] = discardChroma ? (iTemp * iTemp) >> distAdjY : uiAbsError;
+        }
 
         if (uiAbsError < uiMinError)
         {
@@ -942,6 +968,10 @@ Void TComPrediction::preCalcPLTIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* p
 
       UInt errorTemp;
 
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+      if( discardChroma && bLossless && uiMinError != MAX_UINT ) 
+          uiMinError = 0;
+#endif
 
 
       if (uiMinError > iErrorLimit || calcErroBits)
@@ -1898,11 +1928,14 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
   const UInt maxPLTSizeSPS = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPLTMaxSize();
   uiPLTSize = 0;
 
+#if !SCM_W0075_PLT_LOSSLESS_SPEEDUP
   const Pel * const pPred[3] = { pcCU->getLastPLTInLcuFinal(0), pcCU->getLastPLTInLcuFinal(1), pcCU->getLastPLTInLcuFinal(2) };
+#endif
 
   UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
   UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
 
+#if !SCM_W0075_PLT_LOSSLESS_SPEEDUP
   if( forcePLTPrediction )
   {
     UInt pltPredIndexUsed[MAX_PLT_PRED_SIZE];
@@ -1964,6 +1997,7 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
       uiIdx++;
     }
   }
+#endif
 
   uiIdx = 0;
   for (UInt uiY = 0; uiY < uiHeight; uiY++)
@@ -1972,6 +2006,13 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
     {
       uiPos = uiY * uiWidth + uiX;
       UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+      Bool discardChroma = uiY&uiScaleY || uiX&uiScaleX;
+      Int  defIdx = -1, defSAD = MAX_INT;
+      Int  discIdx = -1, discSAD = MAX_INT;
+#endif
+
+#if !SCM_W0075_PLT_CHROMA_42X_LOSSLESS
       Int iBestIdx = -1;
 
       if( forcePLTPrediction )
@@ -1993,6 +2034,8 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
       {
         continue;
       }
+#endif
+
       Int i = 0;
       sElement.setAll(pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC]);
       for (i = uiIdx - 1; i >= 0; i--)
@@ -2000,13 +2043,49 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
         if( psList[i].uiData[0] == sElement.uiData[0] && psList[i].uiData[1] == sElement.uiData[1] && psList[i].uiData[2] == sElement.uiData[2] )
         {
           psList[i].uiCnt++;
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+          if( !discardChroma ) psList[i].uiLastCnt = 1;
+#endif
           break;
         }
+
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+        if( (uiScaleX||uiScaleY) && psList[i].uiData[0] == sElement.uiData[0] )
+        {
+          Int sad = abs(psList[i].uiData[1] - pSrc[1][uiPosC]) + abs(psList[i].uiData[2] - pSrc[2][uiPosC]);
+          if( !discardChroma && !psList[i].uiLastCnt && sad < discSAD )
+          {
+            discIdx = i;
+            discSAD = sad;
+          }
+          if( discardChroma && sad < defSAD )
+          {
+            defIdx = i;
+            defSAD = sad;
+          }
+        }
+#endif
       }
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+      if( discIdx >= 0 )
+      {
+        psList[discIdx].uiCnt++;
+        psList[discIdx].setAll(pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC]);
+        psList[discIdx].uiLastCnt = 1;
+      }
+      else if( i == -1 && defIdx >= 0 )
+      {
+        psList[defIdx].uiCnt++;
+      }
+      else
+#endif
       if (i == -1)
       {
         psList.push_back(sElement);
         psList[uiIdx].uiCnt++;
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+        psList[uiIdx].uiLastCnt = discardChroma ? 0 : 1;
+#endif
         uiIdx++;
       }
     }
@@ -2025,6 +2104,7 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
   {
     for (Int i = 0; i < uiIdx; i++)
     {
+#if !SCM_W0075_PLT_CHROMA_42X_LOSSLESS
       for (Int j = i - 1; j >= 0; j--)
       {
         if ( psList[j].uiCnt && psList[i].uiData[0] == psList[j].uiData[0]
@@ -2036,8 +2116,32 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
           break;
         }
       }
+#endif
 
       Bool includeIntoPLT = true;
+#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
+      if( (uiScaleX||uiScaleY) && psList[i].uiCnt > 0 && !psList[i].uiLastCnt ) // Find if it can be replaced
+      {
+        Int bestCand = -1;
+        for( UInt uiIdxPrev = 0; uiIdxPrev < uiPLTSizePrev; uiIdxPrev++ )
+        {
+          if( psList[i].uiData[0] == pPalettePrev[0][uiIdxPrev] )
+          {
+            bestCand = uiIdxPrev;
+            break;
+          }
+        }
+
+        if( bestCand != -1 )
+        {
+          psList[i].uiData[1] = pPalettePrev[1][bestCand];
+          psList[i].uiData[2] = pPalettePrev[2][bestCand];
+        }
+        else if( psList[i].uiCnt < 3 )
+          includeIntoPLT = false;
+      }
+      else
+#endif
       if( psList[i].uiCnt == 1 )
       {
         includeIntoPLT = false;
