@@ -179,13 +179,13 @@
 // Processing controls
 //------------------------------------------------
 
-#define SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     0 ///< JCTVC-U0181: storage of both versions of the current decoded picture into the DPB, treating pictures with in-loop filtering on/off differently, and increase the value of maxDpbPicBuf equal to 7 for profiles supporting IBC
-#define SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     0 ///< JCTVC-V0057: DPB considerations when current picture is a reference picture
+#define SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-U0181: storage of both versions of the current decoded picture into the DPB, treating pictures with in-loop filtering on/off differently, and increase the value of maxDpbPicBuf equal to 7 for profiles supporting IBC
+#define SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-V0057: DPB considerations when current picture is a reference picture
+#define SCM_W0077_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-W0077: DPB update process when current picture is a reference picture
 #define SCM_W0075_PLT_LOSSLESS_SPEEDUP                   1 ///< JCTVC-W0075: don't perform multi-pass palette encoding in lossless
 #define SCM_W0075_PLT_CHROMA_42X_LOSSLESS                1 ///< JCTVC-W0075: take into account chroma discarding in palette lossless encoding
 #define SCM_W0078_HASH_BOTTOM_UP                         1 ///< JCTVC-W0078: bottom up hash value calculation
 #define SCM_FIX_PARSING_ORDER_TICKET_1422                1 ///< Bug fix for Ticket#1422 : parsing order mismatch between spec and software.
-
 //------------------------------------------------
 // Derived macros
 //------------------------------------------------
@@ -198,6 +198,17 @@
 #define SCM_V0034_PLT_CHROMA_SHIFT_ADJ                    5 ///< Chroma error weight as a right shift
 #define SCM_V0034_PLT_CHROMA_SETTINGS     (1<<SCM_V0034_PLT_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
 
+
+#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+#define SCM_U0181_FIX                                     1
+#endif
+#if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+#define SCM_V0057_FIX                                     1
+#endif
+
+#if !SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC && ( SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC || SCM_W0077_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC )
+#error
+#endif
 
 //------------------------------------------------
 // Backwards-compatibility

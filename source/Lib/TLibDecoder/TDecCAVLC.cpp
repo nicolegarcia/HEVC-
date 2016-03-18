@@ -1182,8 +1182,15 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
 
     READ_UVLC (    uiCode, "slice_type" );            pcSlice->setSliceType((SliceType)uiCode);
 #if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+#if SCM_V0057_FIX
+    if ( sps->getMaxDecPicBuffering( pcSlice->getTLayer() ) == 1 )
+    {
+      assert( bTwoVersionsOfCurrDecPicFlag == 0 );
+    }
+#else
     if (sps->getMaxDecPicBuffering(pcSlice->getTLayer()) == 1 && bTwoVersionsOfCurrDecPicFlag)
       assert((SliceType)uiCode == I_SLICE);
+#endif
 #endif
 
     if( pps->getOutputFlagPresentFlag() )

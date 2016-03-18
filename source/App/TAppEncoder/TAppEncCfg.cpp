@@ -2183,16 +2183,24 @@ Void TAppEncCfg::xCheckParameter()
   for(Int i=0; i<MAX_TLAYER; i++)
   {
     m_numReorderPics[i] = 0;
+#if SCM_U0181_FIX
+    m_maxDecPicBuffering[i] = 1 + m_useIntraBlockCopy;
+#else
     m_maxDecPicBuffering[i] = 1;
+#endif
   }
   for(Int i=0; i<m_iGOPSize; i++)
   {
     if(m_GOPList[i].m_numRefPics+1 > m_maxDecPicBuffering[m_GOPList[i].m_temporalId])
     {
+#if SCM_U0181_FIX
+      m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1 + m_useIntraBlockCopy;
+#else
       m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
+#endif
     }
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC && !SCM_U0181_FIX
     UInt highestTId = 0;
     UInt MaxDpbSize = 0;
 
