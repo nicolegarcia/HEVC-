@@ -113,6 +113,17 @@ private:
   Bool                    m_warningMessageSkipPicture;
 
   std::list<InputNALUnit*> m_prefixSEINALUs; /// Buffered up prefix SEI NAL Units.
+
+#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+#if !SCM_U0181_FIX
+  UInt                    m_DPBFullness;
+#endif
+  TComPic*                m_pcPicBeforeILF;
+  TComPic*                m_pcPicAfterILF;
+  Bool                    m_pcTwoVersionsOfCurrDecPicFlag;
+  Bool                    m_bIBC;
+#endif
+
 public:
   TDecTop();
   virtual ~TDecTop();
@@ -141,6 +152,22 @@ public:
   Void  setDecodedSEIMessageOutputStream(std::ostream *pOpStream) { m_pDecodedSEIOutputStream = pOpStream; }
   UInt  getNumberOfChecksumErrorsDetected() const { return m_cGopDecoder.getNumberOfChecksumErrorsDetected(); }
 
+#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+  Bool  getTwoVersionsOfCurrDecPicFlag() { return m_pcTwoVersionsOfCurrDecPicFlag; }
+#if !SCM_U0181_FIX
+  UInt  getDPBFullness() { return m_DPBFullness; }
+  Void  setDPBFullness(UInt val) { m_DPBFullness = val; }
+#endif
+  Void  remCurPicBefILFFromDPBDecDPBFullnessByOne(TComList<TComPic*>* pcListPic);
+  Void  markCurrentPictureAfterILFforShortTermRef(TComList<TComPic*>* pcListPic);
+#if !SCM_U0181_FIX
+  Void  DPBFullnessIncrementedByOne() { m_DPBFullness++; }
+  Void  DPBFullnessDecrementedByOne() { m_DPBFullness--; }
+#endif
+  Bool  isCurrPicAsRef() {return m_bIBC;}
+  Void  updateCurrentPictureFlag(TComList<TComPic*>* pcListPic);
+#endif
+
 protected:
   Void  xGetNewPicBuffer  (const TComSPS &sps, const TComPPS &pps, TComPic*& rpcPic, const UInt temporalLayer);
   Void  xCreateLostPicture (Int iLostPOC);
@@ -154,6 +181,13 @@ protected:
   Void      xParsePrefixSEImessages();
   Void      xParsePrefixSEIsForUnknownVCLNal();
 
+#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+#if !SCM_U0181_FIX
+    Void    xRemovalOfPicturesFromDPBAndDecreaseDPBFullness(const TComSPS &sps);
+    Void    xGetNewPicBufferInDPB  (const TComSPS &sps, const TComPPS &pps, TComPic*& rpcPic, const UInt temporalLayer);
+#endif
+    Void    xSwapPicPoiterExeptTComPicYuvRefType(TComPic** picA, TComPic** picB);
+#endif
 };// END CLASS DEFINITION TDecTop
 
 
