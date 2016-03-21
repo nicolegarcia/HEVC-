@@ -67,8 +67,8 @@ private:
 
   // pictures
   TComList<TComPic*>*     m_pcListPic;                          ///< list of pictures
-  TComPicYuv              m_picYuvPred;                         ///< prediction picture buffer
-  TComPicYuv              m_picYuvResi;                         ///< residual picture buffer
+  TComPicYuv*             m_apcPicYuvPred;                      ///< prediction picture buffer
+  TComPicYuv*             m_apcPicYuvResi;                      ///< residual picture buffer
 
   // processing units
   TEncGOP*                m_pcGOPEncoder;                       ///< GOP encoder
@@ -90,14 +90,17 @@ private:
   UInt64                  m_uiPicTotalBits;                     ///< total bits for the picture
   UInt64                  m_uiPicDist;                          ///< total distortion for the picture
   Double                  m_dPicRdCost;                         ///< picture-level RD cost
-  std::vector<Double>     m_vdRdPicLambda;                      ///< array of lambda candidates
-  std::vector<Double>     m_vdRdPicQp;                          ///< array of picture QP candidates (double-type for lambda)
-  std::vector<Int>        m_viRdPicQp;                          ///< array of picture QP candidates (Int-type)
+  Double*                 m_pdRdPicLambda;                      ///< array of lambda candidates
+  Double*                 m_pdRdPicQp;                          ///< array of picture QP candidates (double-type for lambda)
+  Int*                    m_piRdPicQp;                          ///< array of picture QP candidates (Int-type)
   TEncRateCtrl*           m_pcRateCtrl;                         ///< Rate control manager
   UInt                    m_uiSliceIdx;
   TEncSbac                m_lastSliceSegmentEndContextState;    ///< context storage for state at the end of the previous slice-segment (used for dependent slices only).
   TEncSbac                m_entropyCodingSyncContextState;      ///< context storate for state of contexts at the wavefront/WPP/entropy-coding-sync second CTU of tile-row
+  PaletteInfoBuffer       m_lastSliceSegmentEndPaletteState;
+  PaletteInfoBuffer       m_entropyCodingSyncPaletteState;
   SliceType               m_encCABACTableIdx;
+  Int                     m_numIDRs, m_numFrames;
 
   Void     setUpLambda(TComSlice* slice, const Double dLambda, Int iQP);
   Void     calculateBoundingCtuTsAddrForSlice(UInt &startCtuTSAddrSlice, UInt &boundingCtuTSAddrSlice, Bool &haveReachedTileBoundary, TComPic* pcPic, const Int sliceMode, const Int sliceArgument);
@@ -129,9 +132,13 @@ public:
   Void    setSliceIdx(UInt i)   { m_uiSliceIdx = i;                       }
 
   SliceType getEncCABACTableIdx() const           { return m_encCABACTableIdx;        }
+  Void      setEncCABACTableIdx( SliceType idx )  { m_encCABACTableIdx = idx;         }
 
 private:
   Double  xGetQPValueAccordingToLambda ( Double lambda );
+  Void    xSetPredFromPPS(Pel lastPLT[MAX_NUM_COMPONENT][MAX_PLT_PRED_SIZE], UChar lastPLTSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
+  Void    xSetPredFromSPS(Pel lastPLT[MAX_NUM_COMPONENT][MAX_PLT_PRED_SIZE], UChar lastPLTSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
+  Void    xSetPredDefault(Pel lastPLT[MAX_NUM_COMPONENT][MAX_PLT_PRED_SIZE], UChar lastPLTSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
 };
 
 //! \}
