@@ -399,6 +399,65 @@ Void TDecCavlc::parsePPS(TComPPS* pcPPS)
               ppsRangeExtension.setLog2SaoOffsetScale(CHANNEL_TYPE_CHROMA, uiCode);
             }
             break;
+          case PPS_EXT__SCC:
+            {
+              TComPPSSCC &ppsScreenExtension = pcPPS->getPpsScreenExtension();
+              READ_FLAG( uiCode, "curr_pic_as_ref_enabled_pps_flag" );
+              pcPPS->getPpsScreenExtension().setUseIntraBlockCopy( uiCode != 0 );
+              READ_FLAG( uiCode, "adaptive_colour_trans_flag" );           ppsScreenExtension.setUseColourTrans( uiCode != 0 );
+              if ( ppsScreenExtension.getUseColourTrans() )
+              {
+                READ_FLAG( uiCode, "pps_slice_act_qp_offset_present_flag" ); ppsScreenExtension.setUseSliceACTOffset( uiCode != 0 );
+
+                Int actQpOffset;
+                READ_SVLC( actQpOffset, "pps_act_y_qp_offset_plus5" );  ppsScreenExtension.setActQpOffset( COMPONENT_Y, actQpOffset - 5 );
+                READ_SVLC( actQpOffset, "pps_act_cb_qp_offset_plus5" ); ppsScreenExtension.setActQpOffset( COMPONENT_Cb, actQpOffset - 5 );
+                READ_SVLC( actQpOffset, "pps_act_cr_qp_offset_plus3" ); ppsScreenExtension.setActQpOffset( COMPONENT_Cr, actQpOffset - 3 );
+              }
+              else
+              {
+                ppsScreenExtension.setUseSliceACTOffset( false );
+                ppsScreenExtension.setActQpOffset( COMPONENT_Y, -5 );
+                ppsScreenExtension.setActQpOffset( COMPONENT_Cb, -5 );
+                ppsScreenExtension.setActQpOffset( COMPONENT_Cr, -3 );
+              }
+              READ_FLAG( uiCode, "palette_predictor_initializer_flag" );
+              ppsScreenExtension.setUsePalettePredictor(uiCode);
+              if ( uiCode )
+              {
+                READ_UVLC( uiCode, "pps_num_palette_entries" );  
+                ppsScreenExtension.setNumPLTPred( uiCode );
+                if( uiCode )
+                {
+                READ_FLAG( uiCode, "monochrome_palette_flag" );
+                ppsScreenExtension.setMonochromePaletteFlag( uiCode != 0 );
+                READ_UVLC( uiCode, "luma_bit_depth_entry_minus8" );
+                ppsScreenExtension.setPalettePredictorBitDepth( CHANNEL_TYPE_LUMA, uiCode+8 );
+                if ( !ppsScreenExtension.getMonochromePaletteFlag() )
+                {
+                  READ_UVLC( uiCode, "chroma_bit_depth_entry_minus8" );
+                  ppsScreenExtension.setPalettePredictorBitDepth( CHANNEL_TYPE_CHROMA, uiCode + 8 );
+                }
+                for ( Int k=0; k < (ppsScreenExtension.getMonochromePaletteFlag() ? 1 : 3); k++ )
+                {
+                  for ( Int j=0; j<ppsScreenExtension.getNumPLTPred(); j++ )
+                  {
+  #if RExt__DECODER_DEBUG_BIT_STATISTICS
+                    xReadCode( ppsScreenExtension.getPalettePredictorBitDepth( toChannelType( ComponentID( k ) ) ), uiCode, "palette_predictor_initializers" );
+  #else
+                    xReadCode( ppsScreenExtension.getPalettePredictorBitDepth( toChannelType( ComponentID( k ) ) ), uiCode );
+  #endif
+                    ppsScreenExtension.getPLTPred( k )[j] = uiCode;
+                  }
+                }
+               }
+              }
+              else
+              {
+                ppsScreenExtension.setNumPLTPred( 0 );
+              }
+            }
+            break;
           default:
             bSkipTrailingExtensionBits=true;
             break;
@@ -818,6 +877,124 @@ Void TDecCavlc::parseSPS(TComSPS* pcSPS)
               READ_FLAG( uiCode, "cabac_bypass_alignment_enabled_flag");      spsRangeExtension.setCabacBypassAlignmentEnabledFlag  (uiCode != 0);
             }
             break;
+          case SPS_EXT__SCC:
+            {
+              TComSPSSCC &screenExtension = pcSPS->getSpsScreenExtension();
+              READ_FLAG( uiCode, "intra_block_copy_enabled_flag" );           screenExtension.setUseIntraBlockCopy( uiCode != 0 );
+              READ_FLAG( uiCode, "palette_mode_enabled_flag" );               screenExtension.setUsePLTMode( uiCode != 0 );
+
+#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+              UInt MaxDPBSize = 0;
+              if (!screenExtension.getUseIntraBlockCopy())
+              {
+                MaxDPBSize = 6;
+              }
+              else
+              {
+                MaxDPBSize = 7;
+              }
+
+              UInt uiPicSizeInSamplesY = pcSPS->getPicWidthInLumaSamples()*pcSPS->getPicHeightInLumaSamples(); 
+              UInt uiMaxLumaPs = 36864;
+              Level::Name lLevel = pcSPS->getPTL()->getGeneralPTL()->getLevelIdc();
+              UInt uiMaxDPBSize = MaxDPBSize; // from Annex A
+              switch (lLevel)
+              {
+                case Level::LEVEL1:
+                  uiMaxLumaPs = 36864;             break;
+                case Level::LEVEL2:
+                  uiMaxLumaPs = 122880;            break;
+                case Level::LEVEL2_1:
+                  uiMaxLumaPs = 245760;            break;
+                case Level::LEVEL3:
+                  uiMaxLumaPs = 552960;            break;
+                case Level::LEVEL3_1:
+                  uiMaxLumaPs = 983040;            break;
+                case Level::LEVEL4:
+                  uiMaxLumaPs = 2228224;           break;
+                case Level::LEVEL4_1:
+                  uiMaxLumaPs = 2228224;           break;
+                case Level::LEVEL5:
+                  uiMaxLumaPs = 8912896;           break;
+                case Level::LEVEL5_1:
+                  uiMaxLumaPs = 8912896;           break;
+                case Level::LEVEL5_2:
+                  uiMaxLumaPs = 8912896;           break;
+                case Level::LEVEL6:
+                  uiMaxLumaPs = 35651584;          break;
+                case Level::LEVEL6_1:
+                  uiMaxLumaPs = 35651584;          break;
+                case Level::LEVEL6_2:
+                  uiMaxLumaPs = 35651584;          break;
+                default:
+                  uiMaxLumaPs = 35651584;          break;
+              }
+              if ( uiPicSizeInSamplesY <= (uiMaxLumaPs >> 2) )
+              {
+                uiMaxDPBSize = (4 * MaxDPBSize < 16) ? 4 * MaxDPBSize : 16; // from Annex A
+              }
+              else if ( uiPicSizeInSamplesY <= (uiMaxLumaPs >> 1) )
+              {
+                uiMaxDPBSize = (2 * MaxDPBSize < 16) ? 2 * MaxDPBSize : 16;
+              }
+              else if ( uiPicSizeInSamplesY <= ((3 * uiMaxLumaPs) >> 2) )
+              {
+                uiMaxDPBSize = ((4 * MaxDPBSize) / 3 < 16) ? (4 * MaxDPBSize) / 3 : 16;
+              }
+              else
+              {
+                uiMaxDPBSize = MaxDPBSize;
+              }
+
+              for(UInt ij=0; ij <= pcSPS->getMaxTLayers()-1; ij++)
+              {
+                if (pcSPS->getMaxDecPicBuffering(ij) > uiMaxDPBSize)
+                {
+                  std::cerr <<"Bitstream compliance Error m_uiMaxDecPicBuffering[" << ij << "]" << pcSPS->getMaxDecPicBuffering(ij) << "shall not be bigger than MaxDPBSize -1 and smaller than 0" << std::endl;
+                  assert(false);
+                  exit(1);
+                }
+              }
+#endif
+
+              if ( screenExtension.getUsePLTMode() )//decode only when palette mode is enabled
+              {
+                READ_UVLC( uiCode, "palette_max_size" );                      screenExtension.setPLTMaxSize( uiCode );
+                READ_UVLC( uiCode, "delta_palette_max_predictor_size" );      screenExtension.setPLTMaxPredSize( uiCode+screenExtension.getPLTMaxSize() );
+                assert( screenExtension.getPLTMaxPredSize() <= 128 );
+                assert(screenExtension.getPLTMaxSize() != 0 || screenExtension.getPLTMaxPredSize() == 0);
+
+                READ_FLAG( uiCode, "sps_palette_predictor_initializer_flag" );
+                screenExtension.setUsePalettePredictor(uiCode);
+                assert(screenExtension.getPLTMaxSize() != 0 || screenExtension.getUsePalettePredictor() == false);
+                assert(screenExtension.getUsePLTMode() != 0 || screenExtension.getUsePalettePredictor() == false);
+
+                if( uiCode )
+                {
+                  READ_UVLC( uiCode, "sps_num_palette_entries_minus1" ); uiCode++;
+                  screenExtension.setNumPLTPred(uiCode);
+                  for ( Int k=0; k < (pcSPS->getChromaFormatIdc() == CHROMA_400 ? 1 : 3); k++ )
+                  {
+                    for ( Int j=0; j< screenExtension.getNumPLTPred(); j++ )
+                    {
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+                      xReadCode(  pcSPS->getBitDepth( toChannelType( ComponentID( k ) ) ), uiCode, "palette_predictor_initializers" );
+#else
+                      xReadCode(  pcSPS->getBitDepth( toChannelType( ComponentID( k ) ) ), uiCode );
+#endif
+                      screenExtension.getPLTPred( k )[j] = uiCode;
+                    }
+                  }
+                }
+                else
+                {
+                  screenExtension.setNumPLTPred(0);
+                }
+              }
+              READ_CODE( 2, uiCode, "motion_vector_resolution_control_idc" ); screenExtension.setMotionVectorResolutionControlIdc( uiCode );
+              READ_FLAG( uiCode, "intra_boundary_filter_disabled_flag" );     screenExtension.setDisableIntraBoundaryFilter( uiCode != 0 );
+            }
+            break;
           default:
             bSkipTrailingExtensionBits=true;
             break;
@@ -993,12 +1170,22 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
 
   if(!pcSlice->getDependentSliceSegmentFlag())
   {
+#if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+    Bool bTwoVersionsOfCurrDecPicFlag = ( pps->getPpsScreenExtension().getUseIntraBlockCopy() 
+      &&(sps->getUseSAO() || !pps->getPicDisableDeblockingFilterFlag() || pps->getDeblockingFilterOverrideEnabledFlag())
+      );
+#endif
     for (Int i = 0; i < pps->getNumExtraSliceHeaderBits(); i++)
     {
       READ_FLAG(uiCode, "slice_reserved_flag[]"); // ignored
     }
 
     READ_UVLC (    uiCode, "slice_type" );            pcSlice->setSliceType((SliceType)uiCode);
+#if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+    if (sps->getMaxDecPicBuffering(pcSlice->getTLayer()) == 1 && bTwoVersionsOfCurrDecPicFlag)
+      assert((SliceType)uiCode == I_SLICE);
+#endif
+
     if( pps->getOutputFlagPresentFlag() )
     {
       READ_FLAG( uiCode, "pic_output_flag" );    pcSlice->setPicOutputFlag( uiCode ? true : false );
@@ -1040,6 +1227,12 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
       {
         iPOCmsb = iPrevPOCmsb;
       }
+#if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+      TComReferencePictureSet* rps1 = pcSlice->getLocalRPS();
+      (*rps1)=TComReferencePictureSet();
+      assert(rps1->getNumberOfPictures() + bTwoVersionsOfCurrDecPicFlag <= sps->getMaxDecPicBuffering(sps->getMaxTLayers()-1)-1);
+#endif
+
       if ( pcSlice->getNalUnitType() == NAL_UNIT_CODED_SLICE_BLA_W_LP
         || pcSlice->getNalUnitType() == NAL_UNIT_CODED_SLICE_BLA_W_RADL
         || pcSlice->getNalUnitType() == NAL_UNIT_CODED_SLICE_BLA_N_LP )
@@ -1225,6 +1418,8 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
       }
     }
     // }
+    pcSlice->setSPS( sps );
+    pcSlice->setPPS( pps );
     TComRefPicListModification* refPicListModification = pcSlice->getRefPicListModification();
     if(!pcSlice->isIntra())
     {
@@ -1349,6 +1544,7 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
     }
     if ( (pps->getUseWP() && pcSlice->getSliceType()==P_SLICE) || (pps->getWPBiPred() && pcSlice->getSliceType()==B_SLICE) )
     {
+      pcSlice->setRefPOCListSliceHeader();
       xParsePredWeightTable(pcSlice, sps);
       pcSlice->initWpScaling(sps);
     }
@@ -1356,6 +1552,16 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
     {
       READ_UVLC( uiCode, "five_minus_max_num_merge_cand");
       pcSlice->setMaxNumMergeCand(MRG_MAX_NUM_CANDS - uiCode);
+
+      if ( sps->getSpsScreenExtension().getMotionVectorResolutionControlIdc() == 2 )
+      {
+        READ_FLAG( uiCode, "use_integer_mv_flag" );
+        pcSlice->setUseIntegerMv( uiCode != 0 );
+      }
+      else
+      {
+        pcSlice->setUseIntegerMv( sps->getSpsScreenExtension().getMotionVectorResolutionControlIdc() == 0 ? false : true );
+      }
     }
 
     READ_SVLC( iCode, "slice_qp_delta" );
@@ -1394,6 +1600,49 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
     else
     {
       pcSlice->setUseChromaQpAdj(false);
+    }
+
+    if( pps->getPpsScreenExtension().getUseSliceACTOffset () )
+    {
+      READ_SVLC(iCode, "slice_act_y_qp_offset"); pcSlice->setSliceActQpDelta(COMPONENT_Y, iCode);
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Y) >= -12 );
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Y) <=  12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Y) + pcSlice->getSliceActQpDelta(COMPONENT_Y)) >= -12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Y) + pcSlice->getSliceActQpDelta(COMPONENT_Y)) <=  12 );
+
+      READ_SVLC(iCode, "slice_act_cb_qp_offset"); pcSlice->setSliceActQpDelta(COMPONENT_Cb, iCode);
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cb) >= -12 );
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cb) <=  12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cb) + pcSlice->getSliceActQpDelta(COMPONENT_Cb)) >= -12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cb) + pcSlice->getSliceActQpDelta(COMPONENT_Cb)) <=  12 );
+
+      READ_SVLC(iCode, "slice_act_cr_qp_offset"); pcSlice->setSliceActQpDelta(COMPONENT_Cr, iCode);
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cr) >= -12 );
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cr) <=  12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cr) + pcSlice->getSliceActQpDelta(COMPONENT_Cr)) >= -12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cr) + pcSlice->getSliceActQpDelta(COMPONENT_Cr)) <=  12 );
+    }
+    else
+    {
+      iCode = 0;
+      
+      pcSlice->setSliceActQpDelta(COMPONENT_Y, iCode);
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Y) >= -12 );
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Y) <=  12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Y) + pcSlice->getSliceActQpDelta(COMPONENT_Y)) >= -12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Y) + pcSlice->getSliceActQpDelta(COMPONENT_Y)) <=  12 );
+
+      pcSlice->setSliceActQpDelta(COMPONENT_Cb, iCode);
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cb) >= -12 );
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cb) <=  12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cb) + pcSlice->getSliceActQpDelta(COMPONENT_Cb)) >= -12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cb) + pcSlice->getSliceActQpDelta(COMPONENT_Cb)) <=  12 );
+
+      pcSlice->setSliceActQpDelta(COMPONENT_Cr, iCode);
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cr) >= -12 );
+      assert( pcSlice->getSliceActQpDelta(COMPONENT_Cr) <=  12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cr) + pcSlice->getSliceActQpDelta(COMPONENT_Cr)) >= -12 );
+      assert( (pps->getPpsScreenExtension().getActQpOffset(COMPONENT_Cr) + pcSlice->getSliceActQpDelta(COMPONENT_Cr)) <=  12 );
     }
 
     if (pps->getDeblockingFilterControlPresentFlag())
@@ -1583,7 +1832,8 @@ Void TDecCavlc::parseProfileTier(ProfileTierLevel *ptl, const Bool /*bIsSubLayer
   READ_FLAG(uiCode,       PTL_TRACE_TEXT("frame_only_constraint_flag"      )); ptl->setFrameOnlyConstraintFlag(uiCode ? true : false);
 
   if (ptl->getProfileIdc() == Profile::MAINREXT           || ptl->getProfileCompatibilityFlag(Profile::MAINREXT) ||
-      ptl->getProfileIdc() == Profile::HIGHTHROUGHPUTREXT || ptl->getProfileCompatibilityFlag(Profile::HIGHTHROUGHPUTREXT))
+      ptl->getProfileIdc() == Profile::HIGHTHROUGHPUTREXT || ptl->getProfileCompatibilityFlag(Profile::HIGHTHROUGHPUTREXT) ||
+      ptl->getProfileIdc() == Profile::MAINSCC            || ptl->getProfileCompatibilityFlag(Profile::MAINSCC))
   {
     UInt maxBitDepth=16;
     READ_FLAG(    uiCode, PTL_TRACE_TEXT("max_12bit_constraint_flag"       )); if (uiCode) maxBitDepth=12;
@@ -1665,6 +1915,16 @@ Void TDecCavlc::parseRemainingBytes( Bool noTrailingBytesExpected )
 }
 
 Void TDecCavlc::parseSkipFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiDepth*/ )
+{
+  assert(0);
+}
+
+Void TDecCavlc::parsePLTModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj )
+{
+  assert(0);
+}
+
+Void TDecCavlc::parsePLTModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
   assert(0);
 }
@@ -1779,6 +2039,11 @@ Void TDecCavlc::parseQtCbf( TComTU &/*rTu*/, const ComponentID /*compID*/, const
   assert(0);
 }
 
+Void  TDecCavlc::parseColourTransformFlag( UInt , Bool&  )
+{
+  assert(0);
+}
+
 Void TDecCavlc::parseQtRootCbf( UInt /*uiAbsPartIdx*/, UInt& /*uiQtRootCbf*/ )
 {
   assert(0);
@@ -1841,7 +2106,14 @@ Void TDecCavlc::xParsePredWeightTable( TComSlice* pcSlice, const TComSPS *sps )
       }
 
       UInt  uiCode;
-      READ_FLAG( uiCode, iNumRef==0?"luma_weight_l0_flag[i]":"luma_weight_l1_flag[i]" );
+      if( pcSlice->getRefPOC(eRefPicList, iRefIdx) == pcSlice->getPOC() )
+      {
+        uiCode = 0;
+      }
+      else
+      {
+        READ_FLAG( uiCode, iNumRef==0?"luma_weight_l0_flag[i]":"luma_weight_l1_flag[i]" );
+      }
       wp[COMPONENT_Y].bPresentFlag = ( uiCode == 1 );
       uiTotalSignalledWeightFlags += wp[COMPONENT_Y].bPresentFlag;
     }
@@ -1851,7 +2123,14 @@ Void TDecCavlc::xParsePredWeightTable( TComSlice* pcSlice, const TComSPS *sps )
       for ( Int iRefIdx=0 ; iRefIdx<pcSlice->getNumRefIdx(eRefPicList) ; iRefIdx++ )
       {
         pcSlice->getWpScaling(eRefPicList, iRefIdx, wp);
-        READ_FLAG( uiCode, iNumRef==0?"chroma_weight_l0_flag[i]":"chroma_weight_l1_flag[i]" );
+        if( pcSlice->getRefPOC(eRefPicList, iRefIdx) == pcSlice->getPOC() )
+        {
+          uiCode = 0;
+        }
+        else
+        {
+          READ_FLAG( uiCode, iNumRef==0?"chroma_weight_l0_flag[i]":"chroma_weight_l1_flag[i]" );
+        }
         for(Int j=1; j<numValidComp; j++)
         {
           wp[j].bPresentFlag = ( uiCode == 1 );
@@ -2037,6 +2316,15 @@ Bool TDecCavlc::xMoreRbspData()
 }
 
 Void TDecCavlc::parseExplicitRdpcmMode( TComTU& /*rTu*/, ComponentID /*compID*/ )
+{
+  assert(0);
+}
+
+Void TDecCavlc::parseScanRotationModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+{
+  assert(0);
+}
+Void TDecCavlc::parseScanTraverseModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
   assert(0);
 }
