@@ -111,6 +111,9 @@ protected:
   Bool m_interlacedSourceFlag;
   Bool m_nonPackedConstraintFlag;
   Bool m_frameOnlyConstraintFlag;
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+  UInt m_sccHighThroughputFlag;
+#endif 
 
   // coding structure
   Int       m_iIntraPeriod;                                   ///< period of I-slice (random access period)

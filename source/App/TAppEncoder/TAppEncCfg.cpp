@@ -65,7 +65,11 @@ enum ExtendedProfileName // this is used for determining profile strings, where 
   MAINSTILLPICTURE = 3,
   MAINREXT = 4,
   HIGHTHROUGHPUTREXT = 5, // Placeholder profile for development
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+  MAINSCC  = 9, // Placeholder profile for development
+#else
   MAINSCC  = 31, // Placeholder profile for development
+#endif 
   // The following are RExt profiles, which would map to the MAINREXT profile idc.
   // The enumeration indicates the bit-depth constraint in the bottom 2 digits
   //                           the chroma format in the next digit
@@ -92,6 +96,21 @@ enum ExtendedProfileName // this is used for determining profile strings, where 
   MAIN_444_16_INTRA = 2316,
   MAIN_444_STILL_PICTURE = 11308,
   MAIN_444_16_STILL_PICTURE = 12316
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+  // The following are SCC profiles, which would map to the MAINSCC profile idc.
+  // The enumeration indicates the bit-depth constraint in the bottom 2 digits
+  //                           the chroma format in the next digit
+  //                           the intra constraint in the next digit
+  //                           If it is a SCC profile there is a '2' for the next digit.
+  //                           If it is a highthroughput , there is a '2' for the top digit else '1' for the top digit
+  ,SCC_MAIN                 = 121108,
+  SCC_MAIN_10               = 121110,
+  SCC_MAIN_444              = 121308,
+  SCC_MAIN_444_10           = 121310,
+  SCC_HIGHTHROUGHPUT_444    = 221308, 
+  SCC_HIGHTHROUGHPUT_444_10 = 221310, 
+  SCC_HIGHTHROUGHPUT_444_14 = 221314
+#endif 
 };
 
 
@@ -251,6 +270,15 @@ strToExtendedProfile[] =
     {"main_444_12_intra",         MAIN_444_12_INTRA},
     {"main_444_16_intra",         MAIN_444_16_INTRA},
     {"main_444_16_still_picture", MAIN_444_16_STILL_PICTURE }
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS    
+    ,{"scc_main",                  SCC_MAIN                  },
+    {"scc_main_10",                SCC_MAIN_10               },
+    {"scc_main_444",               SCC_MAIN_444              },
+    {"scc_main_444_10",            SCC_MAIN_444_10           },
+    {"scc_high_throughput_444",    SCC_HIGHTHROUGHPUT_444    },
+    {"scc_high_throughput_444_10", SCC_HIGHTHROUGHPUT_444_10 },
+    {"scc_high_throughput_444_14", SCC_HIGHTHROUGHPUT_444_14 },    
+#endif 
 };
 
 static const ExtendedProfileName validRExtProfileNames[2/* intraConstraintFlag*/][4/* bit depth constraint 8=0, 10=1, 12=2, 16=3*/][4/*chroma format*/]=
@@ -268,6 +296,23 @@ static const ExtendedProfileName validRExtProfileNames[2/* intraConstraintFlag*/
         { NONE,          NONE,          NONE,              MAIN_444_16_INTRA }  // 16-bit intra for 400, 420, 422 and 444
     }
 };
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS 
+static const ExtendedProfileName validSCCProfileNames[2/* high throughput*/][4/* bit depth constraint 8=0, 10=1, 12=2, 14=3*/][4/*chroma format*/]=
+{
+   {
+        { NONE,         SCC_MAIN,      NONE,      SCC_MAIN_444                     }, // 8-bit  intra for 400, 420, 422 and 444
+        { NONE,         SCC_MAIN_10,   NONE,      SCC_MAIN_444_10                  }, // 10-bit intra for 400, 420, 422 and 444
+        { NONE,         NONE,          NONE,      NONE                             }, // 12-bit intra for 400, 420, 422 and 444
+        { NONE,         NONE,          NONE,      NONE                             }  // 16-bit intra for 400, 420, 422 and 444
+    },
+    {
+        { NONE,         NONE,          NONE,       SCC_HIGHTHROUGHPUT_444          }, // 8-bit  inter for 400, 420, 422 and 444
+        { NONE,         NONE,          NONE,       SCC_HIGHTHROUGHPUT_444_10       }, // 10-bit inter for 400, 420, 422 and 444
+        { NONE,         NONE,          NONE,       NONE                            }, // 12-bit inter for 400, 420, 422 and 444
+        { NONE,         NONE,          NONE,       SCC_HIGHTHROUGHPUT_444_14       }  // 16-bit inter for 400, 420, 422 and 444 (the latter is non standard used for development)
+    }   
+};
+#endif 
 
 static const struct MapStrToTier
 {
@@ -724,7 +769,9 @@ Bool TAppEncCfg::parseCfg( Int argc, TChar* argv[] )
   ("IntraConstraintFlag",                             m_intraConstraintFlag,                            false, "Value of general_intra_constraint_flag to use for RExt profiles (not used if an explicit RExt sub-profile is specified)")
   ("OnePictureOnlyConstraintFlag",                    m_onePictureOnlyConstraintFlag,                   false, "Value of general_one_picture_only_constraint_flag to use for RExt profiles (not used if an explicit RExt sub-profile is specified)")
   ("LowerBitRateConstraintFlag",                      m_lowerBitRateConstraintFlag,                      true, "Value of general_lower_bit_rate_constraint_flag to use for RExt profiles")
-
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+  ("SCCHighThroughputFlag",                           m_sccHighThroughputFlag,                             0u, "High throughput setting for SCC profile is enabled or not")
+#endif 
   ("ProgressiveSource",                               m_progressiveSourceFlag,                          false, "Indicate that source is progressive")
   ("InterlacedSource",                                m_interlacedSourceFlag,                           false, "Indicate that source is interlaced")
   ("NonPackedSource",                                 m_nonPackedConstraintFlag,                        false, "Indicate that source does not contain frame packing")
@@ -1236,6 +1283,30 @@ Bool TAppEncCfg::parseCfg( Int argc, TChar* argv[] )
       default: tmpConstraintChromaFormat=444; break;
     }
   }
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+  else if (extendedProfile >= 121108 && extendedProfile <= 221314)
+  {
+    m_profile = Profile::MAINSCC;
+    if (m_bitDepthConstraint != 0 || tmpConstraintChromaFormat != 0)
+    {
+      fprintf(stderr, "Error: The bit depth and chroma format constraints are not used when an explicit SCC profile is specified\n");
+      exit(EXIT_FAILURE);
+    }
+    m_bitDepthConstraint           = (extendedProfile%100);
+    m_intraConstraintFlag          = ((extendedProfile%10000)>=2000);
+    m_sccHighThroughputFlag        = (extendedProfile > 121308);
+    assert(m_intraConstraintFlag==0);
+    m_onePictureOnlyConstraintFlag = 0;   
+    
+    switch ((extendedProfile/100)%10)
+    {
+    case 0:  tmpConstraintChromaFormat=400; break;
+    case 1:  tmpConstraintChromaFormat=420; break;
+    case 2:  tmpConstraintChromaFormat=422; break;
+    default: tmpConstraintChromaFormat=444; break;
+    }
+  }
+#endif 
   else
   {
     m_profile = Profile::Name(extendedProfile);
@@ -1249,7 +1320,11 @@ Bool TAppEncCfg::parseCfg( Int argc, TChar* argv[] )
     }
     m_chromaFormatConstraint = (tmpConstraintChromaFormat == 0) ? CHROMA_444 : numberToChromaFormat(tmpConstraintChromaFormat);
   }
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+  else if (m_profile == Profile::MAINREXT || m_profile == Profile::MAINSCC) // KR: needs checking
+#else
   else if (m_profile == Profile::MAINREXT)
+#endif 
   {
     if (m_bitDepthConstraint == 0 && tmpConstraintChromaFormat == 0)
     {
@@ -1640,6 +1715,25 @@ Void TAppEncCfg::xCheckParameter()
       xConfirmPara( m_bitDepthConstraint     != 16,         "bit depth constraint must be 4:4:4 in the High Throughput 4:4:4 16-bit Intra profile.");
       xConfirmPara( m_intraConstraintFlag    != 1,          "intra constraint flag must be 1 in the High Throughput 4:4:4 16-bit Intra profile.");
     }
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+    else if (m_profile == Profile::MAINSCC)
+    {
+       xConfirmPara( m_intraConstraintFlag , "intra constraint flag must be 0 for SCC profiles");
+       xConfirmPara( m_onePictureOnlyConstraintFlag , "one-picture-only constraint flag shall be 0 for SCC profiles");       
+
+      const UInt sccHighThroughputFlag = m_sccHighThroughputFlag ? 1:0;
+      const UInt bitDepthIdx = (m_bitDepthConstraint == 8 ? 0 : (m_bitDepthConstraint ==10 ? 1 : (m_bitDepthConstraint == 12 ? 2 : (m_bitDepthConstraint == 16 ? 3 : 4 ))));
+      const UInt chromaFormatIdx = UInt(m_chromaFormatConstraint);
+      const Bool bValidProfile = (bitDepthIdx > 2 || chromaFormatIdx>3) ? false : (validSCCProfileNames[sccHighThroughputFlag][bitDepthIdx][chromaFormatIdx] != NONE);
+      xConfirmPara(!bValidProfile, "Invalid intra constraint flag, bit depth constraint flag and chroma format constraint flag combination for a RExt profile");
+
+      const Bool bUsingChromaQPTool      = m_diffCuChromaQpOffsetDepth >= 0;
+      const Bool bUsingExtendedPrecision = m_extendedPrecisionProcessingFlag;
+
+      xConfirmPara((m_chromaFormatConstraint==CHROMA_420 || m_chromaFormatConstraint==CHROMA_400) && bUsingChromaQPTool, "CU Chroma QP adjustment cannot be used for 4:0:0 or 4:2:0 RExt profiles");
+      xConfirmPara( bUsingExtendedPrecision, "Extended precision cannot be used for SCC profile");
+    }
+#endif 
   }
   else
   {
