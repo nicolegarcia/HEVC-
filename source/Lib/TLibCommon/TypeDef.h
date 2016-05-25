@@ -179,7 +179,6 @@
 // Processing controls
 //------------------------------------------------
 
-#define SCM_W0075_PLT_LOSSLESS_SPEEDUP                   1 ///< JCTVC-W0075: don't perform multi-pass palette encoding in lossless
 #define SCM_W0075_PLT_CHROMA_42X_LOSSLESS                1 ///< JCTVC-W0075: take into account chroma discarding in palette lossless encoding
 #define SCM_W0078_HASH_BOTTOM_UP                         1 ///< JCTVC-W0078: bottom up hash value calculation
 #define SCM_FIX_PARSING_ORDER_TICKET_1422                1 ///< Bug fix for Ticket#1422 : parsing order mismatch between spec and software.

@@ -1928,76 +1928,8 @@ Void TComPrediction::derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* p
   const UInt maxPLTSizeSPS = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPLTMaxSize();
   uiPLTSize = 0;
 
-#if !SCM_W0075_PLT_LOSSLESS_SPEEDUP
-  const Pel * const pPred[3] = { pcCU->getLastPLTInLcuFinal(0), pcCU->getLastPLTInLcuFinal(1), pcCU->getLastPLTInLcuFinal(2) };
-#endif
-
   UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
   UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
-
-#if !SCM_W0075_PLT_LOSSLESS_SPEEDUP
-  if( forcePLTPrediction )
-  {
-    UInt pltPredIndexUsed[MAX_PLT_PRED_SIZE];
-    memset( pltPredIndexUsed, 0, sizeof(pltPredIndexUsed) );
-
-    UChar pltIndexUsed[MAX_PLT_PRED_SIZE];
-    memset( pltIndexUsed, 0, sizeof(pltIndexUsed) );
-
-    for( UInt uiY = 0; uiY < uiHeight; uiY++ )
-    {
-      for( UInt uiX = 0; uiX < uiWidth; uiX++ )
-      {
-        uiPos = uiY * uiWidth + uiX;
-        UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
-        Int iBestIdx = -1;
-        UInt uiPLTIdx = 0;
-
-        while( uiPLTIdx < pcCU->getLastPLTInLcuSizeFinal(0) )
-        {
-          if( pPred[0][uiPLTIdx] == pSrc[0][uiPos] && pPred[1][uiPLTIdx] == pSrc[1][uiPosC] && pPred[2][uiPLTIdx] == pSrc[2][uiPosC] )
-          {
-            iBestIdx = uiPLTIdx;
-            break;
-          }
-          uiPLTIdx++;
-        }
-
-        if( iBestIdx >= 0 )
-        {
-          pltPredIndexUsed[iBestIdx]++;
-        }
-      }
-    }
-
-    while( uiIdx < maxPLTSizeSPS )
-    {
-      UInt maxNoIndexUsed = 0, bestIndex = 0;
-      for( UInt i = 0; i < pcCU->getLastPLTInLcuSizeFinal(0); i++ )
-      {
-        if( pltIndexUsed[i] == 0 && pltPredIndexUsed[i] > maxNoIndexUsed )
-        {
-          maxNoIndexUsed = pltPredIndexUsed[i];
-          bestIndex = i;
-        }
-      }
-      if( maxNoIndexUsed > 0 )
-      {
-        pltIndexUsed[bestIndex] = 1;
-
-        Palette[0][uiPLTSize] = pPred[0][bestIndex];
-        Palette[1][uiPLTSize] = pPred[1][bestIndex];
-        Palette[2][uiPLTSize] = pPred[2][bestIndex];
-        uiPLTSize++;
-      }
-      else
-      {
-        break;
-      }
-      uiIdx++;
-    }
-  }
-#endif
 
   uiIdx = 0;
   for (UInt uiY = 0; uiY < uiHeight; uiY++)
