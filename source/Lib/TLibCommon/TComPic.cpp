@@ -206,7 +206,6 @@ Void TComPic::addPictureToHashMapForInter()
 {
   Int picWidth = getSlice( 0 )->getSPS()->getPicWidthInLumaSamples();
   Int picHeight = getSlice( 0 )->getSPS()->getPicHeightInLumaSamples();
-#if SCM_W0078_HASH_BOTTOM_UP // add hash values to hash table
   UInt* uiBlockHashValues[2][2];
   Bool* bIsBlockSame[2][3];
 
@@ -251,13 +250,6 @@ Void TComPic::addPictureToHashMapForInter()
       delete[] bIsBlockSame[i][j];
     }
   }
-#else
-  m_hashMap.create();
-  m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 8, 8, getSlice( 0 )->getSPS()->getBitDepths() );
-  m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 16, 16, getSlice( 0 )->getSPS()->getBitDepths() );
-  m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 32, 32, getSlice( 0 )->getSPS()->getBitDepths() );
-  m_hashMap.addToHashMapByRow( getPicYuvOrg(), picWidth, picHeight, 64, 64, getSlice( 0 )->getSPS()->getBitDepths() );
-#endif
 }
 
 //! \}
