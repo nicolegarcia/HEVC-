@@ -2277,44 +2277,15 @@ Void TAppEncCfg::xCheckParameter()
   for(Int i=0; i<MAX_TLAYER; i++)
   {
     m_numReorderPics[i] = 0;
-#if SCM_U0181_FIX
     m_maxDecPicBuffering[i] = 1 + m_useIntraBlockCopy;
-#else
-    m_maxDecPicBuffering[i] = 1;
-#endif
   }
   for(Int i=0; i<m_iGOPSize; i++)
   {
     if(m_GOPList[i].m_numRefPics+1 > m_maxDecPicBuffering[m_GOPList[i].m_temporalId])
     {
-#if SCM_U0181_FIX
       m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1 + m_useIntraBlockCopy;
-#else
-      m_maxDecPicBuffering[m_GOPList[i].m_temporalId] = m_GOPList[i].m_numRefPics + 1;
-#endif
     }
 
-#if !SCM_U0181_FIX
-    UInt highestTId = 0;
-    UInt MaxDpbSize = 0;
-
-    if ( highestTId < m_GOPList[i].m_temporalId )
-    {
-      highestTId = m_GOPList[i].m_temporalId;
-    }
-    if ( !m_useIntraBlockCopy ) {
-      MaxDpbSize = 6;
-    }
-    else
-    {
-      MaxDpbSize = 7;
-    }
-    m_maxDecPicBuffering[highestTId] = MaxDpbSize;
-    if ( m_maxDecPicBuffering[highestTId] > MaxDpbSize )
-    {
-      m_maxDecPicBuffering[highestTId] = MaxDpbSize;
-    }
-#endif
     Int highestDecodingNumberWithLowerPOC = 0;
     for(Int j=0; j<m_iGOPSize; j++)
     {

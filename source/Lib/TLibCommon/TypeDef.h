@@ -198,8 +198,6 @@
 #define SCM_V0034_PLT_CHROMA_SHIFT_ADJ                    5 ///< Chroma error weight as a right shift
 #define SCM_V0034_PLT_CHROMA_SETTINGS     (1<<SCM_V0034_PLT_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
 
-
-#define SCM_U0181_FIX                                     1
 #if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #define SCM_V0057_FIX                                     1
 #endif
