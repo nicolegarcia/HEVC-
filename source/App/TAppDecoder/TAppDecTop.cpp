@@ -386,11 +386,7 @@ Void TAppDecTop::xWriteOutput( TComList<TComPic*>* pcListPic, UInt tId )
 
       if ( pcPicTop->getOutputMark() && pcPicBottom->getOutputMark() &&
           (numPicsNotYetDisplayed >  numReorderPicsHighestTid ||
-#if SCM_W0077_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
-                    dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()) &&
-#else
-                    dpbFullness > maxDecPicBufferingHighestTid) &&
-#endif
+           dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()) &&
           (!(pcPicTop->getPOC()%2) && pcPicBottom->getPOC() == pcPicTop->getPOC()+1) &&
           (pcPicTop->getPOC() == m_iPOCLastDisplay+1 || m_iPOCLastDisplay < 0))
       {
@@ -457,11 +453,7 @@ Void TAppDecTop::xWriteOutput( TComList<TComPic*>* pcListPic, UInt tId )
 
       if(pcPic->getOutputMark() && pcPic->getPOC() > m_iPOCLastDisplay &&
         (numPicsNotYetDisplayed >  numReorderPicsHighestTid ||
-#if SCM_W0077_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
-                dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()))
-#else
-                dpbFullness > maxDecPicBufferingHighestTid))
-#endif
+         dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()))
       {
         // write to file
          numPicsNotYetDisplayed--;
