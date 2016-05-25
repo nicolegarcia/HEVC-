@@ -5656,11 +5656,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
         modMode=1;
       }
 
-#if SCM_W0075_PLT_CHROMA_42X_LOSSLESS
       if( !pcCU->getCUTransquantBypass(0) || pcCU->getSlice()->getSPS()->getChromaFormatIdc() != CHROMA_444 )
-#else
-      if (!pcCU->getCUTransquantBypass(0))
-#endif
       {
         uiIdxStartMerge = currentPLTElement->position;
         predIndex = currentPLTElement->indexPred;

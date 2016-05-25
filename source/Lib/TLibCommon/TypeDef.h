@@ -179,7 +179,6 @@
 // Processing controls
 //------------------------------------------------
 
-#define SCM_W0075_PLT_CHROMA_42X_LOSSLESS                1 ///< JCTVC-W0075: take into account chroma discarding in palette lossless encoding
 #define SCM_W0078_HASH_BOTTOM_UP                         1 ///< JCTVC-W0078: bottom up hash value calculation
 #define SCM_FIX_PARSING_ORDER_TICKET_1422                1 ///< Bug fix for Ticket#1422 : parsing order mismatch between spec and software.
 #define SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS             1 ///< Align profile indications with spec in JCTVC-W1005
