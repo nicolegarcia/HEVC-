@@ -883,7 +883,6 @@ Void TDecCavlc::parseSPS(TComSPS* pcSPS)
               READ_FLAG( uiCode, "intra_block_copy_enabled_flag" );           screenExtension.setUseIntraBlockCopy( uiCode != 0 );
               READ_FLAG( uiCode, "palette_mode_enabled_flag" );               screenExtension.setUsePLTMode( uiCode != 0 );
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
               UInt MaxDPBSize = 0;
               if (!screenExtension.getUseIntraBlockCopy())
               {
@@ -955,7 +954,6 @@ Void TDecCavlc::parseSPS(TComSPS* pcSPS)
                   exit(1);
                 }
               }
-#endif
 
               if ( screenExtension.getUsePLTMode() )//decode only when palette mode is enabled
               {

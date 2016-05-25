@@ -84,12 +84,10 @@ public:
                TComPicYuv         ();
   virtual     ~TComPicYuv         ();
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
   // ------------------------------------------------------------------------------------------------
   //  Copy assignment operator
   // ------------------------------------------------------------------------------------------------
-  TComPicYuv&        operator=  (const TComPicYuv& sComPicYuv);                               
-#endif
+  TComPicYuv&        operator=  (const TComPicYuv& sComPicYuv);
 
     // ------------------------------------------------------------------------------------------------
   //  Memory management

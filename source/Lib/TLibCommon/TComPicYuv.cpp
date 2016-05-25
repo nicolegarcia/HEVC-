@@ -73,7 +73,6 @@ TComPicYuv::~TComPicYuv()
   destroy();
 }
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 TComPicYuv& TComPicYuv::operator= (const TComPicYuv& sComPicYuv)
 {
   m_picWidth = sComPicYuv.m_picWidth;
@@ -87,7 +86,6 @@ TComPicYuv& TComPicYuv::operator= (const TComPicYuv& sComPicYuv)
 
   return *this;
 }
-#endif
 
 Void TComPicYuv::createWithoutCUInfo ( const Int picWidth,                 ///< picture width
                                        const Int picHeight,                ///< picture height

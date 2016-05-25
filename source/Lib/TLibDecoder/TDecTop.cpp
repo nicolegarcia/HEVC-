@@ -79,14 +79,12 @@ TDecTop::TDecTop()
   , m_pDecodedSEIOutputStream(NULL)
   , m_warningMessageSkipPicture(false)
   , m_prefixSEINALUs()
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #if !SCM_U0181_FIX
     , m_DPBFullness (0)
 #endif
     , m_pcPicBeforeILF(NULL)
     , m_pcPicAfterILF(NULL)
     , m_pcTwoVersionsOfCurrDecPicFlag (false)
-#endif
 {
 #if ENC_DEC_TRACE
   if (g_hTrace == NULL)
@@ -216,7 +214,6 @@ Void TDecTop::executeLoopFilters(Int& poc, TComList<TComPic*>*& rpcListPic)
     return;
   }
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
   if ( getTwoVersionsOfCurrDecPicFlag() )
   {
     m_pcPicAfterILF->copyPicInfo( *m_pcPicBeforeILF );
@@ -224,9 +221,6 @@ Void TDecTop::executeLoopFilters(Int& poc, TComList<TComPic*>*& rpcListPic)
 
   }
   TComPic*   pcPic = m_pcPicAfterILF;
-#else
-  TComPic*   pcPic         = m_pcPic;
-#endif
 
   // Execute Deblock + Cleanup
 
@@ -303,7 +297,7 @@ Void TDecTop::xCreateLostPicture(Int iLostPoc)
     m_pocRandomAccess = iLostPoc;
   }
 }
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
+
 #if !SCM_U0181_FIX
 Void TDecTop::xGetNewPicBufferInDPB( const TComSPS &sps, const TComPPS &pps, TComPic*& rpcPic, const UInt temporalLayer )
 {
@@ -502,7 +496,7 @@ Void TDecTop::xSwapPicPoiterExeptTComPicYuvRefType( TComPic** picA, TComPic** pi
   (*picB)->setUsedByCurr( tempUsedByCur );
 #endif
 }
-#endif
+
 
 Void TDecTop::xActivateParameterSets()
 {
@@ -542,21 +536,15 @@ Void TDecTop::xActivateParameterSets()
     // g_uiAddCUDepth = sps->getMaxTotalCUDepth() - sps->getLog2DiffMaxMinCodingBlockSize()
 
     //  Get a new picture buffer. This will also set up m_pcPic, and therefore give us a SPS and PPS pointer that we can use.
-#if !SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
-    xGetNewPicBuffer (*(sps), *(pps), m_pcPic, m_apcSlicePilot->getTLayer());
-#endif
     m_apcSlicePilot->applyReferencePictureSet(m_cListPic, m_apcSlicePilot->getRPS());
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #if !SCM_U0181_FIX
         xRemovalOfPicturesFromDPBAndDecreaseDPBFullness(*(sps));
 #endif
         m_pcTwoVersionsOfCurrDecPicFlag = pps->getPpsScreenExtension().getUseIntraBlockCopy() && 
             (sps->getUseSAO() || !pps->getPicDisableDeblockingFilterFlag() || pps->getDeblockingFilterOverrideEnabledFlag());
         m_bIBC = pps->getPpsScreenExtension().getUseIntraBlockCopy();
-#endif
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #if SCM_U0181_FIX
         xGetNewPicBuffer (*(sps), *(pps), m_pcPicAfterILF, m_apcSlicePilot->getTLayer());
 #else
@@ -597,7 +585,6 @@ Void TDecTop::xActivateParameterSets()
         {
           m_pcPic = m_pcPicAfterILF;
         }
-#endif
 #endif
     // make the slice-pilot a real slice, and set up the slice-pilot for the next slice
     assert(m_pcPic->getNumAllocatedSlice() == (m_uiSliceIdx + 1));
@@ -887,13 +874,11 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   {
     pcSlice->checkCRA(pcSlice->getRPS(), m_pocCRA, m_associatedIRAPType, m_cListPic );
     pcSlice->setPic( m_pcPic );
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
     if (pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy())
     {
       //it is set for the usage of getCurPicLongTerm in setRefPicList
       pcSlice->setCurPicLongTerm( m_pcPic );
     }
-#endif
 
     // Set reference list
     pcSlice->setRefPicList( m_cListPic, true );
@@ -972,21 +957,10 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   }
 
   //  Decode a picture
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
   m_cGopDecoder.decompressSlice(&(nalu.getBitstream()), m_pcPic, m_pcPicAfterILF);
-#else
-  m_cGopDecoder.decompressSlice(&(nalu.getBitstream()), m_pcPic);
-#endif
 
   m_bFirstSliceInPicture = false;
   m_uiSliceIdx++;
-
-#if !SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
-  if ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
-  {
-    pcSlice->getPic()->setIsLongTerm( false );
-  }
-#endif
 
   return false;
 }

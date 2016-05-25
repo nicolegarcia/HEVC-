@@ -2294,7 +2294,7 @@ Void TAppEncCfg::xCheckParameter()
 #endif
     }
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC && !SCM_U0181_FIX
+#if !SCM_U0181_FIX
     UInt highestTId = 0;
     UInt MaxDpbSize = 0;
 

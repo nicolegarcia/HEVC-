@@ -55,11 +55,8 @@ TComPic::TComPic()
 , m_bNeededForOutput                      (false)
 , m_uiCurrSliceIdx                        (0)
 , m_bCheckLTMSB                           (false)
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 , m_bCurPic                               (false)
 , m_bInDPB                                (false)
-#endif
-
 {
   for(UInt i=0; i<NUM_PIC_YUV; i++)
   {
@@ -73,7 +70,6 @@ TComPic::~TComPic()
   destroy();
 }
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 Void TComPic::copyPicInfo( const TComPic& sComPic )
 {
   UInt i = 0;
@@ -97,7 +93,6 @@ Void TComPic::copyPicInfo( const TComPic& sComPic )
     }
   }
 }
-#endif
 
 Void TComPic::create( const TComSPS &sps, const TComPPS &pps,
                       UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bIsVirtual )

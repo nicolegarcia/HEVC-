@@ -179,7 +179,6 @@
 // Processing controls
 //------------------------------------------------
 
-#define SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-U0181: storage of both versions of the current decoded picture into the DPB, treating pictures with in-loop filtering on/off differently, and increase the value of maxDpbPicBuf equal to 7 for profiles supporting IBC
 #define SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-V0057: DPB considerations when current picture is a reference picture
 #define SCM_W0077_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-W0077: DPB update process when current picture is a reference picture
 #define SCM_W0075_PLT_LOSSLESS_SPEEDUP                   1 ///< JCTVC-W0075: don't perform multi-pass palette encoding in lossless
@@ -200,15 +199,9 @@
 #define SCM_V0034_PLT_CHROMA_SETTINGS     (1<<SCM_V0034_PLT_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
 
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #define SCM_U0181_FIX                                     1
-#endif
 #if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #define SCM_V0057_FIX                                     1
-#endif
-
-#if !SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC && ( SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC || SCM_W0077_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC )
-#error
 #endif
 
 //------------------------------------------------

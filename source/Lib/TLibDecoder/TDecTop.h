@@ -114,7 +114,6 @@ private:
 
   std::list<InputNALUnit*> m_prefixSEINALUs; /// Buffered up prefix SEI NAL Units.
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #if !SCM_U0181_FIX
   UInt                    m_DPBFullness;
 #endif
@@ -122,7 +121,6 @@ private:
   TComPic*                m_pcPicAfterILF;
   Bool                    m_pcTwoVersionsOfCurrDecPicFlag;
   Bool                    m_bIBC;
-#endif
 
 public:
   TDecTop();
@@ -152,7 +150,6 @@ public:
   Void  setDecodedSEIMessageOutputStream(std::ostream *pOpStream) { m_pDecodedSEIOutputStream = pOpStream; }
   UInt  getNumberOfChecksumErrorsDetected() const { return m_cGopDecoder.getNumberOfChecksumErrorsDetected(); }
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
   Bool  getTwoVersionsOfCurrDecPicFlag() { return m_pcTwoVersionsOfCurrDecPicFlag; }
 #if !SCM_U0181_FIX
   UInt  getDPBFullness() { return m_DPBFullness; }
@@ -166,7 +163,6 @@ public:
 #endif
   Bool  isCurrPicAsRef() {return m_bIBC;}
   Void  updateCurrentPictureFlag(TComList<TComPic*>* pcListPic);
-#endif
 
 protected:
   Void  xGetNewPicBuffer  (const TComSPS &sps, const TComPPS &pps, TComPic*& rpcPic, const UInt temporalLayer);
@@ -181,13 +177,11 @@ protected:
   Void      xParsePrefixSEImessages();
   Void      xParsePrefixSEIsForUnknownVCLNal();
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #if !SCM_U0181_FIX
     Void    xRemovalOfPicturesFromDPBAndDecreaseDPBFullness(const TComSPS &sps);
     Void    xGetNewPicBufferInDPB  (const TComSPS &sps, const TComPPS &pps, TComPic*& rpcPic, const UInt temporalLayer);
 #endif
     Void    xSwapPicPoiterExeptTComPicYuvRefType(TComPic** picA, TComPic** picB);
-#endif
 };// END CLASS DEFINITION TDecTop
 
 

@@ -83,11 +83,7 @@ public:
   Void  create            ();
   Void  destroy           ();
 
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
   Void  decompressSlice   ( TComInputBitstream** ppcSubstreams,   TComPic* pcPic, TComPic* pcPicAfterILF, TDecSbac* pcSbacDecoder );
-#else
-  Void  decompressSlice   ( TComInputBitstream** ppcSubstreams,   TComPic* pcPic, TDecSbac* pcSbacDecoder );
-#endif
 };
 
 //! \}

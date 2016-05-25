@@ -95,11 +95,7 @@ public:
                  );
   Void  create  ();
   Void  destroy ();
-#if SCM_U0181_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
   Void  decompressSlice(TComInputBitstream* pcBitstream, TComPic* pcPic, TComPic* pcPicAfterILF );
-#else
-  Void  decompressSlice(TComInputBitstream* pcBitstream, TComPic* pcPic );
-#endif
   Void  filterPicture  (TComPic* pcPic );
 
   Void setDecodedPictureHashSEIEnabled(Int enabled) { m_decodedPictureHashSEIEnabled = enabled; }
