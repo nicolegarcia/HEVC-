@@ -179,7 +179,6 @@
 // Processing controls
 //------------------------------------------------
 
-#define SCM_FIX_PARSING_ORDER_TICKET_1422                1 ///< Bug fix for Ticket#1422 : parsing order mismatch between spec and software.
 #define SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS             1 ///< Align profile indications with spec in JCTVC-W1005
 //------------------------------------------------
 // Derived macros
@@ -655,11 +654,7 @@ enum SPSExtensionFlagIndex
   SPS_EXT__REXT           = 0,
 //SPS_EXT__MVHEVC         = 1, //for use in future versions
 //SPS_EXT__SHVC           = 2, //for use in future versions
-#if SCM_FIX_PARSING_ORDER_TICKET_1422
   SPS_EXT__SCC            = 3, // place holder
-#else
-  SPS_EXT__SCC            = 6, // place holder
-#endif 
   NUM_SPS_EXTENSION_FLAGS = 8
 };
 
@@ -668,11 +663,7 @@ enum PPSExtensionFlagIndex
   PPS_EXT__REXT           = 0,
 //PPS_EXT__MVHEVC         = 1, //for use in future versions
 //PPS_EXT__SHVC           = 2, //for use in future versions
-#if SCM_FIX_PARSING_ORDER_TICKET_1422
-  PPS_EXT__SCC            = 3, 
-#else
-  PPS_EXT__SCC            = 6, // place holder
-#endif 
+  PPS_EXT__SCC            = 3,
   NUM_PPS_EXTENSION_FLAGS = 8
 };
 
