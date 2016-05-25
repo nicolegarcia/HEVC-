@@ -197,8 +197,6 @@
 #define SCM_V0034_PLT_CHROMA_SHIFT_ADJ                    5 ///< Chroma error weight as a right shift
 #define SCM_V0034_PLT_CHROMA_SETTINGS     (1<<SCM_V0034_PLT_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
 
-#define SCM_V0057_FIX                                     1
-
 //------------------------------------------------
 // Backwards-compatibility
 //------------------------------------------------
