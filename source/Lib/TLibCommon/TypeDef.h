@@ -179,7 +179,6 @@
 // Processing controls
 //------------------------------------------------
 
-#define SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-V0057: DPB considerations when current picture is a reference picture
 #define SCM_W0077_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC     1 ///< JCTVC-W0077: DPB update process when current picture is a reference picture
 #define SCM_W0075_PLT_LOSSLESS_SPEEDUP                   1 ///< JCTVC-W0075: don't perform multi-pass palette encoding in lossless
 #define SCM_W0075_PLT_CHROMA_42X_LOSSLESS                1 ///< JCTVC-W0075: take into account chroma discarding in palette lossless encoding
@@ -198,9 +197,7 @@
 #define SCM_V0034_PLT_CHROMA_SHIFT_ADJ                    5 ///< Chroma error weight as a right shift
 #define SCM_V0034_PLT_CHROMA_SETTINGS     (1<<SCM_V0034_PLT_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
 
-#if SCM_V0057_STORAGE_BOTH_VERSIONS_CURR_DEC_PIC
 #define SCM_V0057_FIX                                     1
-#endif
 
 //------------------------------------------------
 // Backwards-compatibility
