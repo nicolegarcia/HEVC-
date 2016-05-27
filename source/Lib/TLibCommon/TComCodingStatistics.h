@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2016, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@ enum TComCodingStatisticsType
   STATS__NAL_UNIT_HEADER_BITS,
   STATS__CABAC_INITIALISATION,
   STATS__CABAC_BITS__TQ_BYPASS_FLAG,
+  STATS__CABAC_DICTIONARY_BITS,
   STATS__CABAC_BITS__SKIP_FLAG,
   STATS__CABAC_BITS__MERGE_FLAG,
   STATS__CABAC_BITS__MERGE_INDEX,
@@ -88,6 +89,7 @@ enum TComCodingStatisticsType
   STATS__BYTE_ALIGNMENT_BITS,
   STATS__TRAILING_BITS,
   STATS__EXPLICIT_RDPCM_BITS,
+  STATS__CABAC_BITS__INTRA_BLOCK_COPY_VECTOR,
   STATS__CABAC_EP_BIT_ALIGNMENT,
   STATS__CABAC_BITS__ALIGNED_SIGN_BIT,
   STATS__CABAC_BITS__ALIGNED_ESCAPE_BITS,
@@ -138,6 +140,7 @@ static inline const TChar* getName(TComCodingStatisticsType name)
     "BYTE_ALIGNMENT_BITS",
     "TRAILING_BITS",
     "EXPLICIT_RDPCM_BITS",
+    "CABAC_BITS__INTRA_BLOCK_COPY_VECTOR",
     "CABAC_EP_BIT_ALIGNMENT",
     "CABAC_BITS__ALIGNED_SIGN_BIT",
     "CABAC_BITS__ALIGNED_ESCAPE_BITS"

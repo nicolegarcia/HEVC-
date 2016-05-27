@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2016, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -235,7 +235,7 @@ Bool TComTU::useDST(const ComponentID compID)
 
 Bool TComTU::isNonTransformedResidualRotated(const ComponentID compID)
 {
-  // rotation only for 4x4 intra, and is only used for non-transformed blocks (the latter is not checked here)
+  // rotation only for 4x4 intra (not intra-bc), and is only used for non-transformed blocks (the latter is not checked here)
   return    getCU()->getSlice()->getSPS()->getSpsRangeExtension().getTransformSkipRotationEnabledFlag()
          && mRect[compID].width == 4
          && getCU()->isIntra(GetAbsPartIdxTU());

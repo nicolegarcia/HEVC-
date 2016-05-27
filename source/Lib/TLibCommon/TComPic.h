@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2016, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@
 #include "TComPicSym.h"
 #include "TComPicYuv.h"
 #include "TComBitStream.h"
+#include "TComHash.h"
 
 //! \ingroup TLibCommon
 //! \{
@@ -66,7 +67,7 @@ private:
   Bool                  m_bIsLongTerm;            //  IS long term picture
   TComPicSym            m_picSym;                 //  Symbol
   TComPicYuv*           m_apcPicYuv[NUM_PIC_YUV];
-
+  TComPicYuv*           m_apcPicYuvCSC;
   TComPicYuv*           m_pcPicYuvPred;           //  Prediction
   TComPicYuv*           m_pcPicYuvResi;           //  Residual
   Bool                  m_bReconstructed;
@@ -81,11 +82,18 @@ private:
 
   SEIMessages  m_SEIs; ///< Any SEI messages that have been received.  If !NULL we own the object.
 
+  TComHash              m_hashMap;
+  Bool                  m_bCurPic;
+  Bool                  m_bInDPB;
+
 public:
   TComPic();
   virtual ~TComPic();
 
-  Void          create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirtual /*= false*/ );
+  Void          copyPicInfo(const TComPic& sComPic);
+
+  Void          create( const TComSPS &sps, const TComPPS &pps,
+                        UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bIsVirtual /*= false*/ );
 
   virtual Void  destroy();
 
@@ -99,16 +107,27 @@ public:
   Void          setCheckLTMSBPresent     (Bool b ) {m_bCheckLTMSB=b;}
   Bool          getCheckLTMSBPresent     () { return m_bCheckLTMSB;}
 
-  TComPicSym*   getPicSym()                        { return  &m_picSym;    }
-  const TComPicSym* getPicSym() const              { return  &m_picSym;    }
-  TComSlice*    getSlice(Int i)                    { return  m_picSym.getSlice(i);  }
-  const TComSlice* getSlice(Int i) const           { return  m_picSym.getSlice(i);  }
-  Int           getPOC() const                     { return  m_picSym.getSlice(m_uiCurrSliceIdx)->getPOC();  }
+  TComPicSym*   getPicSym()           { return  &m_picSym;    }
+  const TComPicSym* getPicSym() const { return  &m_picSym;    }
+  TComSlice*    getSlice(Int i)       { return  m_picSym.getSlice(i);  }
+  Int           getPOC() const        { return  m_picSym.getSlice(m_uiCurrSliceIdx)->getPOC();  }
   TComDataCU*   getCtu( UInt ctuRsAddr )           { return  m_picSym.getCtu( ctuRsAddr ); }
   const TComDataCU* getCtu( UInt ctuRsAddr ) const { return  m_picSym.getCtu( ctuRsAddr ); }
 
   TComPicYuv*   getPicYuvOrg()        { return  m_apcPicYuv[PIC_YUV_ORG]; }
+  const TComPicYuv* getPicYuvOrg() const { return  m_apcPicYuv[PIC_YUV_ORG]; }
   TComPicYuv*   getPicYuvRec()        { return  m_apcPicYuv[PIC_YUV_REC]; }
+  TComPicYuv*   getPicYuvCSC()        { return  m_apcPicYuvCSC; }
+  Void          allocateCSCBuffer( Int iWidth, Int iHeight, ChromaFormat chromaFormatIDC, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth )
+                { assert( m_apcPicYuvCSC == NULL ); m_apcPicYuvCSC = new TComPicYuv; m_apcPicYuvCSC->create( iWidth, iHeight, chromaFormatIDC, uiMaxWidth, uiMaxHeight, uiMaxDepth, true ); }
+  Void          releaseCSCBuffer()    { m_apcPicYuvCSC->destroy(); delete m_apcPicYuvCSC; m_apcPicYuvCSC = NULL; }
+  Void          exchangePicYuvRec()
+                {
+                   TComPicYuv* pcTmpPicYuv;
+                   pcTmpPicYuv = m_apcPicYuv[PIC_YUV_REC];
+                   m_apcPicYuv[PIC_YUV_REC] = m_apcPicYuvCSC;
+                   m_apcPicYuvCSC = pcTmpPicYuv;
+                }
 
   TComPicYuv*   getPicYuvPred()       { return  m_pcPicYuvPred; }
   TComPicYuv*   getPicYuvResi()       { return  m_pcPicYuvResi; }
@@ -148,6 +167,15 @@ public:
   Bool          getSAOMergeAvailability(Int currAddr, Int mergeAddr);
 
   UInt          getSubstreamForCtuAddr(const UInt ctuAddr, const Bool bAddressInRaster, TComSlice *pcSlice);
+  
+  Void          addPictureToHashMapForInter();
+  TComHash*     getHashMap() { return &m_hashMap; }
+  const TComHash* getHashMap() const { return &m_hashMap; }
+
+  Bool          getCurrentPicFlag()         { return m_bCurPic; }
+  Void          setCurrentPicFlag(Bool b)   { m_bCurPic = b; }
+  Bool          getCurrPicInDPBFlag()       { return m_bInDPB; }
+  Void          setCurrPicInDPBFlag(Bool b) { m_bInDPB = b; }
 
   /* field coding parameters*/
 

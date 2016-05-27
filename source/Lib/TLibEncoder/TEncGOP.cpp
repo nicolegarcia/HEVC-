@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2016, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,7 +87,7 @@ TEncGOP::TEncGOP()
   m_pcSbacCoder         = NULL;
   m_pcBinCABAC          = NULL;
 
-  m_bSeqFirst           = true;
+  m_uiSeqOrder          = 0;
 
   m_bRefreshPending     = 0;
   m_pocCRA            = 0;
@@ -98,9 +98,8 @@ TEncGOP::TEncGOP()
   m_bufferingPeriodSEIPresentInAU = false;
   m_associatedIRAPType = NAL_UNIT_CODED_SLICE_IDR_N_LP;
   m_associatedIRAPPOC  = 0;
-#if W0038_DB_OPT
-  m_pcDeblockingTempPicYuv = NULL;
-#endif
+  m_uiNumPLTPred = 0;
+  m_encodePPSPLT = false;
   return;
 }
 
@@ -118,14 +117,6 @@ Void  TEncGOP::create()
 
 Void  TEncGOP::destroy()
 {
-#if W0038_DB_OPT
-  if (m_pcDeblockingTempPicYuv)
-  {
-    m_pcDeblockingTempPicYuv->destroy();
-    delete m_pcDeblockingTempPicYuv;
-    m_pcDeblockingTempPicYuv = NULL;
-  }
-#endif
 }
 
 Void TEncGOP::init ( TEncTop* pcTEncTop )
@@ -147,6 +138,11 @@ Void TEncGOP::init ( TEncTop* pcTEncTop )
   m_lastBPSEI          = 0;
   m_totalCoded         = 0;
 
+  for ( Int i=0; i < ( m_pcCfg->getChromaFormatIdc() == CHROMA_400 ? 1 : MAX_NUM_COMPONENT ); i++ )
+  {
+    m_hasLosslessPSNR[i] = false;
+    m_losslessPSNR[i] = 999.99;
+  }
 }
 
 Int TEncGOP::xWriteVPS (AccessUnit &accessUnit, const TComVPS *vps)
@@ -820,6 +816,145 @@ Void TEncGOP::xUpdateDuInfoSEI(SEIMessages &duInfoSeiMessages, SEIPictureTiming 
   }
 }
 
+list<Double> g_CSMRate;
+list<Double> g_MRate;
+
+Bool TEncGOP::xGetUseIntegerMv( TComSlice* pcSlice )
+{
+  if ( !m_pcCfg->getUseHashBasedME() )
+  {
+    return false;
+  }
+
+  const Int blockSize = 8;
+  const Double thresholdCurrent = 0.8;
+  const Double thresholdAverage = 0.95;
+  const Int maxHistorySize = 32;
+  Int T = 0;  // total block
+  Int C = 0;  // match with collocated block
+  Int S = 0;  // smooth region but not match with collocated block
+  Int M = 0;  // match with other block
+  TComPic* pcPic = pcSlice->getPic();
+  const Int picWidth = pcPic->getPicYuvOrg()->getWidth( COMPONENT_Y );
+  const Int picHeight = pcPic->getPicYuvOrg()->getHeight( COMPONENT_Y );
+  for ( Int i=0; i+blockSize <= picHeight; i+=blockSize )
+  {
+    for ( Int j=0; j+blockSize <= picWidth; j+=blockSize )
+    {
+      T++;
+      Int xPos = j;
+      Int yPos = i;
+      UInt hashValue1;
+      UInt hashValue2;
+
+      // check whether collocated block match with current
+      Pel* pCur = pcPic->getPicYuvOrg()->getAddr( COMPONENT_Y );
+      Pel* pRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getAddr( COMPONENT_Y );
+      Int strideCur = pcPic->getPicYuvOrg()->getStride( COMPONENT_Y );
+      Int strideRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getStride( COMPONENT_Y );
+      pCur += ( yPos*strideCur + xPos );
+      pRef += ( yPos*strideRef + xPos );
+
+      Bool match = true;
+      for ( Int tmpY = 0; tmpY < blockSize && match; tmpY++ )
+      {
+        for ( Int tmpX = 0; tmpX < blockSize && match; tmpX++ )
+        {
+          if ( pCur[tmpX] != pRef[tmpX] )
+          {
+            match = false;
+          }
+        }
+        pCur += strideCur;
+        pRef += strideRef;
+      }
+
+      if ( match )
+      {
+        C++;
+        continue;
+      }
+
+      if ( TComHash::isHorizontalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) ||
+           TComHash::isVerticalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) )
+      {
+        S++;
+        continue;
+      }
+
+      TComHash::getBlockHashValue( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos, pcSlice->getSPS()->getBitDepths(), hashValue1, hashValue2 );
+      if ( pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getHashMap()->hasExactMatch( hashValue1, hashValue2 ) )
+      {
+        M++;
+      }
+    }
+  }
+
+  assert( T > 0 );
+  Double csmRate = static_cast<Double>(C+S+M) / static_cast<Double>(T);
+  Double mRate   = static_cast<Double>(M)     / static_cast<Double>(T);
+
+  if ( g_CSMRate.size() >= maxHistorySize )
+  {
+    g_CSMRate.pop_front();
+  }
+  g_CSMRate.push_back( csmRate );
+
+  if ( g_MRate.size() >= maxHistorySize )
+  {
+    g_MRate.pop_front();
+  }
+  g_MRate.push_back( mRate );
+  
+  if ( csmRate < thresholdCurrent )
+  {
+    return false;
+  }
+
+  if ( C == T )
+  {
+    return true;
+  }
+
+  Double CSMAverage = 0.0;
+  Double MAverage = 0.0;
+  list<Double>::iterator it;
+  for ( it = g_CSMRate.begin(); it != g_CSMRate.end(); it++ )
+  {
+    CSMAverage += (*it);
+  }
+  CSMAverage /= g_CSMRate.size();
+
+  for ( it = g_MRate.begin(); it != g_MRate.end(); it++ )
+  {
+    MAverage += (*it);
+  }
+  MAverage /= g_MRate.size();
+
+  if ( CSMAverage < thresholdAverage )
+  {
+    return false;
+  }
+  
+  if ( M > (T-C-S)/3 )
+  {
+    return true;
+  }
+
+  if ( csmRate > 0.99 && mRate > 0.01 )
+  {
+    return true;
+  }
+
+
+  if ( CSMAverage + MAverage > 1.01 )
+  {
+    return true;
+  }
+
+  return false;
+}
+
 static Void
 cabac_zero_word_padding(TComSlice *const pcSlice, TComPic *const pcPic, const std::size_t binCountsInNalUnits, const std::size_t numBytesInVclNalUnits, std::ostringstream &nalUnitData, const Bool cabacZeroWordPaddingEnabled)
 {
@@ -1183,13 +1318,18 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     {
       pcSlice->setSliceType(I_SLICE);
     }
-    
+
+    if ( pcSlice->getSliceType() == I_SLICE && pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
+    {
+      pcSlice->setSliceType( P_SLICE );
+    }
+
     // Set the nal unit type
     pcSlice->setNalUnitType(getNalUnitType(pocCurr, m_iLastIDR, isField));
     if(pcSlice->getTemporalLayerNonReferenceFlag())
     {
       if (pcSlice->getNalUnitType() == NAL_UNIT_CODED_SLICE_TRAIL_R &&
-          !(m_iGopSize == 1 && pcSlice->getSliceType() == I_SLICE))
+          !( m_iGopSize == 1 && ( pcSlice->getSliceType() == I_SLICE || pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() ) ) )
         // Add this condition to avoid POC issues with encoder_intra_main.cfg configuration (see #1127 in bug tracker)
       {
         pcSlice->setNalUnitType(NAL_UNIT_CODED_SLICE_TRAIL_N);
@@ -1317,6 +1457,22 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     pcSlice->setNumRefIdx(REF_PIC_LIST_0,min(m_pcCfg->getGOPEntry(iGOPid).m_numRefPicsActive,pcSlice->getRPS()->getNumberOfPictures()));
     pcSlice->setNumRefIdx(REF_PIC_LIST_1,min(m_pcCfg->getGOPEntry(iGOPid).m_numRefPicsActive,pcSlice->getRPS()->getNumberOfPictures()));
 
+    if ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
+    {
+      if ( m_pcCfg->getIntraPeriod() > 0 && pcSlice->getPOC() % m_pcCfg->getIntraPeriod() == 0 )
+      {
+        pcSlice->setNumRefIdx( REF_PIC_LIST_0, 0 );
+        pcSlice->setNumRefIdx( REF_PIC_LIST_1, 0 );
+      }
+
+      pcSlice->setNumRefIdx( REF_PIC_LIST_0, pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) + 1 );
+    }
+
+    if (pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy())
+    {
+      pcSlice->setCurPicLongTerm( pcPic );
+      pcPic->setIsLongTerm( true );
+    }
     //  Set reference list
     pcSlice->setRefPicList ( rcListPic );
 
@@ -1324,6 +1480,10 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     if ( (pcSlice->getSliceType() == B_SLICE) && (pcSlice->getNumRefIdx(REF_PIC_LIST_1) == 0) )
     {
       pcSlice->setSliceType ( P_SLICE );
+    }
+    if ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() && pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) == 1 )
+    {
+      m_pcSliceEncoder->setEncCABACTableIdx(P_SLICE);
     }
     pcSlice->setEncCABACTableIdx(m_pcSliceEncoder->getEncCABACTableIdx());
 
@@ -1393,7 +1553,22 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     Bool bGPBcheck=false;
     if ( pcSlice->getSliceType() == B_SLICE)
     {
-      if ( pcSlice->getNumRefIdx(RefPicList( 0 ) ) == pcSlice->getNumRefIdx(RefPicList( 1 ) ) )
+      if ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
+      {
+        if ( pcSlice->getNumRefIdx( RefPicList( 0 ) ) - 1 == pcSlice->getNumRefIdx( RefPicList( 1 ) ) )
+        {
+          bGPBcheck=true;
+          for ( Int i=0; i < pcSlice->getNumRefIdx( RefPicList( 1 ) ); i++ )
+          {
+            if ( pcSlice->getRefPOC( RefPicList( 1 ), i ) != pcSlice->getRefPOC( RefPicList( 0 ), i ) )
+            {
+              bGPBcheck=false;
+              break;
+            }
+          }
+        }
+      }
+      else if ( pcSlice->getNumRefIdx(RefPicList( 0 ) ) == pcSlice->getNumRefIdx(RefPicList( 1 ) ) )
       {
         bGPBcheck=true;
         Int i;
@@ -1417,6 +1592,30 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     }
     pcPic->getSlice(pcSlice->getSliceIdx())->setMvdL1ZeroFlag(pcSlice->getMvdL1ZeroFlag());
 
+    pcSlice->setUseIntegerMv( false );
+    if ( ( !pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() && !pcSlice->isIntra() ) ||
+         ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() && !pcSlice->isOnlyCurrentPictureAsReference() ) )
+    {
+      if ( m_pcCfg->getMotionVectorResolutionControlIdc() == 2 )
+      {
+        pcSlice->setUseIntegerMv( xGetUseIntegerMv( pcSlice ) );
+      }
+      else
+      {
+        pcSlice->setUseIntegerMv( m_pcCfg->getMotionVectorResolutionControlIdc() == 0 ? false : true );
+      }
+    }
+
+    if ( !pcSlice->isIntra() && pcSlice->getEnableTMVPFlag() )
+    {
+      TComPic *pColPic = pcSlice->getRefPic( RefPicList( pcSlice->isInterB() ? 1-pcSlice->getColFromL0Flag() : 0 ), pcSlice->getColRefIdx() );
+      if ( pColPic->getPOC() == pcSlice->getPOC() )
+      {
+        // 7.4.7.1
+        // It is a requirement of bitstream conformance that the picture referred to by collocated_ref_idx ...... shall not be the current picture itself.
+        pcSlice->setEnableTMVPFlag( false );
+      }
+    }
 
     Double lambda            = 0.0;
     Int actualHeadBits       = 0;
@@ -1548,6 +1747,11 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
       pcSlice->setSliceCurStartCtuTsAddr( 0 );
       pcSlice->setSliceSegmentCurStartCtuTsAddr( 0 );
 
+      if( pcSlice->getPPS()->getPpsScreenExtension().getUseColourTrans () && m_pcCfg->getRGBFormatFlag() ) 
+      {
+        pcPic->getPicYuvResi()->DefaultConvertPix( pcPic->getPicYuvOrg(), pcSlice->getSPS()->getBitDepths() );
+      }
+
       for(UInt nextCtuTsAddr = 0; nextCtuTsAddr < numberOfCtusInFrame; )
       {
         m_pcSliceEncoder->precompressSlice( pcPic );
@@ -1599,18 +1803,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     m_pcLoopFilter->setCfg(bLFCrossTileBoundary);
     if ( m_pcCfg->getDeblockingFilterMetric() )
     {
-#if W0038_DB_OPT
-      if ( m_pcCfg->getDeblockingFilterMetric()==2 )
-      {
-        applyDeblockingFilterParameterSelection(pcPic, uiNumSliceSegments, iGOPid);
-      }
-      else
-      {
-#endif
-        applyDeblockingFilterMetric(pcPic, uiNumSliceSegments);
-#if W0038_DB_OPT
-      }
-#endif
+      applyDeblockingFilterMetric(pcPic, uiNumSliceSegments);
     }
     m_pcLoopFilter->loopFilterPic( pcPic );
 
@@ -1618,7 +1811,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     // Set entropy coder
     m_pcEntropyCoder->setEntropyCoder   ( m_pcCavlcCoder );
 
-    if ( m_bSeqFirst )
+    if ( m_uiSeqOrder == 0 )
     {
       // write various parameter sets
       actualTotalBits += xWriteParameterSets(accessUnit, pcSlice);
@@ -1627,7 +1820,17 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
       assert(leadingSeiMessages.empty());
       xCreateIRAPLeadingSEIMessages(leadingSeiMessages, pcSlice->getSPS(), pcSlice->getPPS());
 
-      m_bSeqFirst = false;
+      m_uiSeqOrder = 1;
+    }
+    else if( m_uiSeqOrder < pcSlice->getPPS()->getPPSId()+1 )
+    {
+      OutputNALUnit nalu(NAL_UNIT_PPS);
+      printf("  => sending PPS %u with %u elements\n", pcSlice->getPPS()->getPPSId(), pcSlice->getPPS()->getPpsScreenExtension().getNumPLTPred());
+      m_pcEntropyCoder->setBitstream(&nalu.m_Bitstream);
+      m_pcEntropyCoder->encodePPS(pcSlice->getPPS());
+      accessUnit.push_back(new NALUnitEBSP(nalu));
+      actualTotalBits += UInt(accessUnit.back()->m_nalUnitData.str().size()) * 8;
+      m_uiSeqOrder = pcSlice->getPPS()->getPPSId()+1;
     }
     if (m_pcCfg->getAccessUnitDelimiter())
     {
@@ -1651,16 +1854,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
       tempBitCounter.resetBits();
       m_pcEncTop->getRDGoOnSbacCoder()->setBitstream(&tempBitCounter);
       m_pcSAO->initRDOCabacCoder(m_pcEncTop->getRDGoOnSbacCoder(), pcSlice);
-#if OPTIONAL_RESET_SAO_ENCODING_AFTER_IRAP
-      m_pcSAO->SAOProcess(pcPic, sliceEnabled, pcPic->getSlice(0)->getLambdas(),
-                          m_pcCfg->getTestSAODisableAtPictureLevel(),
-                          m_pcCfg->getSaoEncodingRate(),
-                          m_pcCfg->getSaoEncodingRateChroma(),
-                          m_pcCfg->getSaoCtuBoundary(),
-                          m_pcCfg->getSaoResetEncoderStateAfterIRAP());
-#else
       m_pcSAO->SAOProcess(pcPic, sliceEnabled, pcPic->getSlice(0)->getLambdas(), m_pcCfg->getTestSAODisableAtPictureLevel(), m_pcCfg->getSaoEncodingRate(), m_pcCfg->getSaoEncodingRateChroma(), m_pcCfg->getSaoCtuBoundary());
-#endif
       m_pcSAO->PCMLFDisableProcess(pcPic);
       m_pcEncTop->getRDGoOnSbacCoder()->setBitstream(NULL);
 
@@ -1789,7 +1983,21 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     // cabac_zero_words processing
     cabac_zero_word_padding(pcSlice, pcPic, binCountsInNalUnits, numBytesInVclNalUnits, accessUnit.back()->m_nalUnitData, m_pcCfg->getCabacZeroWordPaddingEnabled());
 
-    pcPic->compressMotion();
+    if(m_pcCfg->getIntraPeriod() != 1)
+    {
+      pcPic->compressMotion();
+    }
+    if ( m_pcCfg->getUseHashBasedME() )
+    {
+      if ( m_pcCfg->getGOPEntry(iGOPid).m_refPic )
+      {
+        pcPic->addPictureToHashMapForInter();
+      }
+      else
+      {
+        pcPic->getHashMap()->clearAll();
+      }
+    }
 
     //-- For time output for each slice
     Double dEncTime = (Double)(clock()-iBeforeTime) / CLOCKS_PER_SEC;
@@ -1850,6 +2058,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     pcPic->getPicYuvRec()->copyToPic(pcPicYuvRecOut);
 
     pcPic->setReconMark   ( true );
+    pcPic->setIsLongTerm( false );
     m_bFirst = false;
     m_iNumPicCoded++;
     m_totalCoded ++;
@@ -1872,13 +2081,23 @@ Void TEncGOP::printOutSummary(UInt uiNumAllPicCoded, Bool isField, const Bool pr
 {
   assert (uiNumAllPicCoded == m_gcAnalyzeAll.getNumPic());
 
+  if ( m_pcCfg->getPrintClippedPSNR() )
+  {
+    for ( Int i=0; i< (m_pcCfg->getChromaFormatIdc() == CHROMA_400 ? 1 : MAX_NUM_COMPONENT); i++ )
+    {
+      if ( m_hasLosslessPSNR[i] )
+      {
+        printf( "\nComponent %d of some picture(s) are coded as lossless, PSNR shown as %8.4lf.", i, m_losslessPSNR[i] );
+      }
+    }
+  }
 
   //--CFG_KDY
   const Int rateMultiplier=(isField?2:1);
-  m_gcAnalyzeAll.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier / (Double)m_pcCfg->getTemporalSubsampleRatio());
-  m_gcAnalyzeI.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier / (Double)m_pcCfg->getTemporalSubsampleRatio());
-  m_gcAnalyzeP.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier / (Double)m_pcCfg->getTemporalSubsampleRatio());
-  m_gcAnalyzeB.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier / (Double)m_pcCfg->getTemporalSubsampleRatio());
+  m_gcAnalyzeAll.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier );
+  m_gcAnalyzeI.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier );
+  m_gcAnalyzeP.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier );
+  m_gcAnalyzeB.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier );
   const ChromaFormat chFmt = m_pcCfg->getChromaFormatIdc();
 
   //-- all
@@ -1909,11 +2128,7 @@ Void TEncGOP::printOutSummary(UInt uiNumAllPicCoded, Bool isField, const Bool pr
   if(isField)
   {
     //-- interlaced summary
-#if TEMPORAL_SUBSAMPLE
-    m_gcAnalyzeAll_in.setFrmRate( m_pcCfg->getFrameRate() / (Double)m_pcCfg->getTemporalSubsampleRatio());
-#else
     m_gcAnalyzeAll_in.setFrmRate( m_pcCfg->getFrameRate());
-#endif
     m_gcAnalyzeAll_in.setBits(m_gcAnalyzeAll.getBits());
     // prior to the above statement, the interlace analyser does not contain the correct total number of bits.
 
@@ -2151,7 +2366,31 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
     }
     const Int maxval = 255 << (pcPic->getPicSym()->getSPS().getBitDepth(toChannelType(ch)) - 8);
     const Double fRefValue = (Double) maxval * maxval * iSize;
-    dPSNR[ch]         = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+
+    if ( m_pcCfg->getPrintClippedPSNR() )
+    {
+      if ( uiSSDtemp == 0 )
+      {
+        if ( m_losslessPSNR[chan] < 999.0 )
+        {
+          dPSNR[ch] = m_losslessPSNR[chan];
+        }
+        else
+        {
+          m_losslessPSNR[chan] = 10.0 * log10( fRefValue * 2 );
+          dPSNR[ch] = m_losslessPSNR[chan];
+          m_hasLosslessPSNR[chan] = true;
+        }
+      }
+      else
+      {
+        dPSNR[ch] = 10.0 * log10( fRefValue / (Double)uiSSDtemp );
+      }
+    }
+    else
+    {
+      dPSNR[ch] = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+    }
     MSEyuvframe[ch]   = (Double)uiSSDtemp/(iSize);
   }
 
@@ -2305,7 +2544,31 @@ Void TEncGOP::xCalculateInterlacedAddPSNR( TComPic* pcPicOrgFirstField, TComPic*
     }
     const Int maxval = 255 << (sps.getBitDepth(toChannelType(ch)) - 8);
     const Double fRefValue = (Double) maxval * maxval * iSize*2;
-    dPSNR[ch]         = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+
+    if ( m_pcCfg->getPrintClippedPSNR() )
+    {
+      if ( uiSSDtemp == 0 )
+      {
+        if ( m_losslessPSNR[chan] < 999.0 )
+        {
+          dPSNR[ch] = m_losslessPSNR[chan];
+        }
+        else
+        {
+          m_losslessPSNR[chan] = 10.0 * log10( fRefValue * 2 );
+          dPSNR[ch] = m_losslessPSNR[chan];
+          m_hasLosslessPSNR[chan] = true;
+        }
+      }
+      else
+      {
+        dPSNR[ch] = 10.0 * log10( fRefValue / (Double)uiSSDtemp );
+      }
+    }
+    else
+    {
+      dPSNR[ch] = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+    }
     MSEyuvframe[ch]   = (Double)uiSSDtemp/(iSize*2);
   }
 
@@ -2673,124 +2936,14 @@ Void TEncGOP::applyDeblockingFilterMetric( TComPic* pcPic, UInt uiNumSlices )
   }
 }
 
-#if W0038_DB_OPT
-Void TEncGOP::applyDeblockingFilterParameterSelection( TComPic* pcPic, const UInt numSlices, const Int gopID )
+TComPPS* TEncGOP::getPPS()
 {
-  enum DBFltParam
-  {
-    DBFLT_PARAM_AVAILABLE = 0,
-    DBFLT_DISABLE_FLAG,
-    DBFLT_BETA_OFFSETD2,
-    DBFLT_TC_OFFSETD2,
-    //NUM_DBFLT_PARAMS
-  };
-  const Int MAX_BETA_OFFSET = 3;
-  const Int MIN_BETA_OFFSET = -3;
-  const Int MAX_TC_OFFSET = 3;
-  const Int MIN_TC_OFFSET = -3;
-
-  TComPicYuv* pcPicYuvRec = pcPic->getPicYuvRec();
-  TComPicYuv* pcPicYuvOrg = pcPic ->getPicYuvOrg();
-
-  const Int currQualityLayer = (pcPic->getSlice(0)->getSliceType() != I_SLICE) ? m_pcCfg->getGOPEntry(gopID).m_temporalId+1 : 0;
-  assert(currQualityLayer <MAX_ENCODER_DEBLOCKING_QUALITY_LAYERS);
-
-  if(!m_pcDeblockingTempPicYuv)
-  {
-    m_pcDeblockingTempPicYuv         = new TComPicYuv;
-    m_pcDeblockingTempPicYuv->create( m_pcEncTop->getSourceWidth(), m_pcEncTop->getSourceHeight(), m_pcEncTop->getChromaFormatIdc(),  pcPic->getSlice(0)->getSPS()->getMaxCUWidth(), pcPic->getSlice(0)->getSPS()->getMaxCUHeight(), pcPic->getSlice(0)->getSPS()->getMaxTotalCUDepth(),true );
-    memset(m_DBParam, 0, sizeof(m_DBParam));
-  }
-
-  //preserve current reconstruction
-  pcPicYuvRec->copyToPic(m_pcDeblockingTempPicYuv);
-
-  const Bool bNoFiltering      = m_DBParam[currQualityLayer][DBFLT_PARAM_AVAILABLE] && m_DBParam[currQualityLayer][DBFLT_DISABLE_FLAG]==false /*&& pcPic->getTLayer()==0*/;
-  const Int  maxBetaOffsetDiv2 = bNoFiltering? Clip3(MIN_BETA_OFFSET, MAX_BETA_OFFSET, m_DBParam[currQualityLayer][DBFLT_BETA_OFFSETD2]+1) : MAX_BETA_OFFSET;
-  const Int  minBetaOffsetDiv2 = bNoFiltering? Clip3(MIN_BETA_OFFSET, MAX_BETA_OFFSET, m_DBParam[currQualityLayer][DBFLT_BETA_OFFSETD2]-1) : MIN_BETA_OFFSET;
-  const Int  maxTcOffsetDiv2   = bNoFiltering? Clip3(MIN_TC_OFFSET, MAX_TC_OFFSET, m_DBParam[currQualityLayer][DBFLT_TC_OFFSETD2]+2)       : MAX_TC_OFFSET;
-  const Int  minTcOffsetDiv2   = bNoFiltering? Clip3(MIN_TC_OFFSET, MAX_TC_OFFSET, m_DBParam[currQualityLayer][DBFLT_TC_OFFSETD2]-2)       : MIN_TC_OFFSET;
-
-  UInt64 distBetaPrevious      = std::numeric_limits<UInt64>::max();
-  UInt64 distMin               = std::numeric_limits<UInt64>::max();
-  Bool   bDBFilterDisabledBest = true;
-  Int    betaOffsetDiv2Best    = 0;
-  Int    tcOffsetDiv2Best      = 0;
-
-  for(Int betaOffsetDiv2=maxBetaOffsetDiv2; betaOffsetDiv2>=minBetaOffsetDiv2; betaOffsetDiv2--)
-  {
-    UInt64 distTcMin = std::numeric_limits<UInt64>::max();
-    for(Int tcOffsetDiv2=maxTcOffsetDiv2; tcOffsetDiv2 >= minTcOffsetDiv2; tcOffsetDiv2--)
-    {
-      for (Int i=0; i<numSlices; i++)
-      {
-        pcPic->getSlice(i)->setDeblockingFilterOverrideFlag(true);
-        pcPic->getSlice(i)->setDeblockingFilterDisable(false);
-        pcPic->getSlice(i)->setDeblockingFilterBetaOffsetDiv2( betaOffsetDiv2 );
-        pcPic->getSlice(i)->setDeblockingFilterTcOffsetDiv2( tcOffsetDiv2 );
-      }
-      m_pcDeblockingTempPicYuv->copyToPic(pcPicYuvRec); // restore reconstruction
-      m_pcLoopFilter->loopFilterPic( pcPic );
-      const UInt64 dist = xFindDistortionFrame(pcPicYuvOrg, pcPicYuvRec, pcPic->getPicSym()->getSPS().getBitDepths());
-      if(dist < distMin)
-      {
-        distMin = dist;
-        bDBFilterDisabledBest = false;
-        betaOffsetDiv2Best  = betaOffsetDiv2;
-        tcOffsetDiv2Best = tcOffsetDiv2;
-      }
-      if(dist < distTcMin)
-      {
-        distTcMin = dist;
-      }
-      else if(tcOffsetDiv2 <-2)
-      {
-        break;
-      }
-    }
-    if(betaOffsetDiv2<-1 && distTcMin >= distBetaPrevious)
-    {
-      break;
-    }
-    distBetaPrevious = distTcMin;
-  }
-
-  //update:
-  m_DBParam[currQualityLayer][DBFLT_PARAM_AVAILABLE] = 1;
-  m_DBParam[currQualityLayer][DBFLT_DISABLE_FLAG]    = bDBFilterDisabledBest;
-  m_DBParam[currQualityLayer][DBFLT_BETA_OFFSETD2]   = betaOffsetDiv2Best;
-  m_DBParam[currQualityLayer][DBFLT_TC_OFFSETD2]     = tcOffsetDiv2Best;
-
-  m_pcDeblockingTempPicYuv->copyToPic(pcPicYuvRec); //restore reconstruction
-
-  if(bDBFilterDisabledBest)
-  {
-    for (Int i=0; i<numSlices; i++)
-    {
-      pcPic->getSlice(i)->setDeblockingFilterOverrideFlag(true);
-      pcPic->getSlice(i)->setDeblockingFilterDisable(true);
-    }
-  }
-  else if(betaOffsetDiv2Best ==pcPic->getSlice(0)->getPPS()->getDeblockingFilterBetaOffsetDiv2() &&  tcOffsetDiv2Best==pcPic->getSlice(0)->getPPS()->getDeblockingFilterTcOffsetDiv2())
-  {
-    for (Int i=0; i<numSlices; i++)
-    {
-      pcPic->getSlice(i)->setDeblockingFilterOverrideFlag(false);
-      pcPic->getSlice(i)->setDeblockingFilterDisable(        pcPic->getSlice(i)->getPPS()->getPicDisableDeblockingFilterFlag() );
-      pcPic->getSlice(i)->setDeblockingFilterBetaOffsetDiv2( pcPic->getSlice(i)->getPPS()->getDeblockingFilterBetaOffsetDiv2() );
-      pcPic->getSlice(i)->setDeblockingFilterTcOffsetDiv2(   pcPic->getSlice(i)->getPPS()->getDeblockingFilterTcOffsetDiv2()   );
-    }
-  }
-  else
-  {
-    for (Int i=0; i<numSlices; i++)
-    {
-      pcPic->getSlice(i)->setDeblockingFilterOverrideFlag(true);
-      pcPic->getSlice(i)->setDeblockingFilterDisable( false );
-      pcPic->getSlice(i)->setDeblockingFilterBetaOffsetDiv2(betaOffsetDiv2Best);
-      pcPic->getSlice(i)->setDeblockingFilterTcOffsetDiv2(tcOffsetDiv2Best);
-    }
-  }
+  return m_pcEncTop->getPPS();
 }
-#endif
+
+TComSPS* TEncGOP::getSPS()
+{
+  return m_pcEncTop->getSPS();
+}
+
 //! \}

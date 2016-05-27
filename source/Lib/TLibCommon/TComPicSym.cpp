@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2016, ITU/ISO/IEC
+ * Copyright (c) 2010-2015, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,14 +69,14 @@ TComPicSym::TComPicSym()
 #endif
 {}
 
-
 TComPicSym::~TComPicSym()
 {
   destroy();
 }
 
-
-Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth )
+Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth
+  , UInt uiPLTMaxSize, UInt uiPLTMaxPredSize
+  )
 {
   destroy();
 
@@ -118,6 +118,7 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
   {
     m_pictureCtuArray[i] = new TComDataCU;
     m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
+      , uiPLTMaxSize, uiPLTMaxPredSize
 #if ADAPTIVE_QP_SELECTION
       , m_pParentARLBuffer
 #endif
