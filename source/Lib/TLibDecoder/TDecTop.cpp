@@ -163,7 +163,11 @@ Void TDecTop::xGetNewPicBuffer ( const TComSPS &sps, const TComPPS &pps, TComPic
   {
     rpcPic = new TComPic();
 
+#if REDUCED_ENCODER_MEMORY
+    rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), false, true);
+#else
     rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), true);
+#endif
 
     m_cListPic.pushBack( rpcPic );
 
@@ -200,7 +204,11 @@ Void TDecTop::xGetNewPicBuffer ( const TComSPS &sps, const TComPPS &pps, TComPic
     m_cListPic.pushBack( rpcPic );
   }
   rpcPic->destroy();
+#if REDUCED_ENCODER_MEMORY
+  rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), false, true);
+#else
   rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), true);
+#endif
 }
 
 Void TDecTop::executeLoopFilters(Int& poc, TComList<TComPic*>*& rpcListPic)
@@ -451,7 +459,7 @@ Void TDecTop::xActivateParameterSets()
     m_apcSlicePilot->applyReferencePictureSet(m_cListPic, m_apcSlicePilot->getRPS());
 
     m_pcTwoVersionsOfCurrDecPicFlag = pps->getPpsScreenExtension().getUseIntraBlockCopy() && 
-        (sps->getUseSAO() || !pps->getPicDisableDeblockingFilterFlag() || pps->getDeblockingFilterOverrideEnabledFlag());
+        (sps->getUseSAO() || !pps->getPPSDeblockingFilterDisabledFlag() || pps->getDeblockingFilterOverrideEnabledFlag());
     m_bIBC = pps->getPpsScreenExtension().getUseIntraBlockCopy();
 
     xGetNewPicBuffer (*(sps), *(pps), m_pcPicAfterILF, m_apcSlicePilot->getTLayer());

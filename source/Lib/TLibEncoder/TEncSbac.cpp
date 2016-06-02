@@ -1797,7 +1797,7 @@ Void TEncSbac::codeCoeffNxN( TComTU &rTu, TCoeff* pcCoef, const ComponentID comp
     }
     else
     {
-      beValid = pcCU->getSlice()->getPPS()->getSignHideFlag();
+      beValid = pcCU->getSlice()->getPPS()->getSignDataHidingEnabledFlag();
     }
   }
 

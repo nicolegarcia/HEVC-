@@ -104,7 +104,6 @@ TComDataCU::TComDataCU()
 
   for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
   {
-    m_apcCUColocated[i]  = NULL;
     m_apiMVPIdx[i]       = NULL;
     m_apiMVPNum[i]       = NULL;
   }
@@ -234,11 +233,6 @@ Void TComDataCU::create( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt
   m_pCtuAboveRight     = NULL;
   m_pCtuAbove          = NULL;
   m_pCtuLeft           = NULL;
-
-  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
-  {
-    m_apcCUColocated[i]  = NULL;
-  }
 }
 
 Void TComDataCU::destroy()
@@ -416,12 +410,6 @@ Void TComDataCU::destroy()
   m_pCtuAbove          = NULL;
   m_pCtuLeft           = NULL;
 
-
-  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
-  {
-    m_apcCUColocated[i]  = NULL;
-  }
-
 }
 
 Bool TComDataCU::CUIsFromSameTile            ( const TComDataCU *pCU /* Can be NULL */) const
@@ -568,12 +556,6 @@ Void TComDataCU::initCtu( TComPic* pcPic, UInt ctuRsAddr )
   m_pCtuAboveLeft   = NULL;
   m_pCtuAboveRight  = NULL;
 
-
-  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
-  {
-    m_apcCUColocated[i]  = NULL;
-  }
-
   UInt frameWidthInCtus = pcPic->getFrameWidthInCtus();
   if ( m_ctuRsAddr % frameWidthInCtus )
   {
@@ -593,15 +575,6 @@ Void TComDataCU::initCtu( TComPic* pcPic, UInt ctuRsAddr )
   if ( m_pCtuAbove && ( (m_ctuRsAddr%frameWidthInCtus) < (frameWidthInCtus-1) )  )
   {
     m_pCtuAboveRight = pcPic->getCtu( m_ctuRsAddr - frameWidthInCtus + 1 );
-  }
-
-  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
-  {
-    const RefPicList rpl=RefPicList(i);
-    if ( getSlice()->getNumRefIdx( rpl ) > 0 )
-    {
-      m_apcCUColocated[rpl] = getSlice()->getRefPic( rpl, 0)->getCtu( m_ctuRsAddr );
-    }
   }
 }
 
@@ -863,11 +836,6 @@ Void TComDataCU::initSubCU( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDepth, 
   m_pCtuAboveLeft   = pcCU->getCtuAboveLeft();
   m_pCtuAboveRight  = pcCU->getCtuAboveRight();
 
-
-  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
-  {
-    m_apcCUColocated[i] = pcCU->getCUColocated(RefPicList(i));
-  }
 }
 
 Void TComDataCU::setOutsideCUPart( UInt uiAbsPartIdx, UInt uiDepth )
@@ -944,7 +912,6 @@ Void TComDataCU::copySubCU( TComDataCU* pcCU, UInt uiAbsPartIdx )
   for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
   {
     const RefPicList rpl=RefPicList(i);
-    m_apcCUColocated[rpl] = pcCU->getCUColocated(rpl);
     m_apiMVPIdx[rpl]=pcCU->getMVPIdx(rpl)  + uiPart;
     m_apiMVPNum[rpl]=pcCU->getMVPNum(rpl)  + uiPart;
   }
@@ -991,11 +958,6 @@ Void TComDataCU::copyInterPredInfoFrom    ( TComDataCU* pcCU, UInt uiAbsPartIdx,
   m_pCtuAboveRight     = pcCU->getCtuAboveRight();
   m_pCtuAbove          = pcCU->getCtuAbove();
   m_pCtuLeft           = pcCU->getCtuLeft();
-
-  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
-  {
-    m_apcCUColocated[i]  = pcCU->getCUColocated(RefPicList(i));
-  }
 
   m_skipFlag           = pcCU->getSkipFlag ()             + uiAbsPartIdx;
 
@@ -1098,7 +1060,6 @@ Void TComDataCU::copyPartFrom( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDept
     const RefPicList rpl=RefPicList(i);
     memcpy( m_apiMVPIdx[rpl] + uiOffset, pcCU->getMVPIdx(rpl), iSizeInUchar );
     memcpy( m_apiMVPNum[rpl] + uiOffset, pcCU->getMVPNum(rpl), iSizeInUchar );
-    m_apcCUColocated[rpl] = pcCU->getCUColocated(rpl);
   }
 
   for(UInt i=0; i<NUM_REF_PIC_LIST_CU_MV_FIELD; i++)
@@ -1833,7 +1794,7 @@ SChar TComDataCU::getLastCodedQP( UInt uiAbsPartIdx ) const
  */
 Bool TComDataCU::isLosslessCoded(UInt absPartIdx) const
 {
-  return (getSlice()->getPPS()->getTransquantBypassEnableFlag() && getCUTransquantBypass (absPartIdx));
+  return (getSlice()->getPPS()->getTransquantBypassEnabledFlag() && getCUTransquantBypass (absPartIdx));
 }
 
 
@@ -3418,7 +3379,7 @@ Bool TComDataCU::isBipredRestriction( UInt puIdx, Bool bCheckIBCRestricion) cons
       b8x8BiPredRestricted = (
         !mvL0Int && !mvL1Int && !IdenticalMV && 
         (getSlice()->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy()) 
-        &&(getSlice()->getSPS()->getUseSAO() || !getSlice()->getPPS()->getPicDisableDeblockingFilterFlag() || getSlice()->getPPS()->getDeblockingFilterOverrideEnabledFlag())
+        &&(getSlice()->getSPS()->getUseSAO() || !getSlice()->getPPS()->getPPSDeblockingFilterDisabledFlag() || getSlice()->getPPS()->getDeblockingFilterOverrideEnabledFlag())
         );
     }
     return b8x8BiPredRestricted; 
@@ -3831,24 +3792,46 @@ Bool TComDataCU::xGetColMVP( const RefPicList eRefPicList, const Int ctuRsAddr, 
 
   // use coldir.
   const TComPic    * const pColPic = getSlice()->getRefPic( RefPicList(getSlice()->isInterB() ? 1-getSlice()->getColFromL0Flag() : 0), getSlice()->getColRefIdx());
+#if REDUCED_ENCODER_MEMORY
+  if (!pColPic->getPicSym()->hasDPBPerCtuData())
+  {
+    return false;
+  }
+  const TComPicSym::DPBPerCtuData * const pColDpbCtu = &(pColPic->getPicSym()->getDPBPerCtuData(ctuRsAddr));
+  const TComSlice * const pColSlice = pColDpbCtu->getSlice();
+  if(pColDpbCtu->getPartitionSize(partUnitIdx)==NUMBER_OF_PART_SIZES)
+#else
   const TComDataCU * const pColCtu = pColPic->getCtu( ctuRsAddr );
   if(pColCtu->getPic()==0 || pColCtu->getPartitionSize(partUnitIdx)==NUMBER_OF_PART_SIZES)
+#endif
   {
     return false;
   }
 
+#if REDUCED_ENCODER_MEMORY
+  if (!pColDpbCtu->isInter(absPartAddr))
+#else
   if (!pColCtu->isInter(absPartAddr))
+#endif
   {
     return false;
   }
 
   RefPicList eColRefPicList = getSlice()->getCheckLDC() ? eRefPicList : RefPicList(getSlice()->getColFromL0Flag());
+#if REDUCED_ENCODER_MEMORY
+  Int iColRefIdx            = pColDpbCtu->getCUMvField(RefPicList(eColRefPicList))->getRefIdx(absPartAddr);
+#else
   Int iColRefIdx            = pColCtu->getCUMvField(RefPicList(eColRefPicList))->getRefIdx(absPartAddr);
+#endif
 
   if (iColRefIdx < 0 )
   {
     eColRefPicList = RefPicList(1 - eColRefPicList);
+#if REDUCED_ENCODER_MEMORY
+    iColRefIdx = pColDpbCtu->getCUMvField(RefPicList(eColRefPicList))->getRefIdx(absPartAddr);
+#else
     iColRefIdx = pColCtu->getCUMvField(RefPicList(eColRefPicList))->getRefIdx(absPartAddr);
+#endif
 
     if (iColRefIdx < 0 )
     {
@@ -3857,7 +3840,11 @@ Bool TComDataCU::xGetColMVP( const RefPicList eRefPicList, const Int ctuRsAddr, 
   }
 
   const Bool bIsCurrRefLongTerm = m_pcSlice->getRefPic(eRefPicList, refIdx)->getIsLongTerm();
+#if REDUCED_ENCODER_MEMORY
+  const Bool bIsColRefLongTerm  = pColSlice->getIsUsedAsLongTerm(eColRefPicList, iColRefIdx);
+#else
   const Bool bIsColRefLongTerm  = pColCtu->getSlice()->getIsUsedAsLongTerm(eColRefPicList, iColRefIdx);
+#endif
 
   if ( bIsCurrRefLongTerm != bIsColRefLongTerm )
   {
@@ -3865,7 +3852,11 @@ Bool TComDataCU::xGetColMVP( const RefPicList eRefPicList, const Int ctuRsAddr, 
   }
 
   // Scale the vector.
+#if REDUCED_ENCODER_MEMORY
+  const TComMv &cColMv = pColDpbCtu->getCUMvField(eColRefPicList)->getMv(absPartAddr);
+#else
   const TComMv &cColMv = pColCtu->getCUMvField(eColRefPicList)->getMv(absPartAddr);
+#endif
   if ( bIsCurrRefLongTerm /*|| bIsColRefLongTerm*/ )
   {
     rcMv = cColMv;
@@ -3873,8 +3864,13 @@ Bool TComDataCU::xGetColMVP( const RefPicList eRefPicList, const Int ctuRsAddr, 
   else
   {
     const Int currPOC    = m_pcSlice->getPOC();
+#if REDUCED_ENCODER_MEMORY
+    const Int colPOC     = pColSlice->getPOC();
+    const Int colRefPOC  = pColSlice->getRefPOC(eColRefPicList, iColRefIdx);
+#else
     const Int colPOC     = pColCtu->getSlice()->getPOC();
     const Int colRefPOC  = pColCtu->getSlice()->getRefPOC(eColRefPicList, iColRefIdx);
+#endif
     const Int currRefPOC = m_pcSlice->getRefPic(eRefPicList, refIdx)->getPOC();
     const Int scale      = xGetDistScaleFactor(currPOC, currRefPOC, colPOC, colRefPOC);
     if ( scale == 4096 )
@@ -3901,13 +3897,26 @@ Bool TComDataCU::xGetColMVPIBC( Int ctuRsAddr, Int uiPartUnitIdx, TComMv& rcMv)
     return false;
   }
 
+#if REDUCED_ENCODER_MEMORY
+  if (!pColPic->getPicSym()->hasDPBPerCtuData())
+  {
+    return false;
+  }
+  const TComPicSym::DPBPerCtuData * const pColDpbCtu = &(pColPic->getPicSym()->getDPBPerCtuData(ctuRsAddr));
+  if(pColDpbCtu->getCUMvField(REF_PIC_LIST_0)->getRefIdx(uiAbsPartAddr) < 0)
+#else
   TComDataCU *pColCU = pColPic->getCtu( ctuRsAddr );
   if(pColCU->getCUMvField(REF_PIC_LIST_0)->getRefIdx(uiAbsPartAddr) < 0)
+#endif
   {
     return false;
   }
 
+#if REDUCED_ENCODER_MEMORY
+  rcMv = pColDpbCtu->getCUMvField(REF_PIC_LIST_INTRABC)->getMv(uiAbsPartAddr);
+#else
   rcMv = pColCU->getCUMvField(REF_PIC_LIST_INTRABC)->getMv(uiAbsPartAddr);
+#endif
 
   return true;
 }
@@ -3947,6 +3956,18 @@ Void TComDataCU::xDeriveCenterIdx( UInt uiPartIdx, UInt& ruiPartIdxCenter ) cons
 
 Void TComDataCU::compressMV()
 {
+#if REDUCED_ENCODER_MEMORY
+  const Int scaleFactor = std::max<Int>(1,4 * AMVP_DECIMATION_FACTOR / m_unitSize);
+  TComPicSym &picSym=*(getPic()->getPicSym());
+  TComPicSym::DPBPerCtuData &dpbForCtu=picSym.getDPBPerCtuData(getCtuRsAddr());
+
+  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
+  {
+    dpbForCtu.m_CUMvField[i].compress(dpbForCtu.m_pePredMode, m_pePredMode, scaleFactor,m_acCUMvField[i]);
+    memcpy(dpbForCtu.m_pePartSize, m_pePartSize, sizeof(*m_pePartSize)*m_uiNumPartition);
+    dpbForCtu.m_pSlice = getSlice();
+  }
+#else
   Int scaleFactor = 4 * AMVP_DECIMATION_FACTOR / m_unitSize;
   if (scaleFactor > 0)
   {
@@ -3955,7 +3976,24 @@ Void TComDataCU::compressMV()
       m_acCUMvField[i].compress(m_pePredMode, scaleFactor);
     }
   }
+#endif
 }
+
+#if REDUCED_ENCODER_MEMORY
+Void TComDataCU::storeMVForIBCEnc()
+{
+  const Int scaleFactor = 1;
+  TComPicSym &picSym=*(getPic()->getPicSym());
+  TComPicSym::DPBPerCtuData &dpbForCtu=picSym.getDPBPerCtuData(getCtuRsAddr());
+
+  for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
+  {
+    dpbForCtu.m_CUMvField[i].compress(dpbForCtu.m_pePredMode, m_pePredMode, scaleFactor,m_acCUMvField[i]);
+    memcpy(dpbForCtu.m_pePartSize, m_pePartSize, sizeof(*m_pePartSize)*m_uiNumPartition);
+    dpbForCtu.m_pSlice = getSlice();
+  }
+}
+#endif
 
 UInt TComDataCU::getCoefScanIdx(const UInt uiAbsPartIdx, const UInt uiWidth, const UInt uiHeight, const ComponentID compID) const
 {

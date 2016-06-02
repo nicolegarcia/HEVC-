@@ -90,10 +90,18 @@ public:
   TComPic();
   virtual ~TComPic();
 
-  Void          copyPicInfo(const TComPic& sComPic);
-
+#if REDUCED_ENCODER_MEMORY
+  Void          create( const TComSPS &sps, const TComPPS &pps, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction );
+  Void          prepareForEncoderSourcePicYuv();
+  Void          prepareForReconstruction();
+  Void          releaseReconstructionIntermediateData();
+  Void          releaseAllReconstructionData();
+  Void          releaseEncoderSourceImageData();
+#else
   Void          create( const TComSPS &sps, const TComPPS &pps,
                         UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bIsVirtual /*= false*/ );
+#endif
+  Void          copyPicInfo(const TComPic& sComPic);
 
   virtual Void  destroy();
 
@@ -156,6 +164,9 @@ public:
   Bool          getOutputMark () const      { return m_bNeededForOutput;  }
 
   Void          compressMotion();
+#if REDUCED_ENCODER_MEMORY
+  Void          storeMotionForIBCEnc();
+#endif
   UInt          getCurrSliceIdx() const           { return m_uiCurrSliceIdx;                }
   Void          setCurrSliceIdx(UInt i)      { m_uiCurrSliceIdx = i;                   }
   UInt          getNumAllocatedSlice() const      {return m_picSym.getNumAllocatedSlice();}

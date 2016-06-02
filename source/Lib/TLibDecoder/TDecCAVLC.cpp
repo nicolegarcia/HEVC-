@@ -206,7 +206,7 @@ Void TDecCavlc::parsePPS(TComPPS* pcPPS)
 
   READ_CODE(3, uiCode, "num_extra_slice_header_bits");                pcPPS->setNumExtraSliceHeaderBits(uiCode);
 
-  READ_FLAG ( uiCode, "sign_data_hiding_flag" ); pcPPS->setSignHideFlag( uiCode );
+  READ_FLAG ( uiCode, "sign_data_hiding_enabled_flag" );              pcPPS->setSignDataHidingEnabledFlag( uiCode );
 
   READ_FLAG( uiCode,   "cabac_init_present_flag" );            pcPPS->setCabacInitPresentFlag( uiCode ? true : false );
 
@@ -253,8 +253,8 @@ Void TDecCavlc::parsePPS(TComPPS* pcPPS)
   READ_FLAG( uiCode, "weighted_bipred_flag" );         // Use of Bi-Directional Weighting Prediction (B_SLICE)
   pcPPS->setWPBiPred( uiCode==1 );
 
-  READ_FLAG( uiCode, "transquant_bypass_enable_flag");
-  pcPPS->setTransquantBypassEnableFlag(uiCode ? true : false);
+  READ_FLAG( uiCode, "transquant_bypass_enabled_flag");
+  pcPPS->setTransquantBypassEnabledFlag(uiCode ? true : false);
   READ_FLAG( uiCode, "tiles_enabled_flag"               );    pcPPS->setTilesEnabledFlag            ( uiCode == 1 );
   READ_FLAG( uiCode, "entropy_coding_sync_enabled_flag" );    pcPPS->setEntropyCodingSyncEnabledFlag( uiCode == 1 );
 
@@ -291,19 +291,16 @@ Void TDecCavlc::parsePPS(TComPPS* pcPPS)
         pcPPS->setTileRowHeight(rowHeight);
       }
     }
-
-    if ((tileColumnsMinus1 + tileRowsMinus1) != 0)
-    {
-      READ_FLAG ( uiCode, "loop_filter_across_tiles_enabled_flag" );   pcPPS->setLoopFilterAcrossTilesEnabledFlag( uiCode ? true : false );
-    }
+    assert ((tileColumnsMinus1 + tileRowsMinus1) != 0);
+    READ_FLAG ( uiCode, "loop_filter_across_tiles_enabled_flag" );     pcPPS->setLoopFilterAcrossTilesEnabledFlag( uiCode ? true : false );
   }
   READ_FLAG( uiCode, "pps_loop_filter_across_slices_enabled_flag" );   pcPPS->setLoopFilterAcrossSlicesEnabledFlag( uiCode ? true : false );
   READ_FLAG( uiCode, "deblocking_filter_control_present_flag" );       pcPPS->setDeblockingFilterControlPresentFlag( uiCode ? true : false );
   if(pcPPS->getDeblockingFilterControlPresentFlag())
   {
     READ_FLAG( uiCode, "deblocking_filter_override_enabled_flag" );    pcPPS->setDeblockingFilterOverrideEnabledFlag( uiCode ? true : false );
-    READ_FLAG( uiCode, "pps_disable_deblocking_filter_flag" );         pcPPS->setPicDisableDeblockingFilterFlag(uiCode ? true : false );
-    if(!pcPPS->getPicDisableDeblockingFilterFlag())
+    READ_FLAG( uiCode, "pps_deblocking_filter_disabled_flag" );        pcPPS->setPPSDeblockingFilterDisabledFlag(uiCode ? true : false );
+    if(!pcPPS->getPPSDeblockingFilterDisabledFlag())
     {
       READ_SVLC ( iCode, "pps_beta_offset_div2" );                     pcPPS->setDeblockingFilterBetaOffsetDiv2( iCode );
       READ_SVLC ( iCode, "pps_tc_offset_div2" );                       pcPPS->setDeblockingFilterTcOffsetDiv2( iCode );
@@ -823,9 +820,9 @@ Void TDecCavlc::parseSPS(TComSPS* pcSPS)
       pcSPS->setUsedByCurrPicLtSPSFlag(k, uiCode?1:0);
     }
   }
-  READ_FLAG( uiCode, "sps_temporal_mvp_enable_flag" );            pcSPS->setTMVPFlagsPresent(uiCode);
+  READ_FLAG( uiCode, "sps_temporal_mvp_enabled_flag" );           pcSPS->setSPSTemporalMVPEnabledFlag(uiCode);
 
-  READ_FLAG( uiCode, "sps_strong_intra_smoothing_enable_flag" );  pcSPS->setUseStrongIntraSmoothing(uiCode);
+  READ_FLAG( uiCode, "strong_intra_smoothing_enable_flag" );      pcSPS->setUseStrongIntraSmoothing(uiCode);
 
   READ_FLAG( uiCode, "vui_parameters_present_flag" );             pcSPS->setVuiParametersPresentFlag(uiCode);
 
@@ -1169,7 +1166,7 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
   if(!pcSlice->getDependentSliceSegmentFlag())
   {
     Bool bTwoVersionsOfCurrDecPicFlag = ( pps->getPpsScreenExtension().getUseIntraBlockCopy() 
-      &&(sps->getUseSAO() || !pps->getPicDisableDeblockingFilterFlag() || pps->getDeblockingFilterOverrideEnabledFlag())
+      &&(sps->getUseSAO() || !pps->getPPSDeblockingFilterDisabledFlag() || pps->getDeblockingFilterOverrideEnabledFlag())
       );
     for (Int i = 0; i < pps->getNumExtraSliceHeaderBits(); i++)
     {
@@ -1358,7 +1355,7 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
         (*rps)=TComReferencePictureSet();
         pcSlice->setRPS(rps);
       }
-      if (sps->getTMVPFlagsPresent())
+      if (sps->getSPSTemporalMVPEnabledFlag())
       {
         READ_FLAG( uiCode, "slice_temporal_mvp_enabled_flag" );
         pcSlice->setEnableTMVPFlag( uiCode == 1 ? true : false );
@@ -1651,7 +1648,7 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
       }
       if(pcSlice->getDeblockingFilterOverrideFlag())
       {
-        READ_FLAG ( uiCode, "slice_disable_deblocking_filter_flag" );   pcSlice->setDeblockingFilterDisable(uiCode ? 1 : 0);
+        READ_FLAG ( uiCode, "slice_deblocking_filter_disabled_flag" );   pcSlice->setDeblockingFilterDisable(uiCode ? 1 : 0);
         if(!pcSlice->getDeblockingFilterDisable())
         {
           READ_SVLC( iCode, "slice_beta_offset_div2" );                       pcSlice->setDeblockingFilterBetaOffsetDiv2(iCode);
@@ -1664,7 +1661,7 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
       }
       else
       {
-        pcSlice->setDeblockingFilterDisable   ( pps->getPicDisableDeblockingFilterFlag() );
+        pcSlice->setDeblockingFilterDisable       ( pps->getPPSDeblockingFilterDisabledFlag() );
         pcSlice->setDeblockingFilterBetaOffsetDiv2( pps->getDeblockingFilterBetaOffsetDiv2() );
         pcSlice->setDeblockingFilterTcOffsetDiv2  ( pps->getDeblockingFilterTcOffsetDiv2() );
       }

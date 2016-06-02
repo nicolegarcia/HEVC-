@@ -1884,7 +1884,7 @@ Void TDecSbac::parseCoeffNxN(  TComTU &rTu, ComponentID compID )
   }
   else
   {
-    beValid = pcCU->getSlice()->getPPS()->getSignHideFlag();
+    beValid = pcCU->getSlice()->getPPS()->getSignDataHidingEnabledFlag();
   }
 
   UInt absSum = 0;
