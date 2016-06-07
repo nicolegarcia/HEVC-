@@ -188,13 +188,7 @@
 // Derived macros
 //------------------------------------------------
 
-#define SCM_S0067_NUM_CANDIDATES                         64 ///< Maximum number of candidates to store/test
-#define SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU               2 ///< Do full horizontal/vertical search for Nx2N
-#define SCM_S0067_MAX_CAND_SIZE                          32 ///< 32 or 64, 16 by default
 #define SCM_T0227_INTER_SEARCH_YUV                        1 ///< use 3 components for Inter in mixed CU decision(Intra BC and inter CU)
-#define SCM_T0048_PALETTE_PRED_IN_PPS_REFRESH            16 ///< Periodicity of the palette refresh
-#define SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ                5 ///< Chroma error weight as a right shift
-#define SCM_V0034_PALETTE_CHROMA_SETTINGS     (1<<SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
 
 //------------------------------------------------
 // Backwards-compatibility

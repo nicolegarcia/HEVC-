@@ -6927,12 +6927,10 @@ Bool TEncSearch::predIntraBCSearch( TComDataCU * pcCU,
 
   PartSize     ePartSize  = pcCU->getPartitionSize( 0 );
 
-#if SCM_S0067_MAX_CAND_SIZE
-  if (m_pcEncCfg->getUseIntraBlockCopyFastSearch() && (pcCU->getWidth(0) > SCM_S0067_MAX_CAND_SIZE))
-#else
-  if (m_pcEncCfg->getUseIntraBlockCopyFastSearch() && (pcCU->getWidth(0) > 16))
-#endif
+  if ( m_pcEncCfg->getUseIntraBlockCopyFastSearch() && (pcCU->getWidth( 0 ) > SCM_S0067_MAX_CAND_SIZE) )
+  {
     return false;
+  }
 
   const Int iNumPart = pcCU->getNumPartitions();
   Distortion uiTotalCost = 0;

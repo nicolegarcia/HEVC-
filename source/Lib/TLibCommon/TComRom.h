@@ -179,9 +179,6 @@ extern const Int g_quantInterDefault8x8[8*8];
 extern const UInt g_scalingListSize [SCALING_LIST_SIZE_NUM];
 extern const UInt g_scalingListSizeX[SCALING_LIST_SIZE_NUM];
 
-#define SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE              4       ///< CABAC bypass threshold
-#define SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1                         1
-#define SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2                         3
 extern UChar g_ucRunTopLut[5];
 extern UChar g_ucRunLeftLut[5];
 extern UChar g_ucMsbP1Idx[256];

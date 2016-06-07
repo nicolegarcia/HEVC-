@@ -820,11 +820,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
              ( rpcBestCU->getSlice()->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() && rpcBestCU->getSlice()->isOnlyCurrentPictureAsReference() ) ||
              !rpcBestCU->isSkipped(0) ) // avoid very complex intra if it is unlikely
         {
-#if SCM_S0067_MAX_CAND_SIZE
           if (m_pcEncCfg->getUseIntraBlockCopyFastSearch() && rpcTempCU->getWidth(0) <= SCM_S0067_MAX_CAND_SIZE )
-#else
-          if (m_pcEncCfg->getUseIntraBlockCopyFastSearch() && rpcTempCU->getWidth(0) <= 16 )
-#endif
           {
             xCheckRDCostIntraBC( rpcBestCU, rpcTempCU, false, SIZE_2Nx2N, dIntraBcCostPred, true DEBUG_STRING_PASS_INTO(sDebug));
             rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
