@@ -124,15 +124,11 @@ TEncPic::~TEncPic()
 #if REDUCED_ENCODER_MEMORY
 Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth )
 {
-  const UInt paletteMaxSize = sps.getSpsScreenExtension().getPLTMaxSize();
-  const UInt paletteMaxPredSize = sps.getSpsScreenExtension().getPLTMaxPredSize();
-  TComPic::create( sps, pps, paletteMaxSize, paletteMaxPredSize, true, false );
+  TComPic::create( sps, pps, true, false );
 #else
 Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, Bool bIsVirtual )
 {
-  const UInt paletteMaxSize = sps.getSpsScreenExtension().getPLTMaxSize();
-  const UInt paletteMaxPredSize = sps.getSpsScreenExtension().getPLTMaxPredSize();
-  TComPic::create( sps, pps, paletteMaxSize, paletteMaxPredSize, bIsVirtual );
+  TComPic::create( sps, pps, bIsVirtual );
 #endif
   const Int  iWidth      = sps.getPicWidthInLumaSamples();
   const Int  iHeight     = sps.getPicHeightInLumaSamples();

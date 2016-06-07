@@ -164,9 +164,9 @@ Void TDecTop::xGetNewPicBuffer ( const TComSPS &sps, const TComPPS &pps, TComPic
     rpcPic = new TComPic();
 
 #if REDUCED_ENCODER_MEMORY
-    rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), false, true);
+    rpcPic->create ( sps, pps, false, true);
 #else
-    rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), true);
+    rpcPic->create ( sps, pps, true);
 #endif
 
     m_cListPic.pushBack( rpcPic );
@@ -205,9 +205,9 @@ Void TDecTop::xGetNewPicBuffer ( const TComSPS &sps, const TComPPS &pps, TComPic
   }
   rpcPic->destroy();
 #if REDUCED_ENCODER_MEMORY
-  rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), false, true);
+  rpcPic->create ( sps, pps, false, true);
 #else
-  rpcPic->create ( sps, pps, sps.getSpsScreenExtension().getPLTMaxSize(), sps.getSpsScreenExtension().getPLTMaxPredSize(), true);
+  rpcPic->create ( sps, pps, true);
 #endif
 }
 

@@ -78,9 +78,9 @@ TComPicSym::~TComPicSym()
 }
 
 #if REDUCED_ENCODER_MEMORY
-Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bAllocateCtuArray )
+Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, const Bool bAllocateCtuArray )
 #else
-Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize )
+Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth )
 #endif
 {
   destroy();
@@ -128,7 +128,7 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
 #if REDUCED_ENCODER_MEMORY
   if (bAllocateCtuArray)
   {
-    prepareForReconstruction( uiPLTMaxSize, uiPLTMaxPredSize );
+    prepareForReconstruction();
   }
 #else
   for (UInt i=0; i<m_numCtusInFrame ; i++ )
@@ -162,11 +162,13 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
 }
 
 #if REDUCED_ENCODER_MEMORY
-Void TComPicSym::prepareForReconstruction( UInt uiPLTMaxSize, UInt uiPLTMaxPredSize )
+Void TComPicSym::prepareForReconstruction()
 {
   const ChromaFormat chromaFormatIDC = m_sps.getChromaFormatIdc();
   const UInt uiMaxCuWidth  = m_sps.getMaxCUWidth();
   const UInt uiMaxCuHeight = m_sps.getMaxCUHeight();
+  const UInt paletteMaxSize     = m_sps.getSpsScreenExtension().getPLTMaxSize();
+  const UInt paletteMaxPredSize = m_sps.getSpsScreenExtension().getPLTMaxPredSize();
   if (m_pictureCtuArray == NULL)
   {
     m_pictureCtuArray = new TComDataCU*[m_numCtusInFrame];
@@ -174,7 +176,7 @@ Void TComPicSym::prepareForReconstruction( UInt uiPLTMaxSize, UInt uiPLTMaxPredS
     for (UInt i=0; i<m_numCtusInFrame ; i++ )
     {
       m_pictureCtuArray[i] = new TComDataCU;
-      m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth, uiPLTMaxSize, uiPLTMaxPredSize
+      m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth, paletteMaxSize, paletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
         , m_pParentARLBuffer
 #endif

@@ -91,15 +91,14 @@ public:
   virtual ~TComPic();
 
 #if REDUCED_ENCODER_MEMORY
-  Void          create( const TComSPS &sps, const TComPPS &pps, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction );
+  Void          create( const TComSPS &sps, const TComPPS &pps, const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction );
   Void          prepareForEncoderSourcePicYuv();
   Void          prepareForReconstruction();
   Void          releaseReconstructionIntermediateData();
   Void          releaseAllReconstructionData();
   Void          releaseEncoderSourceImageData();
 #else
-  Void          create( const TComSPS &sps, const TComPPS &pps,
-                        UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bIsVirtual /*= false*/ );
+  Void          create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirtual /*= false*/ );
 #endif
   Void          copyPicInfo(const TComPic& sComPic);
 

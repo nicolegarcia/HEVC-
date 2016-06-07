@@ -96,9 +96,9 @@ Void TComPic::copyPicInfo( const TComPic& sComPic )
 
 Void TComPic::create( const TComSPS &sps, const TComPPS &pps,
 #if REDUCED_ENCODER_MEMORY
-                      UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction )
+                      const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction )
 #else
-                      UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bIsVirtual )
+                      const Bool bIsVirtual )
 #endif
 {
   destroy();
@@ -111,10 +111,10 @@ Void TComPic::create( const TComSPS &sps, const TComPPS &pps,
   const UInt         uiMaxDepth      = sps.getMaxTotalCUDepth();
 
 #if REDUCED_ENCODER_MEMORY
-  m_picSym.create( sps, pps, uiMaxDepth, uiPLTMaxSize, uiPLTMaxPredSize, bCreateForImmediateReconstruction );
+  m_picSym.create( sps, pps, uiMaxDepth, bCreateForImmediateReconstruction );
   if (bCreateEncoderSourcePicYuv)
 #else
-  m_picSym.create( sps, pps, uiMaxDepth, uiPLTMaxSize, uiPLTMaxPredSize );
+  m_picSym.create( sps, pps, uiMaxDepth );
   if (!bIsVirtual)
 #endif
   {
@@ -179,7 +179,7 @@ Void TComPic::prepareForReconstruction()
   // mark it should be extended
   m_apcPicYuv[PIC_YUV_REC]->setBorderExtension(false);
 
-  m_picSym.prepareForReconstruction( m_picSym.getSPS().getSpsScreenExtension().getPLTMaxSize(), m_picSym.getSPS().getSpsScreenExtension().getPLTMaxPredSize() );
+  m_picSym.prepareForReconstruction();
 }
 
 Void TComPic::releaseReconstructionIntermediateData()
