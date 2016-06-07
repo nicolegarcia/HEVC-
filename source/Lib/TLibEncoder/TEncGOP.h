@@ -144,6 +144,9 @@ private:
   Pel                     m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
   Int                     m_palettePredictorBitDepth[MAX_NUM_CHANNEL_TYPE];
 
+  list<Double>            m_CSMRate;
+  list<Double>            m_MRate;
+
 public:
   TEncGOP();
   virtual ~TEncGOP();

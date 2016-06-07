@@ -827,9 +827,6 @@ Void TEncGOP::xUpdateDuInfoSEI(SEIMessages &duInfoSeiMessages, SEIPictureTiming 
   }
 }
 
-list<Double> g_CSMRate;
-list<Double> g_MRate;
-
 Bool TEncGOP::xGetUseIntegerMv( TComSlice* pcSlice )
 {
   if ( !m_pcCfg->getUseHashBasedME() )
@@ -905,17 +902,17 @@ Bool TEncGOP::xGetUseIntegerMv( TComSlice* pcSlice )
   Double csmRate = static_cast<Double>(C+S+M) / static_cast<Double>(T);
   Double mRate   = static_cast<Double>(M)     / static_cast<Double>(T);
 
-  if ( g_CSMRate.size() >= maxHistorySize )
+  if ( m_CSMRate.size() >= maxHistorySize )
   {
-    g_CSMRate.pop_front();
+    m_CSMRate.pop_front();
   }
-  g_CSMRate.push_back( csmRate );
+  m_CSMRate.push_back( csmRate );
 
-  if ( g_MRate.size() >= maxHistorySize )
+  if ( m_MRate.size() >= maxHistorySize )
   {
-    g_MRate.pop_front();
+    m_MRate.pop_front();
   }
-  g_MRate.push_back( mRate );
+  m_MRate.push_back( mRate );
   
   if ( csmRate < thresholdCurrent )
   {
@@ -930,17 +927,17 @@ Bool TEncGOP::xGetUseIntegerMv( TComSlice* pcSlice )
   Double CSMAverage = 0.0;
   Double MAverage = 0.0;
   list<Double>::iterator it;
-  for ( it = g_CSMRate.begin(); it != g_CSMRate.end(); it++ )
+  for ( it = m_CSMRate.begin(); it != m_CSMRate.end(); it++ )
   {
     CSMAverage += (*it);
   }
-  CSMAverage /= g_CSMRate.size();
+  CSMAverage /= m_CSMRate.size();
 
-  for ( it = g_MRate.begin(); it != g_MRate.end(); it++ )
+  for ( it = m_MRate.begin(); it != m_MRate.end(); it++ )
   {
     MAverage += (*it);
   }
-  MAverage /= g_MRate.size();
+  MAverage /= m_MRate.size();
 
   if ( CSMAverage < thresholdAverage )
   {
