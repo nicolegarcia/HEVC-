@@ -188,8 +188,6 @@
 // Derived macros
 //------------------------------------------------
 
-#define SCM_T0227_INTER_SEARCH_YUV                        1 ///< use 3 components for Inter in mixed CU decision(Intra BC and inter CU)
-
 //------------------------------------------------
 // Backwards-compatibility
 //------------------------------------------------

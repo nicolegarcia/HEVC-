@@ -7492,14 +7492,9 @@ Bool TEncSearch::predMixedIntraBCInterSearch( TComDataCU * pcCU,
             pcCU->getCUMvField( eRefPicList )->setAllRefIdx( iRefIdx, ePartSize, uiPartAddr, 0, iPartIdx );
             pcCU->setInterDirSubParts( 1 + iRefList, uiPartAddr, iPartIdx, uiDepth );
 
-#if SCM_T0227_INTER_SEARCH_YUV
             motionCompensation( pcCU, &m_tmpYuvPred, REF_PIC_LIST_X, iPartIdx );
             uiCostInterTemp = 0;
-#if SCM_T0227_INTER_SEARCH_YUV==1
             for (Int ch = COMPONENT_Y; ch < pcCU->getPic()->getNumberValidComponents(); ch++)
-#else
-            for (Int ch = COMPONENT_Y; ch < (COMPONENT_Y+1); ch++)
-#endif
             {
               Int iTempWidth = iDummyWidth >> pcCU->getPic()->getPicYuvRec()->getComponentScaleX(ComponentID(ch));
               Int iTempHeight = iDummyHeight >> pcCU->getPic()->getPicYuvRec()->getComponentScaleY(ComponentID(ch));
@@ -7514,9 +7509,6 @@ Bool TEncSearch::predMixedIntraBCInterSearch( TComDataCU * pcCU,
               if(uiCostInterTemp >= uiCostInterBest)
                 break;
             }
-#else
-            xGetInterPredictionError( pcCU, pcOrgYuv, iPartIdx, uiCostInterTemp, m_pcEncCfg->getUseHADME() );
-#endif
             pcCU->getCUMvField( eRefPicList )->setAllRefIdx( -1, ePartSize, uiPartAddr, 0, iPartIdx );
             //  m_pcRdCost->setCostScale  ( 2 );
             uiCostInterTemp += m_pcRdCost->getCostOfVectorWithPredictor( cMv.getHor(), cMv.getVer() );
@@ -7540,13 +7532,7 @@ Bool TEncSearch::predMixedIntraBCInterSearch( TComDataCU * pcCU,
         Distortion uiMRGCost = std::numeric_limits<Distortion>::max();
         pcCU->setMergeFlagSubParts( true, uiPartAddr, iPartIdx, uiDepth );
 
-#if SCM_T0227_INTER_SEARCH_YUV==1
         xMergeEstimation( pcCU, pcOrgYuv, iPartIdx, uiMRGInterDir, cMRGMvField[iCombo], uiMRGIndex, uiMRGCost, cMvFieldNeighbours[iCombo], uhInterDirNeighbours[iCombo], numValidMergeCand[iCombo], 1 );
-#elif SCM_T0227_INTER_SEARCH_YUV==2
-        xMergeEstimation( pcCU, pcOrgYuv, iPartIdx, uiMRGInterDir, cMRGMvField[iCombo], uiMRGIndex, uiMRGCost, cMvFieldNeighbours[iCombo], uhInterDirNeighbours[iCombo], numValidMergeCand[iCombo], 2 );
-#else
-        xMergeEstimation( pcCU, pcOrgYuv, iPartIdx, uiMRGInterDir, cMRGMvField[iCombo], uiMRGIndex, uiMRGCost, cMvFieldNeighbours[iCombo], uhInterDirNeighbours[iCombo], numValidMergeCand[iCombo] );
-#endif
         pcCU->getCUMvField( REF_PIC_LIST_0 )->setAllRefIdx( -1, ePartSize, uiPartAddr, 0, iPartIdx );
         pcCU->getCUMvField( REF_PIC_LIST_1 )->setAllRefIdx( -1, ePartSize, uiPartAddr, 0, iPartIdx );
 
