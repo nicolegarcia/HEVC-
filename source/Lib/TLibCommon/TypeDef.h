@@ -184,7 +184,6 @@
 // Processing controls
 //------------------------------------------------
 
-#define SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS             1 ///< Align profile indications with spec in JCTVC-W1005
 //------------------------------------------------
 // Derived macros
 //------------------------------------------------
@@ -591,12 +590,8 @@ namespace Profile
     MAIN10 = 2,
     MAINSTILLPICTURE = 3,
     MAINREXT = 4,
-    HIGHTHROUGHPUTREXT = 5
-#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
-   ,MAINSCC  = 9
-#else
-   ,MAINSCC  = 31 // Placeholder profile for development
-#endif 
+    HIGHTHROUGHPUTREXT = 5,
+    MAINSCC  = 9
   };
 }
 

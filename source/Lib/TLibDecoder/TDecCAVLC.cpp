@@ -1855,17 +1855,13 @@ Void TDecCavlc::parseProfileTier(ProfileTierLevel *ptl, const Bool /*bIsSubLayer
   }
 
   if ((ptl->getProfileIdc() >= Profile::MAIN && ptl->getProfileIdc() <= Profile::HIGHTHROUGHPUTREXT) ||
-#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
        ptl->getProfileIdc() == Profile::MAINSCC ||
-#endif 
        ptl->getProfileCompatibilityFlag(Profile::MAIN) ||
        ptl->getProfileCompatibilityFlag(Profile::MAIN10) ||
        ptl->getProfileCompatibilityFlag(Profile::MAINSTILLPICTURE) ||
        ptl->getProfileCompatibilityFlag(Profile::MAINREXT) ||
-       ptl->getProfileCompatibilityFlag(Profile::HIGHTHROUGHPUTREXT)
-#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
-       || ptl->getProfileCompatibilityFlag(Profile::MAINSCC)
-#endif 
+       ptl->getProfileCompatibilityFlag(Profile::HIGHTHROUGHPUTREXT) ||
+       ptl->getProfileCompatibilityFlag(Profile::MAINSCC)
        )
   {
     READ_FLAG(    uiCode, PTL_TRACE_TEXT("inbld_flag"                      )); assert(uiCode == 0);
