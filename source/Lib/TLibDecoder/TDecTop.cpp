@@ -448,8 +448,8 @@ Void TDecTop::xActivateParameterSets()
     }
 #endif
 
-    assert(sps->getSpsScreenExtension().getPLTMaxSize() != 0 || pps->getPpsScreenExtension().getUsePalettePredictor() == false);
-    assert(sps->getSpsScreenExtension().getUsePLTMode() != 0 || pps->getPpsScreenExtension().getUsePalettePredictor() == false);
+    assert(sps->getSpsScreenExtension().getPaletteMaxSize() != 0 || pps->getPpsScreenExtension().getUsePalettePredictor() == false);
+    assert(sps->getSpsScreenExtension().getUsePaletteMode() != 0 || pps->getPpsScreenExtension().getUsePalettePredictor() == false);
 
     // NOTE: globals were set up here originally. You can now use:
     // g_uiMaxCUDepth = sps->getMaxTotalCUDepth();
@@ -528,7 +528,7 @@ Void TDecTop::xActivateParameterSets()
     m_SEIs.clear();
 
     // Recursive structure
-    m_cCuDecoder.create ( sps->getMaxTotalCUDepth(), sps->getMaxCUWidth(), sps->getMaxCUHeight(), sps->getChromaFormatIdc(), sps->getSpsScreenExtension().getPLTMaxSize(), sps->getSpsScreenExtension().getPLTMaxPredSize() );
+    m_cCuDecoder.create ( sps->getMaxTotalCUDepth(), sps->getMaxCUWidth(), sps->getMaxCUHeight(), sps->getChromaFormatIdc(), sps->getSpsScreenExtension().getPaletteMaxSize(), sps->getSpsScreenExtension().getPaletteMaxPredSize() );
     m_cCuDecoder.init   ( &m_cEntropyDecoder, &m_cTrQuant, &m_cPrediction );
     m_cTrQuant.init     ( sps->getMaxTrSize() );
 

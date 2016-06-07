@@ -71,7 +71,7 @@ Void TDecCu::init( TDecEntropy* pcEntropyDecoder, TComTrQuant* pcTrQuant, TComPr
  \param    chromaFormatIDC chroma format
  */
 Void TDecCu::create( UInt uiMaxDepth, UInt uiMaxWidth, UInt uiMaxHeight, ChromaFormat chromaFormatIDC
-                    ,UInt uiPLTMaxSize, UInt uiPLTMaxPredSize
+                    ,UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
   )
 {
   m_uiMaxDepth = uiMaxDepth+1;
@@ -97,7 +97,7 @@ Void TDecCu::create( UInt uiMaxDepth, UInt uiMaxWidth, UInt uiMaxHeight, ChromaF
     m_ppcYuvResi[ui] = new TComYuv;    m_ppcYuvResi[ui]->create( uiWidth, uiHeight, chromaFormatIDC );
     m_ppcYuvReco[ui] = new TComYuv;    m_ppcYuvReco[ui]->create( uiWidth, uiHeight, chromaFormatIDC );
     m_ppcCU     [ui] = new TComDataCU; m_ppcCU     [ui]->create( chromaFormatIDC, uiNumPartitions, uiWidth, uiHeight, true, uiMaxWidth >> (m_uiMaxDepth - 1)
-      , uiPLTMaxSize, uiPLTMaxPredSize
+      , uiPaletteMaxSize, uiPaletteMaxPredSize
     );
   }
 
@@ -309,9 +309,9 @@ Void TDecCu::xDecodeCU( TComDataCU*const pcCU, const UInt uiAbsPartIdx, const UI
   Bool bCodeDQP = getdQPFlag();
   Bool isChromaQpAdjCoded = getIsChromaQpAdjCoded();
 
-  m_pcEntropyDecoder->decodePLTModeInfo( pcCU, uiAbsPartIdx, uiDepth, bCodeDQP, isChromaQpAdjCoded );
+  m_pcEntropyDecoder->decodePaletteModeInfo( pcCU, uiAbsPartIdx, uiDepth, bCodeDQP, isChromaQpAdjCoded );
 
-  if (pcCU->getPLTModeFlag(uiAbsPartIdx) )
+  if (pcCU->getPaletteModeFlag(uiAbsPartIdx) )
   {
     setIsChromaQpAdjCoded( isChromaQpAdjCoded );
     setdQPFlag(bCodeDQP);
@@ -423,7 +423,7 @@ Void TDecCu::xDecompressCU( TComDataCU* pCtu, UInt uiAbsPartIdx,  UInt uiDepth )
   }
 #endif
 
-  if ( m_ppcCU[uiDepth]->getPLTModeFlag(0) == false )
+  if ( m_ppcCU[uiDepth]->getPaletteModeFlag(0) == false )
   {
     if ( m_ppcCU[uiDepth]->isLosslessCoded(0) && (m_ppcCU[uiDepth]->getIPCMFlag(0) == false))
     {
@@ -829,9 +829,9 @@ TDecCu::xReconIntraQT( TComDataCU* pcCU, UInt uiDepth )
     xReconPCM( pcCU, uiDepth );
     return;
   }
-  if (pcCU->getPLTModeFlag(0))
+  if (pcCU->getPaletteModeFlag(0))
   {
-    xReconPLTMode( pcCU, uiDepth );
+    xReconPaletteMode( pcCU, uiDepth );
     return;
   }
 
@@ -972,14 +972,14 @@ Void TDecCu::xDecodeInterTexture ( TComDataCU* pcCU, UInt uiDepth )
   DEBUG_STRING_OUTPUT(std::cout, debug_reorder_data_token[pcCU->isIntraBC(0)?1:0][MAX_NUM_COMPONENT])
 }
 
-Void TDecCu::xDecodePLTTexture( TComDataCU* pcCU, const UInt uiPartIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt uiStride, const UInt uiWidth, const UInt uiHeight, const ComponentID compID, UChar* pEscapeFlag )
+Void TDecCu::xDecodePaletteTexture( TComDataCU* pcCU, const UInt uiPartIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt uiStride, const UInt uiWidth, const UInt uiHeight, const ComponentID compID, UChar* pEscapeFlag )
 {
   Bool bLossless = pcCU->getCUTransquantBypass (uiPartIdx);
   Pel* piPicReco         = pcCU->getPic()->getPicYuvRec()->getAddr(compID, pcCU->getCtuRsAddr(), pcCU->getZorderIdxInCtu()+uiPartIdx);
   const UInt uiPicStride = pcCU->getPic()->getPicYuvRec()->getStride(compID);
   UInt uiIdx = 0;
   Pel iValue = 0;
-  Bool bRotation = pcCU->getPLTScanRotationModeFlag(uiPartIdx);
+  Bool bRotation = pcCU->getPaletteScanRotationModeFlag(uiPartIdx);
 
   if(!bRotation)
   {
@@ -1056,7 +1056,7 @@ Void TDecCu::xDecodePLTTexture( TComDataCU* pcCU, const UInt uiPartIdx, Pel* pPa
   }
 }
 
-Void TDecCu::xReconPLTMode(TComDataCU *pcCU, UInt uiDepth)
+Void TDecCu::xReconPaletteMode(TComDataCU *pcCU, UInt uiDepth)
 {
   Pel *pLevel, *pPalette, *pRecChannel;
   for (UInt ch = 0; ch < pcCU->getPic()->getNumberValidComponents(); ch++)
@@ -1067,11 +1067,11 @@ Void TDecCu::xReconPLTMode(TComDataCU *pcCU, UInt uiDepth)
     const UInt uiStride = m_ppcYuvResi[uiDepth]->getStride(compID);
 
     pLevel = pcCU->getLevel(COMPONENT_Y);
-    pPalette = pcCU->getPLT(compID, 0);
+    pPalette = pcCU->getPalette(compID, 0);
     pRecChannel = m_ppcYuvReco[uiDepth]->getAddr(compID);
 
     Pel *pPixelValue = pcCU->getLevel(compID);
-    xDecodePLTTexture(pcCU, 0, pPalette, pLevel, pcCU->getSPoint(COMPONENT_Y), pPixelValue, pRecChannel, uiStride, uiWidth, uiHeight, compID, pcCU->getEscapeFlag(COMPONENT_Y));
+    xDecodePaletteTexture(pcCU, 0, pPalette, pLevel, pcCU->getSPoint(COMPONENT_Y), pPixelValue, pRecChannel, uiStride, uiWidth, uiHeight, compID, pcCU->getEscapeFlag(COMPONENT_Y));
   }
 }
 

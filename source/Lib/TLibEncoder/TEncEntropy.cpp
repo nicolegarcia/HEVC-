@@ -88,9 +88,9 @@ Void TEncEntropy::encodeSPS( const TComSPS* pcSPS )
   return;
 }
 
-Void TEncEntropy::encodePLTModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD, Bool* bCodeDQP, Bool* codeChromaQpAdj )
+Void TEncEntropy::encodePaletteModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD, Bool* bCodeDQP, Bool* codeChromaQpAdj )
 {
-  if ( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePLTMode() )
+  if ( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() )
   {
     if ( bRD )
     {
@@ -103,14 +103,14 @@ Void TEncEntropy::encodePLTModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool b
       return;
     }
 
-    m_pcEntropyCoderIf->codePLTModeFlag( pcCU, uiAbsPartIdx );
-    if ( pcCU->getPLTModeFlag( uiAbsPartIdx ) )
+    m_pcEntropyCoderIf->codePaletteModeFlag( pcCU, uiAbsPartIdx );
+    if ( pcCU->getPaletteModeFlag( uiAbsPartIdx ) )
     {
-      m_pcEntropyCoderIf->codePLTModeSyntax( pcCU, uiAbsPartIdx, 3, bCodeDQP, codeChromaQpAdj );
+      m_pcEntropyCoderIf->codePaletteModeSyntax( pcCU, uiAbsPartIdx, 3, bCodeDQP, codeChromaQpAdj );
 
       if (!bRD)
       {
-        pcCU->saveLastPLTInLcuFinal( pcCU, uiAbsPartIdx, MAX_NUM_COMPONENT );
+        pcCU->saveLastPaletteInLcuFinal( pcCU, uiAbsPartIdx, MAX_NUM_COMPONENT );
       }
     }
   }

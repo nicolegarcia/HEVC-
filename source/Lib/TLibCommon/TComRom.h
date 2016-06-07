@@ -47,9 +47,9 @@
 //! \{
 
 // ====================================================================================================================
-#define MAX_PLT_SIZE                                     65
+#define MAX_PALETTE_SIZE                                 65
 #define MAX_PRED_CHEK                                    4
-#define MAX_PLT_ITER                                     2 // maximum number of plt derivation
+#define MAX_PALETTE_ITER                                 2 // maximum number of palette derivation
 // ====================================================================================================================
 // Initialize / destroy functions
 // ====================================================================================================================
@@ -120,8 +120,8 @@ extern const UChar  g_chroma422IntraAngleMappingTable[NUM_INTRA_MODE];
 
 // ====================================================================================================================
 
-extern        UChar g_uhPLTQuant[52];
-extern        UChar g_uhPLTTBC[257];
+extern        UChar g_uhPaletteQuant[52];
+extern        UChar g_uhPaletteTBC[257];
 
 
 // Mode-Dependent DST Matrices
@@ -179,9 +179,9 @@ extern const Int g_quantInterDefault8x8[8*8];
 extern const UInt g_scalingListSize [SCALING_LIST_SIZE_NUM];
 extern const UInt g_scalingListSizeX[SCALING_LIST_SIZE_NUM];
 
-#define SCM__S0269_PLT_RUN_MSB_IDX_CABAC_BYPASS_THRE              4       ///< CABAC bypass threshold
-#define SCM__S0269_PLT_RUN_MSB_IDX_CTX_T1                         1
-#define SCM__S0269_PLT_RUN_MSB_IDX_CTX_T2                         3
+#define SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE              4       ///< CABAC bypass threshold
+#define SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1                         1
+#define SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2                         3
 extern UChar g_ucRunTopLut[5];
 extern UChar g_ucRunLeftLut[5];
 extern UChar g_ucMsbP1Idx[256];

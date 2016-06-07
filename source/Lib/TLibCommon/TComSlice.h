@@ -780,21 +780,21 @@ class TComSPSSCC
 private:
   Bool             m_useIntraBlockCopy;
   Bool             m_usePaletteMode;
-  UInt             m_uiPLTMaxSize;
-  UInt             m_uiPLTMaxPredSize;
+  UInt             m_uiPaletteMaxSize;
+  UInt             m_uiPaletteMaxPredSize;
   Int              m_motionVectorResolutionControlIdc;
   Bool             m_disableIntraBoundaryFilter;
 
   Bool             m_usePalettePredictor;
-  UInt             m_uiNumPLTPred;
-  Pel              m_aiPLT[MAX_NUM_COMPONENT][MAX_PLT_PRED_SIZE];
+  UInt             m_uiNumPalettePred;
+  Pel              m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
 public:
   TComSPSSCC();
   Bool settingsDifferFromDefaults() const
   {
     return getUseIntraBlockCopy()
-        || getUsePLTMode()
-        || getNumPLTPred() > 0
+        || getUsePaletteMode()
+        || getNumPalettePred() > 0
         || getMotionVectorResolutionControlIdc() != 0
         || getDisableIntraBoundaryFilter();
   }
@@ -802,14 +802,14 @@ public:
   Bool getUseIntraBlockCopy()  const                  { return m_useIntraBlockCopy;  }
   Void setUseIntraBlockCopy(Bool value)               { m_useIntraBlockCopy = value; }
 
-  Bool getUsePLTMode() const                          { return m_usePaletteMode;                   }
-  Void setUsePLTMode(const Bool value)                { m_usePaletteMode = value;                  }
+  Bool getUsePaletteMode() const                      { return m_usePaletteMode;                   }
+  Void setUsePaletteMode(const Bool value)            { m_usePaletteMode = value;                  }
 
-  UInt getPLTMaxSize() const                          { return m_uiPLTMaxSize;                     }
-  Void setPLTMaxSize(const UInt value)                { m_uiPLTMaxSize = value;                    }
+  UInt getPaletteMaxSize() const                      { return m_uiPaletteMaxSize;                 }
+  Void setPaletteMaxSize(const UInt value)            { m_uiPaletteMaxSize = value;                }
 
-  UInt getPLTMaxPredSize() const                      { return m_uiPLTMaxPredSize;                 }
-  Void setPLTMaxPredSize(const UInt value)            { m_uiPLTMaxPredSize = value;                }
+  UInt getPaletteMaxPredSize() const                  { return m_uiPaletteMaxPredSize;             }
+  Void setPaletteMaxPredSize(const UInt value)        { m_uiPaletteMaxPredSize = value;            }
 
   Int  getMotionVectorResolutionControlIdc() const    { return m_motionVectorResolutionControlIdc; }
   Void setMotionVectorResolutionControlIdc( Int idc ) { m_motionVectorResolutionControlIdc = idc;  }
@@ -817,11 +817,11 @@ public:
   Void setDisableIntraBoundaryFilter( Bool b)         { m_disableIntraBoundaryFilter = b;          }
   Bool getDisableIntraBoundaryFilter() const          { return m_disableIntraBoundaryFilter;       }
 
-  Bool     getUsePalettePredictor()              const { return m_usePalettePredictor; }
-  Void     setUsePalettePredictor(Bool num)            { m_usePalettePredictor = num; }
-  UInt     getNumPLTPred()                     const { return m_uiNumPLTPred; }
-  Void     setNumPLTPred(UInt num)                   { m_uiNumPLTPred = num; }
-  Pel*     getPLTPred(UInt ch)                 const { return const_cast<Pel*>(m_aiPLT[ch]); }
+  Bool     getUsePalettePredictor() const             { return m_usePalettePredictor; }
+  Void     setUsePalettePredictor(Bool num)           { m_usePalettePredictor = num; }
+  UInt     getNumPalettePred() const                  { return m_uiNumPalettePred; }
+  Void     setNumPalettePred(UInt num)                { m_uiNumPalettePred = num; }
+  Pel*     getPalettePred(UInt ch) const              { return const_cast<Pel*>(m_aiPalette[ch]); }
 };
 
 /// SPS class
@@ -1129,8 +1129,8 @@ private:
   Int              m_actYQpOffset;
   Int              m_actCbQpOffset;
   Int              m_actCrQpOffset;
-  UInt             m_uiNumPLTPred;
-  Pel              m_aiPLT[MAX_NUM_COMPONENT][MAX_PLT_PRED_SIZE];
+  UInt             m_uiNumPalettePred;
+  Pel              m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
   Int              m_palettePredictorBitDepth[MAX_NUM_CHANNEL_TYPE];
   Bool             m_monochromePaletteFlag;
   Bool             m_usePalettePredictor;
@@ -1142,7 +1142,7 @@ public:
   {
     return getUseColourTrans()
         || getUseIntraBlockCopy()
-        || getNumPLTPred() > 0;
+        || getNumPalettePred() > 0;
   }
 
   Bool     getUseColourTrans()                 const { return m_useColourTrans;}
@@ -1153,9 +1153,9 @@ public:
   Void     setActQpOffset(ComponentID compID, Int i ) { if (compID==COMPONENT_Y) m_actYQpOffset = i; else if (compID==COMPONENT_Cb) m_actCbQpOffset = i; else if (compID==COMPONENT_Cr) m_actCrQpOffset= i; else assert(0); }
   Int      getActQpOffset(ComponentID compID) const { return (compID==COMPONENT_Y) ? m_actYQpOffset : (compID==COMPONENT_Cb ? m_actCbQpOffset : m_actCrQpOffset ); }
 
-  UInt     getNumPLTPred()                     const { return m_uiNumPLTPred; }
-  Void     setNumPLTPred(UInt num)                   { m_uiNumPLTPred = num; }
-  Pel*     getPLTPred(UInt ch)                 const { return const_cast<Pel*>(m_aiPLT[ch]); }
+  UInt     getNumPalettePred()                     const { return m_uiNumPalettePred; }
+  Void     setNumPalettePred(UInt num)                   { m_uiNumPalettePred = num; }
+  Pel*     getPalettePred(UInt ch)                 const { return const_cast<Pel*>(m_aiPalette[ch]); }
   Int      getPalettePredictorBitDepth(ChannelType type) const   { return m_palettePredictorBitDepth[type]; }
   Void     setPalettePredictorBitDepth(ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }
   Bool     getUsePalettePredictor()              const { return m_usePalettePredictor; }

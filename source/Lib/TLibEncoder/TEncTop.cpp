@@ -94,7 +94,7 @@ Void TEncTop::create ()
   m_cGOPEncoder.        create( );
   m_cSliceEncoder.      create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth );
   m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC
-                         ,m_uiPLTMaxSize, m_uiPLTMaxPredSize
+                         ,m_uiPaletteMaxSize, m_uiPaletteMaxPredSize
      );
   if (m_bUseSAO)
   {
@@ -729,11 +729,11 @@ Void TEncTop::xInitSPS()
   // Set up SPS screen extension settings
   m_cSPS.getSpsScreenExtension().setDisableIntraBoundaryFilter( m_disableIntraBoundaryFilter );
   m_cSPS.getSpsScreenExtension().setUseIntraBlockCopy( m_useIntraBlockCopy );
-  m_cSPS.getSpsScreenExtension().setUsePLTMode( m_usePaletteMode );
-  m_cSPS.getSpsScreenExtension().setPLTMaxSize( m_uiPLTMaxSize );
-  m_cSPS.getSpsScreenExtension().setPLTMaxPredSize( m_uiPLTMaxPredSize );
+  m_cSPS.getSpsScreenExtension().setUsePaletteMode( m_usePaletteMode );
+  m_cSPS.getSpsScreenExtension().setPaletteMaxSize( m_uiPaletteMaxSize );
+  m_cSPS.getSpsScreenExtension().setPaletteMaxPredSize( m_uiPaletteMaxPredSize );
   m_cSPS.getSpsScreenExtension().setMotionVectorResolutionControlIdc( m_motionVectorResolutionControlIdc );
-  assert( m_uiPLTMaxPredSize <= 128 );
+  assert( m_uiPaletteMaxPredSize <= 128 );
 }
 
 #if U0132_TARGET_BITS_SATURATION

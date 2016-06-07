@@ -423,7 +423,7 @@ Void TDecCavlc::parsePPS(TComPPS* pcPPS)
               if ( uiCode )
               {
                 READ_UVLC( uiCode, "pps_num_palette_entries" );  
-                ppsScreenExtension.setNumPLTPred( uiCode );
+                ppsScreenExtension.setNumPalettePred( uiCode );
                 if( uiCode )
                 {
                 READ_FLAG( uiCode, "monochrome_palette_flag" );
@@ -437,21 +437,21 @@ Void TDecCavlc::parsePPS(TComPPS* pcPPS)
                 }
                 for ( Int k=0; k < (ppsScreenExtension.getMonochromePaletteFlag() ? 1 : 3); k++ )
                 {
-                  for ( Int j=0; j<ppsScreenExtension.getNumPLTPred(); j++ )
+                  for ( Int j=0; j<ppsScreenExtension.getNumPalettePred(); j++ )
                   {
   #if RExt__DECODER_DEBUG_BIT_STATISTICS
                     xReadCode( ppsScreenExtension.getPalettePredictorBitDepth( toChannelType( ComponentID( k ) ) ), uiCode, "palette_predictor_initializers" );
   #else
                     xReadCode( ppsScreenExtension.getPalettePredictorBitDepth( toChannelType( ComponentID( k ) ) ), uiCode );
   #endif
-                    ppsScreenExtension.getPLTPred( k )[j] = uiCode;
+                    ppsScreenExtension.getPalettePred( k )[j] = uiCode;
                   }
                 }
                }
               }
               else
               {
-                ppsScreenExtension.setNumPLTPred( 0 );
+                ppsScreenExtension.setNumPalettePred( 0 );
               }
             }
             break;
@@ -878,7 +878,7 @@ Void TDecCavlc::parseSPS(TComSPS* pcSPS)
             {
               TComSPSSCC &screenExtension = pcSPS->getSpsScreenExtension();
               READ_FLAG( uiCode, "intra_block_copy_enabled_flag" );           screenExtension.setUseIntraBlockCopy( uiCode != 0 );
-              READ_FLAG( uiCode, "palette_mode_enabled_flag" );               screenExtension.setUsePLTMode( uiCode != 0 );
+              READ_FLAG( uiCode, "palette_mode_enabled_flag" );               screenExtension.setUsePaletteMode( uiCode != 0 );
 
               UInt MaxDPBSize = 0;
               if (!screenExtension.getUseIntraBlockCopy())
@@ -952,38 +952,38 @@ Void TDecCavlc::parseSPS(TComSPS* pcSPS)
                 }
               }
 
-              if ( screenExtension.getUsePLTMode() )//decode only when palette mode is enabled
+              if ( screenExtension.getUsePaletteMode() )//decode only when palette mode is enabled
               {
-                READ_UVLC( uiCode, "palette_max_size" );                      screenExtension.setPLTMaxSize( uiCode );
-                READ_UVLC( uiCode, "delta_palette_max_predictor_size" );      screenExtension.setPLTMaxPredSize( uiCode+screenExtension.getPLTMaxSize() );
-                assert( screenExtension.getPLTMaxPredSize() <= 128 );
-                assert(screenExtension.getPLTMaxSize() != 0 || screenExtension.getPLTMaxPredSize() == 0);
+                READ_UVLC( uiCode, "palette_max_size" );                      screenExtension.setPaletteMaxSize( uiCode );
+                READ_UVLC( uiCode, "delta_palette_max_predictor_size" );      screenExtension.setPaletteMaxPredSize( uiCode+screenExtension.getPaletteMaxSize() );
+                assert( screenExtension.getPaletteMaxPredSize() <= 128 );
+                assert(screenExtension.getPaletteMaxSize() != 0 || screenExtension.getPaletteMaxPredSize() == 0);
 
                 READ_FLAG( uiCode, "sps_palette_predictor_initializer_flag" );
                 screenExtension.setUsePalettePredictor(uiCode);
-                assert(screenExtension.getPLTMaxSize() != 0 || screenExtension.getUsePalettePredictor() == false);
-                assert(screenExtension.getUsePLTMode() != 0 || screenExtension.getUsePalettePredictor() == false);
+                assert(screenExtension.getPaletteMaxSize() != 0 || screenExtension.getUsePalettePredictor() == false);
+                assert(screenExtension.getUsePaletteMode() != 0 || screenExtension.getUsePalettePredictor() == false);
 
                 if( uiCode )
                 {
                   READ_UVLC( uiCode, "sps_num_palette_entries_minus1" ); uiCode++;
-                  screenExtension.setNumPLTPred(uiCode);
+                  screenExtension.setNumPalettePred(uiCode);
                   for ( Int k=0; k < (pcSPS->getChromaFormatIdc() == CHROMA_400 ? 1 : 3); k++ )
                   {
-                    for ( Int j=0; j< screenExtension.getNumPLTPred(); j++ )
+                    for ( Int j=0; j< screenExtension.getNumPalettePred(); j++ )
                     {
 #if RExt__DECODER_DEBUG_BIT_STATISTICS
                       xReadCode(  pcSPS->getBitDepth( toChannelType( ComponentID( k ) ) ), uiCode, "palette_predictor_initializers" );
 #else
                       xReadCode(  pcSPS->getBitDepth( toChannelType( ComponentID( k ) ) ), uiCode );
 #endif
-                      screenExtension.getPLTPred( k )[j] = uiCode;
+                      screenExtension.getPalettePred( k )[j] = uiCode;
                     }
                   }
                 }
                 else
                 {
-                  screenExtension.setNumPLTPred(0);
+                  screenExtension.setNumPalettePred(0);
                 }
               }
               READ_CODE( 2, uiCode, "motion_vector_resolution_control_idc" ); screenExtension.setMotionVectorResolutionControlIdc( uiCode );
@@ -1917,12 +1917,12 @@ Void TDecCavlc::parseSkipFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt
   assert(0);
 }
 
-Void TDecCavlc::parsePLTModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj )
+Void TDecCavlc::parsePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj )
 {
   assert(0);
 }
 
-Void TDecCavlc::parsePLTModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+Void TDecCavlc::parsePaletteModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
   assert(0);
 }

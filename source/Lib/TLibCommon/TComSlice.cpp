@@ -1726,11 +1726,11 @@ TComSPSRExt::TComSPSRExt()
 TComSPSSCC::TComSPSSCC()
 : m_useIntraBlockCopy         (false)
 , m_usePaletteMode            (false)
-, m_uiPLTMaxSize              ( 31)
-, m_uiPLTMaxPredSize          ( 64)
+, m_uiPaletteMaxSize          ( 31)
+, m_uiPaletteMaxPredSize      ( 64)
 , m_motionVectorResolutionControlIdc(0)
 , m_disableIntraBoundaryFilter(false)
-, m_uiNumPLTPred               (0)
+, m_uiNumPalettePred               (0)
 {}
 
 TComSPS::TComSPS()
@@ -1824,7 +1824,7 @@ TComPPSSCC::TComPPSSCC()
 , m_actYQpOffset                     (-5)
 , m_actCbQpOffset                    (-5)
 , m_actCrQpOffset                    (-3)
-, m_uiNumPLTPred                     (0) // Implies palette pred in PPS deactivated
+, m_uiNumPalettePred                 (0) // Implies palette pred in PPS deactivated
 , m_usePalettePredictor              (false)
 , m_useIntraBlockCopyPps             (false)
 {

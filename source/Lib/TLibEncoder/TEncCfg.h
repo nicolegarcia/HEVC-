@@ -263,8 +263,8 @@ protected:
   Bool      m_useColourTrans;
   Bool      m_useLL;
   Bool      m_usePaletteMode;
-  UInt      m_uiPLTMaxSize;
-  UInt      m_uiPLTMaxPredSize;
+  UInt      m_uiPaletteMaxSize;
+  UInt      m_uiPaletteMaxPredSize;
   Int       m_motionVectorResolutionControlIdc;
   Bool      m_palettePredInPPSEnabled;
   Bool      m_palettePredInSPSEnabled;
@@ -727,12 +727,12 @@ public:
   Void setUseColourTrans                               (const Bool value)  { m_useColourTrans = value; }
   Bool getUseLossless                                  ()            const { return m_useLL; }
   Void setUseLossless                                  (const Bool value)  { m_useLL = value; }
-  Void setUsePLTMode                                   (const Bool value)  { m_usePaletteMode = value; }
-  Bool getUsePLTMode()                                               const { return m_usePaletteMode; }
-  Void setPLTMaxSize                                    (const UInt value) { m_uiPLTMaxSize = value; }
-  UInt getPLTMaxSize()                                               const { return m_uiPLTMaxSize; }
-  Void setPLTMaxPredSize                                (const UInt value) { m_uiPLTMaxPredSize = value; }
-  UInt getPLTMaxPredSize()                                           const { return m_uiPLTMaxPredSize; }
+  Void setUsePaletteMode                               (const Bool value)  { m_usePaletteMode = value; }
+  Bool getUsePaletteMode()                                           const { return m_usePaletteMode; }
+  Void setPaletteMaxSize                               (const UInt value)  { m_uiPaletteMaxSize = value; }
+  UInt getPaletteMaxSize()                                           const { return m_uiPaletteMaxSize; }
+  Void setPaletteMaxPredSize                           (const UInt value)  { m_uiPaletteMaxPredSize = value; }
+  UInt getPaletteMaxPredSize()                                       const { return m_uiPaletteMaxPredSize; }
   Void setMotionVectorResolutionControlIdc             ( Int idc )         { m_motionVectorResolutionControlIdc = idc; }
   Int  getMotionVectorResolutionControlIdc             ()            const { return m_motionVectorResolutionControlIdc; }
   Void setPalettePredInPPSEnabled                      ( Bool b )          { m_palettePredInPPSEnabled = b; }

@@ -643,7 +643,7 @@ Void TComLoopFilter::xEdgeFilterLuma( TComDataCU* const pcCU, const UInt uiAbsZo
         Int dq = dq0 + dq3;
         Int d =  d0 + d3;
 
-        if (bPCMFilter || ppsTransquantBypassEnabledFlag || sps.getSpsScreenExtension().getUsePLTMode())
+        if (bPCMFilter || ppsTransquantBypassEnabledFlag || sps.getSpsScreenExtension().getUsePaletteMode())
         {
           // Check if each of PUs is I_PCM with LF disabling
           bPartPNoFilter = (bPCMFilter && pcCUP->getIPCMFlag(uiPartPIdx));
@@ -654,8 +654,8 @@ Void TComLoopFilter::xEdgeFilterLuma( TComDataCU* const pcCU, const UInt uiAbsZo
           bPartQNoFilter = bPartQNoFilter || (pcCUQ->isLosslessCoded(uiPartQIdx) );
 
           // check if each of PUs is palette coded
-          bPartPNoFilter = bPartPNoFilter || pcCUP->getPLTModeFlag(uiPartPIdx);
-          bPartQNoFilter = bPartQNoFilter || pcCUQ->getPLTModeFlag(uiPartQIdx);
+          bPartPNoFilter = bPartPNoFilter || pcCUP->getPaletteModeFlag(uiPartPIdx);
+          bPartQNoFilter = bPartQNoFilter || pcCUQ->getPaletteModeFlag(uiPartQIdx);
         }
 
         if (d < iBeta)
@@ -771,7 +771,7 @@ Void TComLoopFilter::xEdgeFilterChroma( TComDataCU* const pcCU, const UInt uiAbs
       }
 
       iQP_P = pcCUP->getQP(uiPartPIdx);
-      if (bPCMFilter || pcCU->getSlice()->getPPS()->getTransquantBypassEnabledFlag() || sps.getSpsScreenExtension().getUsePLTMode() )
+      if (bPCMFilter || pcCU->getSlice()->getPPS()->getTransquantBypassEnabledFlag() || sps.getSpsScreenExtension().getUsePaletteMode() )
       {
         // Check if each of PUs is I_PCM with LF disabling
         bPartPNoFilter = (bPCMFilter && pcCUP->getIPCMFlag(uiPartPIdx));
@@ -782,8 +782,8 @@ Void TComLoopFilter::xEdgeFilterChroma( TComDataCU* const pcCU, const UInt uiAbs
         bPartQNoFilter = bPartQNoFilter || (pcCUQ->isLosslessCoded(uiPartQIdx));
 
         // check if each of PUs is palette coded
-        bPartPNoFilter = bPartPNoFilter || pcCUP->getPLTModeFlag(uiPartPIdx);
-        bPartQNoFilter = bPartQNoFilter || pcCUQ->getPLTModeFlag(uiPartQIdx);
+        bPartPNoFilter = bPartPNoFilter || pcCUP->getPaletteModeFlag(uiPartPIdx);
+        bPartQNoFilter = bPartQNoFilter || pcCUQ->getPaletteModeFlag(uiPartQIdx);
       }
 
       for ( UInt chromaIdx = 0; chromaIdx < 2; chromaIdx++ )

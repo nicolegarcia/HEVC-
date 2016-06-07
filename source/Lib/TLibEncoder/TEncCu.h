@@ -108,14 +108,14 @@ public:
 
   /// create internal buffers
   Void  create              ( UChar uhTotalDepth, UInt iMaxWidth, UInt iMaxHeight, ChromaFormat chromaFormat
-                             ,UInt uiPLTMaxSize, UInt uiPLTMaxPredSize
+                             ,UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
     );
 
   /// destroy internal buffers
   Void  destroy             ();
 
   /// CTU analysis function
-  Void  compressCtu         ( TComDataCU* pCtu, UChar* lastPLTSize, UChar* lastPLTUsedSize, Pel lastPLT[][MAX_PLT_PRED_SIZE] );
+  Void  compressCtu         ( TComDataCU* pCtu, UChar* lastPaletteSize, UChar* lastPaletteUsedSize, Pel lastPalette[][MAX_PALETTE_PRED_SIZE] );
 
   /// CTU encoding function
   Void  encodeCtu           ( TComDataCU*  pCtu );
@@ -183,7 +183,7 @@ protected:
   Void  xCheckRDCostHashInter( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, Bool& isPerfectMatch DEBUG_STRING_FN_DECLARE(sDebug) );
 
   Void  xCheckIntraPCM      ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU                      );
-  UInt  xCheckPLTMode       ( TComDataCU *&rpcBestCU, TComDataCU*& rpcTempCU, Bool forcePLTPrediction, UInt uiIterNumber, UInt *pltSize);
+  UInt  xCheckPaletteMode    ( TComDataCU *&rpcBestCU, TComDataCU*& rpcTempCU, Bool forcePalettePrediction, UInt uiIterNumber, UInt *paletteSize);
   Void  xCopyAMVPInfo       ( AMVPInfo* pSrc, AMVPInfo* pDst );
   Void  xCopyYuv2Pic        (TComPic* rpcPic, UInt uiCUAddr, UInt uiAbsPartIdx, UInt uiDepth, UInt uiSrcDepth, TComDataCU* pcCU );
   Void  xCopyYuv2Tmp        ( UInt uhPartUnitIdx, UInt uiDepth );

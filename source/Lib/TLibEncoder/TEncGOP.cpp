@@ -98,8 +98,8 @@ TEncGOP::TEncGOP()
   m_bufferingPeriodSEIPresentInAU = false;
   m_associatedIRAPType = NAL_UNIT_CODED_SLICE_IDR_N_LP;
   m_associatedIRAPPOC  = 0;
-  m_uiNumPLTPred = 0;
-  m_encodePPSPLT = false;
+  m_uiNumPalettePred = 0;
+  m_encodePPSPalette = false;
 #if W0038_DB_OPT
   m_pcDeblockingTempPicYuv = NULL;
 #endif
@@ -1851,7 +1851,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     else if( m_uiSeqOrder < pcSlice->getPPS()->getPPSId()+1 )
     {
       OutputNALUnit nalu(NAL_UNIT_PPS);
-      printf("  => sending PPS %u with %u elements\n", pcSlice->getPPS()->getPPSId(), pcSlice->getPPS()->getPpsScreenExtension().getNumPLTPred());
+      printf("  => sending PPS %u with %u elements\n", pcSlice->getPPS()->getPPSId(), pcSlice->getPPS()->getPpsScreenExtension().getNumPalettePred());
       m_pcEntropyCoder->setBitstream(&nalu.m_Bitstream);
       m_pcEntropyCoder->encodePPS(pcSlice->getPPS());
       accessUnit.push_back(new NALUnitEBSP(nalu));

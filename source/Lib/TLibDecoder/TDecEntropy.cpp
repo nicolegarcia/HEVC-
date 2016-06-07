@@ -57,7 +57,7 @@ Void TDecEntropy::setEntropyDecoder         ( TDecEntropyIf* p )
 
 Void TDecEntropy::decodeSkipFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
-  if ( pcCU->getPLTModeFlag(uiAbsPartIdx) )
+  if ( pcCU->getPaletteModeFlag(uiAbsPartIdx) )
   {
     return;
   }
@@ -70,16 +70,16 @@ Void TDecEntropy::decodeCUTransquantBypassFlag(TComDataCU* pcCU, UInt uiAbsPartI
   m_pcEntropyDecoderIf->parseCUTransquantBypassFlag( pcCU, uiAbsPartIdx, uiDepth );
 }
 
-Void TDecEntropy::decodePLTModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, Bool& bCodeDQP, Bool& isChromaQpAdjCoded )
+Void TDecEntropy::decodePaletteModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, Bool& bCodeDQP, Bool& isChromaQpAdjCoded )
 {
   // Note: the condition is log2CbSize < MaxTbLog2SizeY in 7.3.8.5 of JCTVC-T1005-v2
-  if( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePLTMode() && pcCU->isIntra( uiAbsPartIdx ) && (pcCU->getSlice()->getSPS()->getMaxCUWidth() >> uiDepth) < 64 )
+  if( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() && pcCU->isIntra( uiAbsPartIdx ) && (pcCU->getSlice()->getSPS()->getMaxCUWidth() >> uiDepth) < 64 )
   {
-    m_pcEntropyDecoderIf->parsePLTModeFlag( pcCU, uiAbsPartIdx, uiDepth );
-    if ( pcCU->getPLTModeFlag( uiAbsPartIdx ) )
+    m_pcEntropyDecoderIf->parsePaletteModeFlag( pcCU, uiAbsPartIdx, uiDepth );
+    if ( pcCU->getPaletteModeFlag( uiAbsPartIdx ) )
     {
-      m_pcEntropyDecoderIf->parsePLTModeSyntax( pcCU, uiAbsPartIdx, uiDepth, 3, bCodeDQP, isChromaQpAdjCoded );
-      pcCU->saveLastPLTInLcuFinal( pcCU, uiAbsPartIdx, MAX_NUM_COMPONENT );
+      m_pcEntropyDecoderIf->parsePaletteModeSyntax( pcCU, uiAbsPartIdx, uiDepth, 3, bCodeDQP, isChromaQpAdjCoded );
+      pcCU->saveLastPaletteInLcuFinal( pcCU, uiAbsPartIdx, MAX_NUM_COMPONENT );
     }
   }
 }
@@ -123,7 +123,7 @@ Void TDecEntropy::decodePredMode( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
 
 Void TDecEntropy::decodePartSize( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
-  if (pcCU->getPLTModeFlag(uiAbsPartIdx))
+  if (pcCU->getPaletteModeFlag(uiAbsPartIdx))
   {
     return;
   }
@@ -132,7 +132,7 @@ Void TDecEntropy::decodePartSize( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
 
 Void TDecEntropy::decodePredInfo    ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, TComDataCU* pcSubCU )
 {
-  if ( pcCU->getPLTModeFlag(uiAbsPartIdx) )
+  if ( pcCU->getPaletteModeFlag(uiAbsPartIdx) )
   {
     return;
   }
@@ -173,7 +173,7 @@ Void TDecEntropy::decodeIPCMInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
     return;
   }
 
-  if ( pcCU->getPLTModeFlag(uiAbsPartIdx) )
+  if ( pcCU->getPaletteModeFlag(uiAbsPartIdx) )
   {
     return;
   }

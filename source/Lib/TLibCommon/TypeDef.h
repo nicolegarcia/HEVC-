@@ -193,9 +193,9 @@
 #define SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU               2 ///< Do full horizontal/vertical search for Nx2N
 #define SCM_S0067_MAX_CAND_SIZE                          32 ///< 32 or 64, 16 by default
 #define SCM_T0227_INTER_SEARCH_YUV                        1 ///< use 3 components for Inter in mixed CU decision(Intra BC and inter CU)
-#define SCM_T0048_PLT_PRED_IN_PPS_REFRESH                16 ///< Periodicity of the palette refresh
-#define SCM_V0034_PLT_CHROMA_SHIFT_ADJ                    5 ///< Chroma error weight as a right shift
-#define SCM_V0034_PLT_CHROMA_SETTINGS     (1<<SCM_V0034_PLT_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
+#define SCM_T0048_PALETTE_PRED_IN_PPS_REFRESH            16 ///< Periodicity of the palette refresh
+#define SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ                5 ///< Chroma error weight as a right shift
+#define SCM_V0034_PALETTE_CHROMA_SETTINGS     (1<<SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
 
 //------------------------------------------------
 // Backwards-compatibility
@@ -906,18 +906,18 @@ struct TComACTTURDCost
   UInt   uiIsCSCEnabled;        //0 - original; 1 - transform; 2 - neutral
 };
 
-enum PLTRunMode
+enum PaletteRunMode
 {
-  PLT_RUN_LEFT  = 0,
-  PLT_RUN_ABOVE = 1,
-  NUM_PLT_RUN   = 2
+  PALETTE_RUN_LEFT  = 0,
+  PALETTE_RUN_ABOVE = 1,
+  NUM_PALETTE_RUN   = 2
 };
 
-enum PLTScanMode
+enum PaletteScanMode
 {
-  PLT_SCAN_HORTRAV = 0,
-  PLT_SCAN_VERTRAV = 1,
-  NUM_PLT_SCAN     = 2
+  PALETTE_SCAN_HORTRAV = 0,
+  PALETTE_SCAN_VERTRAV = 1,
+  NUM_PALETTE_SCAN     = 2
 };
 
 class SortingElement

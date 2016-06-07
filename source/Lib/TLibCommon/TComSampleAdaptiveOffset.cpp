@@ -710,7 +710,7 @@ Void TComSampleAdaptiveOffset::xPCMCURestoration ( TComDataCU* pcCU, UInt uiAbsZ
  */
 Void TComSampleAdaptiveOffset::xPCMSampleRestoration (TComDataCU* pcCU, UInt uiAbsZorderIdx, UInt uiDepth, const ComponentID compID)
 {
-  if (pcCU->getPLTModeFlag(uiAbsZorderIdx))
+  if (pcCU->getPaletteModeFlag(uiAbsZorderIdx))
   {
     return;
   }

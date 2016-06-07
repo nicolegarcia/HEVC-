@@ -318,12 +318,12 @@ Void TEncCavlc::codePPS( const TComPPS* pcPPS )
                 WRITE_SVLC( (ppsScreenExtension.getActQpOffset( COMPONENT_Cr ) + 3), "pps_act_cr_qp_offset_plus3" );
               }
 
-              UInt paletteInitializerPresentFlag = ppsScreenExtension.getNumPLTPred() ? 1 : 0;
+              UInt paletteInitializerPresentFlag = ppsScreenExtension.getNumPalettePred() ? 1 : 0;
               WRITE_FLAG( paletteInitializerPresentFlag, "palette_predictor_initializer_flag" );
               if( paletteInitializerPresentFlag )
               {
-                WRITE_UVLC( ppsScreenExtension.getNumPLTPred(), "pps_num_palette_entries" );
-                if( ppsScreenExtension.getNumPLTPred() > 0 )
+                WRITE_UVLC( ppsScreenExtension.getNumPalettePred(), "pps_num_palette_entries" );
+                if( ppsScreenExtension.getNumPalettePred() > 0 )
                 {
                 WRITE_FLAG( ppsScreenExtension.getMonochromePaletteFlag(), "monochrome_palette_flag" );
                 WRITE_UVLC( ppsScreenExtension.getPalettePredictorBitDepth( CHANNEL_TYPE_LUMA )  -8, "luma_bit_depth_entry_minus8" );
@@ -334,9 +334,9 @@ Void TEncCavlc::codePPS( const TComPPS* pcPPS )
 
                 for ( Int k=0; k < (ppsScreenExtension.getMonochromePaletteFlag() ? 1 : 3); k++ )
                 {
-                  for ( Int j=0; j<ppsScreenExtension.getNumPLTPred(); j++ )
+                  for ( Int j=0; j<ppsScreenExtension.getNumPalettePred(); j++ )
                   {
-                    xWriteCode( ppsScreenExtension.getPLTPred( k )[j], ppsScreenExtension.getPalettePredictorBitDepth( toChannelType( ComponentID( k ) ) ) );
+                    xWriteCode( ppsScreenExtension.getPalettePred( k )[j], ppsScreenExtension.getPalettePredictorBitDepth( toChannelType( ComponentID( k ) ) ) );
                   }
                 }
                }
@@ -678,21 +678,21 @@ Void TEncCavlc::codeSPS( const TComSPS* pcSPS )
             {
               const TComSPSSCC &spsScreenExtension=pcSPS->getSpsScreenExtension();
               WRITE_FLAG( (spsScreenExtension.getUseIntraBlockCopy() ? 1 : 0),                           "intra_block_copy_enabled_flag" );
-              WRITE_FLAG( (spsScreenExtension.getUsePLTMode() ? 1 : 0),                                  "palette_mode_enabled_flag" );
+              WRITE_FLAG( (spsScreenExtension.getUsePaletteMode() ? 1 : 0),                                  "palette_mode_enabled_flag" );
 
-              if ( spsScreenExtension.getUsePLTMode() )
+              if ( spsScreenExtension.getUsePaletteMode() )
               {
-                WRITE_UVLC( spsScreenExtension.getPLTMaxSize(),                                          "palette_max_size" );
-                WRITE_UVLC( spsScreenExtension.getPLTMaxPredSize() - spsScreenExtension.getPLTMaxSize(), "delta_palette_max_predictor_size" );
-                WRITE_FLAG( (spsScreenExtension.getNumPLTPred() ? 1 : 0),                                "sps_palette_predictor_initializer_flag" );
-                if( spsScreenExtension.getNumPLTPred() )
+                WRITE_UVLC( spsScreenExtension.getPaletteMaxSize(),                                          "palette_max_size" );
+                WRITE_UVLC( spsScreenExtension.getPaletteMaxPredSize() - spsScreenExtension.getPaletteMaxSize(), "delta_palette_max_predictor_size" );
+                WRITE_FLAG( (spsScreenExtension.getNumPalettePred() ? 1 : 0),                                "sps_palette_predictor_initializer_flag" );
+                if( spsScreenExtension.getNumPalettePred() )
                 {
-                  WRITE_UVLC( spsScreenExtension.getNumPLTPred()-1,                                      "sps_num_palette_entries_minus1" );
+                  WRITE_UVLC( spsScreenExtension.getNumPalettePred()-1,                                      "sps_num_palette_entries_minus1" );
                   for ( Int k=0; k < (pcSPS->getChromaFormatIdc() == CHROMA_400 ? 1 : 3); k++ )
                   {
-                    for ( Int j=0; j<spsScreenExtension.getNumPLTPred(); j++ )
+                    for ( Int j=0; j<spsScreenExtension.getNumPalettePred(); j++ )
                     {
-                      xWriteCode( spsScreenExtension.getPLTPred( k )[j], pcSPS->getBitDepth( toChannelType( ComponentID( k ) ) ));
+                      xWriteCode( spsScreenExtension.getPalettePred( k )[j], pcSPS->getBitDepth( toChannelType( ComponentID( k ) ) ));
                     }
                   }
                 }
@@ -1315,12 +1315,12 @@ Void TEncCavlc::codeCUTransquantBypassFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPa
   assert(0);
 }
 
-Void TEncCavlc:: codePLTModeFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/ )
+Void TEncCavlc:: codePaletteModeFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/ )
 {
   assert(0);
 }
 
-Void TEncCavlc::codePLTModeSyntax(TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiNumComp*/, Bool* /*bCodeDQP*/, Bool* /*codeChromaQpAdjFlag*/)
+Void TEncCavlc::codePaletteModeSyntax(TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiNumComp*/, Bool* /*bCodeDQP*/, Bool* /*codeChromaQpAdjFlag*/)
 {
   assert(0);
 }

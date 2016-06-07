@@ -84,19 +84,19 @@ TComDataCU::TComDataCU()
 #endif
     m_pcIPCMSample[comp]                  = NULL;
     m_explicitRdpcmMode[comp]             = NULL;
-    m_piPLT[comp]                         = NULL;
+    m_piPalette[comp]                     = NULL;
     m_piSPoint[comp]                      = NULL;
-    m_puhPLTEscape[comp]                  = NULL;
-    m_bPrevPLTReusedFlag[comp]            = NULL;
-    m_piLastPLTInLcuFinal[comp]           = NULL;
+    m_puhPaletteEscape[comp]              = NULL;
+    m_bPrevPaletteReusedFlag[comp]        = NULL;
+    m_piLastPaletteInLcuFinal[comp]       = NULL;
     m_piEscapeFlag[comp]                  = NULL;
   }
 #if ADAPTIVE_QP_SELECTION
   m_ArlCoeffIsAliasedAllocation = false;
 #endif
   m_pbIPCMFlag         = NULL;
-  m_pbPLTModeFlag             = NULL;
-  m_pbPLTScanRotationModeFlag = NULL;
+  m_pbPaletteModeFlag  = NULL;
+  m_pbPaletteScanRotationModeFlag = NULL;
   m_pCtuAboveLeft      = NULL;
   m_pCtuAboveRight     = NULL;
   m_pCtuAbove          = NULL;
@@ -109,8 +109,8 @@ TComDataCU::TComDataCU()
   }
 
   m_bDecSubCu          = false;
-  m_PLTMaxSize = 0;
-  m_PLTMaxPredSize = 0;
+  m_paletteMaxSize = 0;
+  m_paletteMaxPredSize = 0;
 }
 
 TComDataCU::~TComDataCU()
@@ -118,7 +118,7 @@ TComDataCU::~TComDataCU()
 }
 
 Void TComDataCU::create( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt uiWidth, UInt uiHeight, Bool bDecSubCu, Int unitSize
-                        , UInt uiPLTMaxSize, UInt uiPLTMaxPredSize
+                        , UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
                         , TCoeff *pParentARLBuffer
 #endif
@@ -136,11 +136,11 @@ Void TComDataCU::create( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt
     m_lastIntraBCMv[i] = TComMv();
   }
 
-  m_uhLastPLTUsedSizeFinal[COMPONENT_Y] = m_uhLastPLTUsedSizeFinal[COMPONENT_Cb] = m_uhLastPLTUsedSizeFinal[COMPONENT_Cr] = PLT_SIZE_INVALID;
-  m_uhLastPLTSizeFinal[COMPONENT_Y] = m_uhLastPLTSizeFinal[COMPONENT_Cb] = m_uhLastPLTSizeFinal[COMPONENT_Cr] = 0;
+  m_uhLastPaletteUsedSizeFinal[COMPONENT_Y] = m_uhLastPaletteUsedSizeFinal[COMPONENT_Cb] = m_uhLastPaletteUsedSizeFinal[COMPONENT_Cr] = PALETTE_SIZE_INVALID;
+  m_uhLastPaletteSizeFinal[COMPONENT_Y] = m_uhLastPaletteSizeFinal[COMPONENT_Cb] = m_uhLastPaletteSizeFinal[COMPONENT_Cr] = 0;
 
-  m_PLTMaxSize     = uiPLTMaxSize;
-  m_PLTMaxPredSize = uiPLTMaxPredSize;
+  m_paletteMaxSize     = uiPaletteMaxSize;
+  m_paletteMaxPredSize = uiPaletteMaxPredSize;
   if ( !bDecSubCu )
   {
     m_phQP               = (SChar*    )xMalloc(SChar,    uiNumPartition);
@@ -202,17 +202,17 @@ Void TComDataCU::create( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt
       }
 #endif
       m_pcIPCMSample[compID] = (Pel*   )xMalloc(Pel , totalSize);
-      m_piPLT[compID]               = (Pel*  )xMalloc(Pel, (uiNumPartition >> 2) * m_PLTMaxSize);
+      m_piPalette[compID]               = (Pel*  )xMalloc(Pel, (uiNumPartition >> 2) * m_paletteMaxSize);
       m_piSPoint[compID]            = (UChar*)xMalloc(UChar, totalSize);
-      m_puhPLTEscape[compID]        = (UChar*)xMalloc(Bool, uiNumPartition);
-      m_bPrevPLTReusedFlag[comp]    = (UChar*)xMalloc(UChar, (uiNumPartition >> 2) * m_PLTMaxPredSize);
-      m_piLastPLTInLcuFinal[compID] = (Pel*  )xMalloc(Pel, m_PLTMaxPredSize);
+      m_puhPaletteEscape[compID]        = (UChar*)xMalloc(Bool, uiNumPartition);
+      m_bPrevPaletteReusedFlag[comp]    = (UChar*)xMalloc(UChar, (uiNumPartition >> 2) * m_paletteMaxPredSize);
+      m_piLastPaletteInLcuFinal[compID] = (Pel*  )xMalloc(Pel, m_paletteMaxPredSize);
       m_piEscapeFlag[comp]          = (UChar*)xMalloc(UChar, totalSize);
     }
 
     m_pbIPCMFlag         = (Bool*  )xMalloc(Bool, uiNumPartition);
-    m_pbPLTModeFlag             = (Bool*)xMalloc(Bool, uiNumPartition);
-    m_pbPLTScanRotationModeFlag = (Bool*)xMalloc(Bool, uiNumPartition);
+    m_pbPaletteModeFlag             = (Bool*)xMalloc(Bool, uiNumPartition);
+    m_pbPaletteScanRotationModeFlag = (Bool*)xMalloc(Bool, uiNumPartition);
     for(UInt i=0; i<NUM_REF_PIC_LIST_CU_MV_FIELD; i++)
     {
       m_acCUMvField[i].create( uiNumPartition );
@@ -365,11 +365,11 @@ Void TComDataCU::destroy()
         xFree(m_pcIPCMSample[comp]);
         m_pcIPCMSample[comp] = NULL;
       }
-      if ( m_piPLT[comp]               ) { xFree(m_piPLT[comp]);               m_piPLT[comp]               = NULL; }
+      if ( m_piPalette[comp]               ) { xFree(m_piPalette[comp]);               m_piPalette[comp]               = NULL; }
       if ( m_piSPoint[comp]            ) { xFree(m_piSPoint[comp]);            m_piSPoint[comp]            = NULL; }
-      if ( m_puhPLTEscape[comp]        ) { xFree(m_puhPLTEscape[comp]) ;       m_puhPLTEscape[comp]        = NULL; }
-      if ( m_bPrevPLTReusedFlag[comp]  ) { xFree(m_bPrevPLTReusedFlag[comp]);  m_bPrevPLTReusedFlag[comp]  = NULL; }
-      if ( m_piLastPLTInLcuFinal[comp] ) { xFree(m_piLastPLTInLcuFinal[comp]); m_piLastPLTInLcuFinal[comp] = NULL; }
+      if ( m_puhPaletteEscape[comp]        ) { xFree(m_puhPaletteEscape[comp]) ;       m_puhPaletteEscape[comp]        = NULL; }
+      if ( m_bPrevPaletteReusedFlag[comp]  ) { xFree(m_bPrevPaletteReusedFlag[comp]);  m_bPrevPaletteReusedFlag[comp]  = NULL; }
+      if ( m_piLastPaletteInLcuFinal[comp] ) { xFree(m_piLastPaletteInLcuFinal[comp]); m_piLastPaletteInLcuFinal[comp] = NULL; }
       if ( m_piEscapeFlag[comp] )        { xFree(m_piEscapeFlag[comp]);        m_piEscapeFlag[comp]        = NULL; }
     }
     if ( m_pbIPCMFlag )
@@ -377,8 +377,8 @@ Void TComDataCU::destroy()
       xFree(m_pbIPCMFlag );
       m_pbIPCMFlag = NULL;
     }
-    if ( m_pbPLTModeFlag             ) { xFree(m_pbPLTModeFlag);             m_pbPLTModeFlag             = NULL; }
-    if ( m_pbPLTScanRotationModeFlag ) { xFree(m_pbPLTScanRotationModeFlag); m_pbPLTScanRotationModeFlag = NULL; }
+    if ( m_pbPaletteModeFlag             ) { xFree(m_pbPaletteModeFlag);             m_pbPaletteModeFlag             = NULL; }
+    if ( m_pbPaletteScanRotationModeFlag ) { xFree(m_pbPaletteScanRotationModeFlag); m_pbPaletteScanRotationModeFlag = NULL; }
 
     for(UInt i=0; i<NUM_REF_PIC_LIST_01; i++)
     {
@@ -487,11 +487,11 @@ Void TComDataCU::initCtu( TComPic* pcPic, UInt ctuRsAddr )
 
   for (Int comp = 0; comp < MAX_NUM_COMPONENT; comp++)
   {
-    m_uhLastPLTUsedSizeFinal[comp] = PLT_SIZE_INVALID;
-    m_uhLastPLTSizeFinal[comp] = 0;
-    for (Int i = 0; i < m_PLTMaxPredSize; i++)
+    m_uhLastPaletteUsedSizeFinal[comp] = PALETTE_SIZE_INVALID;
+    m_uhLastPaletteSizeFinal[comp] = 0;
+    for (Int i = 0; i < m_paletteMaxPredSize; i++)
     {
-      m_piLastPLTInLcuFinal[comp][i] = 0;
+      m_piLastPaletteInLcuFinal[comp][i] = 0;
     }
   }
 
@@ -521,7 +521,7 @@ Void TComDataCU::initCtu( TComPic* pcPic, UInt ctuRsAddr )
     memset( m_puhTransformSkip[comp]              , 0,                     m_uiNumPartition * sizeof( *m_puhTransformSkip[comp]) );
     memset( m_puhCbf[comp]                        , 0,                     m_uiNumPartition * sizeof( *m_puhCbf[comp] ) );
     memset( m_explicitRdpcmMode[comp]             , NUMBER_OF_RDPCM_MODES, m_uiNumPartition * sizeof( *m_explicitRdpcmMode[comp] ) );
-    memset( m_puhPLTEscape[comp]                , 0,                     m_uiNumPartition * sizeof( *m_puhPLTEscape[comp] ) );
+    memset( m_puhPaletteEscape[comp]              , 0,                     m_uiNumPartition * sizeof( *m_puhPaletteEscape[comp] ) );
   }
   memset( m_pbMergeFlag       , false,                    m_uiNumPartition * sizeof( *m_pbMergeFlag ) );
   memset( m_puhMergeIndex     , 0,                        m_uiNumPartition * sizeof( *m_puhMergeIndex ) );
@@ -531,8 +531,8 @@ Void TComDataCU::initCtu( TComPic* pcPic, UInt ctuRsAddr )
   }
   memset( m_puhInterDir       , 0,                        m_uiNumPartition * sizeof( *m_puhInterDir ) );
   memset( m_pbIPCMFlag        , false,                    m_uiNumPartition * sizeof( *m_pbIPCMFlag ) );
-  memset( m_pbPLTModeFlag             , false,            m_uiNumPartition * sizeof( *m_pbPLTModeFlag ) );
-  memset( m_pbPLTScanRotationModeFlag , false,            m_uiNumPartition * sizeof( *m_pbPLTScanRotationModeFlag ) );
+  memset( m_pbPaletteModeFlag             , false,        m_uiNumPartition * sizeof( *m_pbPaletteModeFlag ) );
+  memset( m_pbPaletteScanRotationModeFlag , false,        m_uiNumPartition * sizeof( *m_pbPaletteScanRotationModeFlag ) );
 
   const UInt numCoeffY    = maxCUWidth*maxCUHeight;
   for (UInt comp=0; comp<MAX_NUM_COMPONENT; comp++)
@@ -615,7 +615,7 @@ Void TComDataCU::initEstData( const UInt uiDepth, const Int qp, const Bool bTran
       m_crossComponentPredictionAlpha[comp][ui] = 0;
       m_puhTransformSkip             [comp][ui] = 0;
       m_explicitRdpcmMode            [comp][ui] = NUMBER_OF_RDPCM_MODES;
-      m_puhPLTEscape[comp][ui]                  = 0;
+      m_puhPaletteEscape[comp][ui]              = 0;
     }
     m_skipFlag[ui]      = false;
     m_ColourTransform[ui] = false;
@@ -624,8 +624,8 @@ Void TComDataCU::initEstData( const UInt uiDepth, const Int qp, const Bool bTran
     m_pePredMode[ui]    = NUMBER_OF_PREDICTION_MODES;
     m_CUTransquantBypass[ui] = bTransquantBypass;
     m_pbIPCMFlag[ui]    = 0;
-    m_pbPLTModeFlag[ui]             = 0;
-    m_pbPLTScanRotationModeFlag[ui] = 0;
+    m_pbPaletteModeFlag[ui]             = 0;
+    m_pbPaletteScanRotationModeFlag[ui] = 0;
     m_phQP[ui]          = qp;
     m_ChromaQpAdj[ui]   = 0;
     m_pbMergeFlag[ui]   = 0;
@@ -640,13 +640,13 @@ Void TComDataCU::initEstData( const UInt uiDepth, const Int qp, const Bool bTran
     for (UInt comp=0; comp<MAX_NUM_COMPONENT; comp++)
     {
       m_puhCbf[comp][ui] = 0;
-      for (UInt uiPLTIdx = 0; uiPLTIdx < m_PLTMaxSize; uiPLTIdx++)
+      for (UInt paletteIdx = 0; paletteIdx < m_paletteMaxSize; paletteIdx++)
       {
-        m_piPLT[comp][(ui >> 2) * m_PLTMaxSize + uiPLTIdx] = 0;
+        m_piPalette[comp][(ui >> 2) * m_paletteMaxSize + paletteIdx] = 0;
       }
-      for (UInt uiPLTIdx = 0; uiPLTIdx < m_PLTMaxPredSize; uiPLTIdx++)
+      for (UInt paletteIdx = 0; paletteIdx < m_paletteMaxPredSize; paletteIdx++)
       {
-        m_bPrevPLTReusedFlag[comp][(ui >> 2) * m_PLTMaxPredSize + uiPLTIdx] = 0;
+        m_bPrevPaletteReusedFlag[comp][(ui >> 2) * m_paletteMaxPredSize + paletteIdx] = 0;
       }
     }
   }
@@ -752,11 +752,11 @@ Void TComDataCU::initSubCU( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDepth, 
 
   for (Int comp = 0; comp < MAX_NUM_COMPONENT; comp++)
   {
-    m_uhLastPLTUsedSizeFinal[comp] = PLT_SIZE_INVALID;
-    m_uhLastPLTSizeFinal[comp] = 0;
-    for (Int i = 0; i < m_PLTMaxPredSize; i++)
+    m_uhLastPaletteUsedSizeFinal[comp] = PALETTE_SIZE_INVALID;
+    m_uhLastPaletteSizeFinal[comp] = 0;
+    for (Int i = 0; i < m_paletteMaxPredSize; i++)
     {
-      m_piLastPLTInLcuFinal[comp][i] = 0;
+      m_piLastPaletteInLcuFinal[comp][i] = 0;
     }
   }
 
@@ -782,15 +782,15 @@ Void TComDataCU::initSubCU( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDepth, 
     memset( m_puhTransformSkip[comp],              0, iSizeInUchar );
     memset( m_puhCbf[comp],                        0, iSizeInUchar );
     memset( m_explicitRdpcmMode[comp],             NUMBER_OF_RDPCM_MODES, iSizeInUchar );
-    memset( m_puhPLTEscape[comp],                  0, iSizeInUchar );
+    memset( m_puhPaletteEscape[comp],              0, iSizeInUchar );
   }
 
   memset( m_puhDepth,     uiDepth, iSizeInUchar );
   memset( m_puhWidth,          uhWidth,  iSizeInUchar );
   memset( m_puhHeight,         uhHeight, iSizeInUchar );
   memset( m_pbIPCMFlag,        0, iSizeInBool  );
-  memset( m_pbPLTModeFlag,             0, iSizeInBool );
-  memset( m_pbPLTScanRotationModeFlag, 0, iSizeInBool );
+  memset( m_pbPaletteModeFlag,             0, iSizeInBool );
+  memset( m_pbPaletteScanRotationModeFlag, 0, iSizeInBool );
 
   for (UInt ui = 0; ui < m_uiNumPartition; ui++)
   {
@@ -892,9 +892,9 @@ Void TComDataCU::copySubCU( TComDataCU* pcCU, UInt uiAbsPartIdx )
     m_puhTransformSkip[comp]              = pcCU->getTransformSkip(ComponentID(comp))                 + uiPart;
     m_puhCbf[comp]                        = pcCU->getCbf(ComponentID(comp))                           + uiPart;
     m_explicitRdpcmMode[comp]             = pcCU->getExplicitRdpcmMode(ComponentID(comp))             + uiPart;
-    m_piPLT[comp]              = pcCU->getPLT(comp) + (uiPart >> 2) * m_PLTMaxSize;
-    m_bPrevPLTReusedFlag[comp] = pcCU->getPrevPLTReusedFlag(comp) + (uiPart >> 2) * m_PLTMaxPredSize;
-    m_puhPLTEscape[comp]       = pcCU->getPLTEscape(comp)                                             + uiPart;
+    m_piPalette[comp]                     = pcCU->getPalette(comp) + (uiPart >> 2) * m_paletteMaxSize;
+    m_bPrevPaletteReusedFlag[comp]        = pcCU->getPrevPaletteReusedFlag(comp) + (uiPart >> 2) * m_paletteMaxPredSize;
+    m_puhPaletteEscape[comp]              = pcCU->getPaletteEscape(comp)                              + uiPart;
   }
 
   m_puhDepth=pcCU->getDepth()                     + uiPart;
@@ -902,8 +902,8 @@ Void TComDataCU::copySubCU( TComDataCU* pcCU, UInt uiAbsPartIdx )
   m_puhHeight=pcCU->getHeight()                   + uiPart;
 
   m_pbIPCMFlag         = pcCU->getIPCMFlag()        + uiPart;
-  m_pbPLTModeFlag             =  pcCU->getPLTModeFlag()            + uiPart;
-  m_pbPLTScanRotationModeFlag = pcCU->getPLTScanRotationModeFlag() + uiPart;
+  m_pbPaletteModeFlag             =  pcCU->getPaletteModeFlag()            + uiPart;
+  m_pbPaletteScanRotationModeFlag = pcCU->getPaletteScanRotationModeFlag() + uiPart;
   m_pCtuAboveLeft      = pcCU->getCtuAboveLeft();
   m_pCtuAboveRight     = pcCU->getCtuAboveRight();
   m_pCtuAbove          = pcCU->getCtuAbove();
@@ -1005,10 +1005,10 @@ Void TComDataCU::copyPartFrom( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDept
 
   for (Int comp = 0; comp < MAX_NUM_COMPONENT; comp++)
   {
-    m_uhLastPLTSizeFinal[comp] = pcCU->getLastPLTInLcuSizeFinal(comp);
-    for (Int i = 0; i < m_PLTMaxPredSize; i++)
+    m_uhLastPaletteSizeFinal[comp] = pcCU->getLastPaletteInLcuSizeFinal(comp);
+    for (Int i = 0; i < m_paletteMaxPredSize; i++)
     {
-      m_piLastPLTInLcuFinal[comp][i] = pcCU->getLastPLTInLcuFinal(comp, i);
+      m_piLastPaletteInLcuFinal[comp][i] = pcCU->getLastPaletteInLcuFinal(comp, i);
     }
   }
 
@@ -1038,9 +1038,9 @@ Void TComDataCU::copyPartFrom( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDept
     memcpy( m_puhTransformSkip[comp]              + uiOffset, pcCU->getTransformSkip(ComponentID(comp))                , iSizeInUchar );
     memcpy( m_puhCbf[comp]                        + uiOffset, pcCU->getCbf(ComponentID(comp))                          , iSizeInUchar );
     memcpy( m_explicitRdpcmMode[comp]             + uiOffset, pcCU->getExplicitRdpcmMode(ComponentID(comp))            , iSizeInUchar );
-    memcpy( m_piPLT[comp] + (uiOffset >> 2) * m_PLTMaxSize,                  pcCU->getPLT(comp),                    sizeof(Pel) * (uiNumPartition >> 2) * m_PLTMaxSize );
-    memcpy( m_bPrevPLTReusedFlag[comp] + (uiOffset >> 2) * m_PLTMaxPredSize, pcCU->getPrevPLTReusedFlag(comp),      sizeof(UChar) * (uiNumPartition >> 2) * m_PLTMaxPredSize );
-    memcpy( m_puhPLTEscape[comp] + uiOffset,                                  pcCU->getPLTEscape(ComponentID(comp)), iSizeInUchar );
+    memcpy( m_piPalette[comp] + (uiOffset >> 2) * m_paletteMaxSize, pcCU->getPalette(comp), sizeof(Pel) * (uiNumPartition >> 2) * m_paletteMaxSize );
+    memcpy( m_bPrevPaletteReusedFlag[comp] + (uiOffset >> 2) * m_paletteMaxPredSize, pcCU->getPrevPaletteReusedFlag(comp), sizeof(UChar) * (uiNumPartition >> 2) * m_paletteMaxPredSize );
+    memcpy( m_puhPaletteEscape[comp]              + uiOffset, pcCU->getPaletteEscape(ComponentID(comp))                , iSizeInUchar );
   }
 
   memcpy( m_puhDepth  + uiOffset, pcCU->getDepth(),  iSizeInUchar );
@@ -1048,8 +1048,8 @@ Void TComDataCU::copyPartFrom( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDept
   memcpy( m_puhHeight + uiOffset, pcCU->getHeight(), iSizeInUchar );
 
   memcpy( m_pbIPCMFlag + uiOffset, pcCU->getIPCMFlag(), iSizeInBool );
-  memcpy( m_pbPLTModeFlag             + uiOffset, pcCU->getPLTModeFlag(),             iSizeInBool );
-  memcpy( m_pbPLTScanRotationModeFlag + uiOffset, pcCU->getPLTScanRotationModeFlag(), iSizeInBool );
+  memcpy( m_pbPaletteModeFlag             + uiOffset, pcCU->getPaletteModeFlag(),             iSizeInBool );
+  memcpy( m_pbPaletteScanRotationModeFlag + uiOffset, pcCU->getPaletteScanRotationModeFlag(), iSizeInBool );
   m_pCtuAboveLeft      = pcCU->getCtuAboveLeft();
   m_pCtuAboveRight     = pcCU->getCtuAboveRight();
   m_pCtuAbove          = pcCU->getCtuAbove();
@@ -1128,9 +1128,9 @@ Void TComDataCU::copyToPic( UChar uhDepth )
     memcpy( pCtu->getTransformSkip(ComponentID(comp))                 + m_absZIdxInCtu, m_puhTransformSkip[comp],              iSizeInUchar );
     memcpy( pCtu->getCbf(ComponentID(comp))                           + m_absZIdxInCtu, m_puhCbf[comp],                        iSizeInUchar );
     memcpy( pCtu->getExplicitRdpcmMode(ComponentID(comp))             + m_absZIdxInCtu, m_explicitRdpcmMode[comp],             iSizeInUchar );
-    memcpy( pCtu->getPLT(comp)               + (m_absZIdxInCtu >> 2) * m_PLTMaxSize,     m_piPLT[comp],              sizeof(Pel)* m_PLTMaxSize * (m_uiNumPartition >> 2));
-    memcpy( pCtu->getPrevPLTReusedFlag(comp) + (m_absZIdxInCtu >> 2) * m_PLTMaxPredSize, m_bPrevPLTReusedFlag[comp], sizeof(UChar)* m_PLTMaxPredSize * (m_uiNumPartition >> 2));
-    memcpy( pCtu->getPLTEscape(comp) + m_absZIdxInCtu,          m_puhPLTEscape[comp], iSizeInUchar  );
+    memcpy( pCtu->getPalette(comp)               + (m_absZIdxInCtu >> 2) * m_paletteMaxSize,     m_piPalette[comp],              sizeof(Pel)  * m_paletteMaxSize     * (m_uiNumPartition >> 2));
+    memcpy( pCtu->getPrevPaletteReusedFlag(comp) + (m_absZIdxInCtu >> 2) * m_paletteMaxPredSize, m_bPrevPaletteReusedFlag[comp], sizeof(UChar)* m_paletteMaxPredSize * (m_uiNumPartition >> 2));
+    memcpy( pCtu->getPaletteEscape(comp)                              + m_absZIdxInCtu, m_puhPaletteEscape[comp],              iSizeInUchar  );
   }
 
   memcpy( pCtu->getDepth()  + m_absZIdxInCtu, m_puhDepth,  iSizeInUchar );
@@ -1151,8 +1151,8 @@ Void TComDataCU::copyToPic( UChar uhDepth )
   }
 
   memcpy( pCtu->getIPCMFlag() + m_absZIdxInCtu, m_pbIPCMFlag,         iSizeInBool  );
-  memcpy( pCtu->getPLTModeFlag()             + m_absZIdxInCtu, m_pbPLTModeFlag,             iSizeInBool );
-  memcpy( pCtu->getPLTScanRotationModeFlag() + m_absZIdxInCtu, m_pbPLTScanRotationModeFlag, iSizeInBool );
+  memcpy( pCtu->getPaletteModeFlag()             + m_absZIdxInCtu, m_pbPaletteModeFlag,             iSizeInBool );
+  memcpy( pCtu->getPaletteScanRotationModeFlag() + m_absZIdxInCtu, m_pbPaletteScanRotationModeFlag, iSizeInBool );
 
   const UInt numCoeffY    = (pCtu->getSlice()->getSPS()->getMaxCUWidth()*pCtu->getSlice()->getSPS()->getMaxCUHeight())>>(uhDepth<<1);
   const UInt offsetY      = m_absZIdxInCtu*m_pcPic->getMinCUWidth()*m_pcPic->getMinCUHeight();
@@ -2107,7 +2107,7 @@ Void TComDataCU::setQPSubCUs( Int qp, UInt absPartIdx, UInt depth, Bool &foundNo
     else
     {
       if(getCbf( absPartIdx, COMPONENT_Y ) || (numValidComp>COMPONENT_Cb && getCbf( absPartIdx, COMPONENT_Cb )) || (numValidComp>COMPONENT_Cr && getCbf( absPartIdx, COMPONENT_Cr) ) 
-        || (getPLTModeFlag(absPartIdx) && getPLTEscape(COMPONENT_Y, absPartIdx))
+        || (getPaletteModeFlag(absPartIdx) && getPaletteEscape(COMPONENT_Y, absPartIdx))
         )
       {
         foundNonZeroCbf = true;
@@ -3469,65 +3469,65 @@ Void TComDataCU::setIPCMFlagSubParts  (Bool bIpcmFlag, UInt uiAbsPartIdx, UInt u
   memset(m_pbIPCMFlag + uiAbsPartIdx, bIpcmFlag, sizeof(Bool)*uiCurrPartNumb );
 }
 
-Void TComDataCU::setPLTModeFlagSubParts  (Bool bPLTModeFlag, UInt uiAbsPartIdx, UInt uiDepth)
+Void TComDataCU::setPaletteModeFlagSubParts  (Bool bPaletteModeFlag, UInt uiAbsPartIdx, UInt uiDepth)
 {
   UInt uiCurrPartNumb = m_pcPic->getNumPartitionsInCtu() >> (uiDepth << 1);
-  memset(m_pbPLTModeFlag + uiAbsPartIdx, bPLTModeFlag, sizeof(Bool) * uiCurrPartNumb );
+  memset(m_pbPaletteModeFlag + uiAbsPartIdx, bPaletteModeFlag, sizeof(Bool) * uiCurrPartNumb );
 }
 
-Void TComDataCU::setPrevPLTReusedFlagSubParts ( UChar ucCh,  UChar uiValue, UInt uiPLTIdx, UInt uiAbsPartIdx, UInt uiDepth  )
+Void TComDataCU::setPrevPaletteReusedFlagSubParts ( UChar ucCh,  UChar uiValue, UInt paletteIdx, UInt uiAbsPartIdx, UInt uiDepth  )
 {
   UInt uiCurrPartNumb = m_pcPic->getNumPartitionsInCtu() >> (uiDepth << 1);
   for (UInt uiIdx = 0; uiIdx < uiCurrPartNumb; uiIdx ++)
   {
-    m_bPrevPLTReusedFlag[ucCh][((uiAbsPartIdx+uiIdx) >> 2 ) * m_PLTMaxPredSize + uiPLTIdx] = uiValue;
+    m_bPrevPaletteReusedFlag[ucCh][((uiAbsPartIdx+uiIdx) >> 2 ) * m_paletteMaxPredSize + paletteIdx] = uiValue;
   }
 }
 
-Void TComDataCU::setPLTSubParts    ( UChar ucCh,  Pel uiValue, UInt uiPLTIdx, UInt uiAbsPartIdx, UInt uiDepth  )
+Void TComDataCU::setPaletteSubParts    ( UChar ucCh,  Pel uiValue, UInt paletteIdx, UInt uiAbsPartIdx, UInt uiDepth  )
 {
   UInt uiCurrPartNumb = m_pcPic->getNumPartitionsInCtu() >> (uiDepth << 1);
 
   for (UInt uiIdx = 0; uiIdx < uiCurrPartNumb; uiIdx ++)
   {
-    m_piPLT[ucCh][((uiAbsPartIdx + uiIdx) >> 2) * m_PLTMaxSize + uiPLTIdx] = uiValue;
+    m_piPalette[ucCh][((uiAbsPartIdx + uiIdx) >> 2) * m_paletteMaxSize + paletteIdx] = uiValue;
   }
 }
 
-Void TComDataCU::setPLTSizeSubParts  (UChar ucCh, UChar ucPLTSize, UInt uiAbsPartIdx, UInt uiDepth)
+Void TComDataCU::setPaletteSizeSubParts  (UChar ucCh, UChar paletteSize, UInt uiAbsPartIdx, UInt uiDepth)
 {
-  setTransformSkipSubParts( ucPLTSize, (ComponentID)ucCh, uiAbsPartIdx, uiDepth);
+  setTransformSkipSubParts( paletteSize, (ComponentID)ucCh, uiAbsPartIdx, uiDepth);
 }
 
-Void TComDataCU::setPLTEscapeSubParts  (UChar ucCh, UChar ucPLTEscape, UInt uiAbsPartIdx, UInt uiDepth)
+Void TComDataCU::setPaletteEscapeSubParts  (UChar ucCh, UChar paletteEscape, UInt uiAbsPartIdx, UInt uiDepth)
 {
   UInt uiCurrPartNumb = m_pcPic->getNumPartitionsInCtu() >> (uiDepth << 1);
-  memset(m_puhPLTEscape[ucCh] + uiAbsPartIdx, ucPLTEscape, sizeof(UChar)*uiCurrPartNumb );
+  memset(m_puhPaletteEscape[ucCh] + uiAbsPartIdx, paletteEscape, sizeof(UChar)*uiCurrPartNumb );
 }
 
-Void TComDataCU::saveLastPLTInLcuFinal( TComDataCU *pcSrc, UInt uiAbsPartIdx, UInt numValidComp )
+Void TComDataCU::saveLastPaletteInLcuFinal( TComDataCU *pcSrc, UInt uiAbsPartIdx, UInt numValidComp )
 {
   struct
   {
-    Pel values[MAX_PLT_PRED_SIZE];
+    Pel values[MAX_PALETTE_PRED_SIZE];
     UChar size;
   } chinfo[MAX_NUM_COMPONENT] = { { { 0, }, 0, } };
   for (UInt ch=0; ch<numValidComp; ch++)
   {
     UInt srcCh = ch;
-    UInt size  = pcSrc->getPLTSize( srcCh, uiAbsPartIdx );
-    UInt numEl = std::min( size, (UInt)m_PLTMaxPredSize );
-    ::memcpy( chinfo[ch].values, pcSrc->getPLT(ch, uiAbsPartIdx ), numEl*sizeof(Pel) );
+    UInt size  = pcSrc->getPaletteSize( srcCh, uiAbsPartIdx );
+    UInt numEl = std::min( size, (UInt)m_paletteMaxPredSize );
+    ::memcpy( chinfo[ch].values, pcSrc->getPalette(ch, uiAbsPartIdx ), numEl*sizeof(Pel) );
 
-    UInt uiPLTSizePrev = pcSrc->getLastPLTInLcuSizeFinal(srcCh);
-    UInt limit = m_PLTMaxPredSize;
+    UInt uiPaletteSizePrev = pcSrc->getLastPaletteInLcuSizeFinal(srcCh);
+    UInt limit = m_paletteMaxPredSize;
     // Padd with last palette
-    for(UInt i=0; i<uiPLTSizePrev && numEl<limit; i++)
+    for(UInt i=0; i<uiPaletteSizePrev && numEl<limit; i++)
     {
       UInt idx = i;
-      if( !pcSrc->getPrevPLTReusedFlag(srcCh, uiAbsPartIdx, idx) )
+      if( !pcSrc->getPrevPaletteReusedFlag(srcCh, uiAbsPartIdx, idx) )
       {
-        chinfo[ch].values[numEl] = pcSrc->getLastPLTInLcuFinal(ch, idx);
+        chinfo[ch].values[numEl] = pcSrc->getLastPaletteInLcuFinal(ch, idx);
         numEl++;
       }
     }
@@ -3536,16 +3536,16 @@ Void TComDataCU::saveLastPLTInLcuFinal( TComDataCU *pcSrc, UInt uiAbsPartIdx, UI
 
   for (UInt ch=0; ch<numValidComp; ch++)
   {
-    setLastPLTInLcuSizeFinal( ch, chinfo[ch].size );
-    ::memcpy( getLastPLTInLcuFinal(ch), chinfo[ch].values, m_PLTMaxPredSize * sizeof(Pel) );
+    setLastPaletteInLcuSizeFinal( ch, chinfo[ch].size );
+    ::memcpy( getLastPaletteInLcuFinal(ch), chinfo[ch].values, m_paletteMaxPredSize * sizeof(Pel) );
   }
 }
 
-Pel* TComDataCU::getPLTPred(TComDataCU *pcCU, UInt uiAbsPartIdx, UInt ch, UInt &uiPLTSizePrev)
+Pel* TComDataCU::getPalettePred(TComDataCU *pcCU, UInt uiAbsPartIdx, UInt ch, UInt &uiPaletteSizePrev)
 {
-  Pel *pPLTPrev = pcCU->getLastPLTInLcuFinal(ch);
-  uiPLTSizePrev = pcCU->getLastPLTInLcuSizeFinal(ch);
-  return pPLTPrev;
+  Pel *pPalettePrev = pcCU->getLastPaletteInLcuFinal(ch);
+  uiPaletteSizePrev = pcCU->getLastPaletteInLcuSizeFinal(ch);
+  return pPalettePrev;
 }
 
 UInt TComDataCU::getCtxEscapeFlag(UInt uiAbsPartIdx, UInt uiIdx, Pel *pEscapeFlag)
@@ -4075,10 +4075,10 @@ UInt TComDataCU::getIntraBCSearchAreaWidth( UInt uiMaxSearchWidthToLeftInCTUs )
   return std::min<UInt>(width, maxWidth);
 }
 
-Void TComDataCU::setPLTScanRotationModeFlagSubParts (Bool bPLTScanRotationModeFlag, UInt uiAbsPartIdx, UInt uiDepth)
+Void TComDataCU::setPaletteScanRotationModeFlagSubParts (Bool bPaletteScanRotationModeFlag, UInt uiAbsPartIdx, UInt uiDepth)
 {
   UInt uiCurrPartNumb = m_pcPic->getNumPartitionsInCtu() >> (uiDepth << 1);
-  memset(m_pbPLTScanRotationModeFlag + uiAbsPartIdx, bPLTScanRotationModeFlag, sizeof(Bool)*uiCurrPartNumb );
+  memset(m_pbPaletteScanRotationModeFlag + uiAbsPartIdx, bPaletteScanRotationModeFlag, sizeof(Bool)*uiCurrPartNumb );
 }
 
 //! \}

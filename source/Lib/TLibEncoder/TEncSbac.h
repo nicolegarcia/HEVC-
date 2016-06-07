@@ -115,13 +115,13 @@ public:
                     , Bool onlyEstMergeInfo = false
                     );
 
-  Pel   writePLTIndex          ( UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint = 0, Int iWidth = 0, UChar *pEscapeFlag = 0);
-  Void  encodeRun              ( UInt uiRun, Bool bCopyTopMode, const UInt uiPltIdx, const UInt uiMaxRun );
+  Pel   writePaletteIndex      ( UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint = 0, Int iWidth = 0, UChar *pEscapeFlag = 0);
+  Void  encodeRun              ( UInt uiRun, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun );
 
 private:
   Void  xWriteUnarySymbol    ( UInt uiSymbol, ContextModel* pcSCModel, Int iOffset );
   Void  xWriteUnaryMaxSymbol ( UInt uiSymbol, ContextModel* pcSCModel, Int iOffset, UInt uiMaxSymbol );
-  Void  xEncodePLTPredIndicator(UChar *bReusedPrev, UInt uiPLTSizePrev, UInt &uiNumPLTPredicted, UInt uiMaxPLTSize);
+  Void  xEncodePalettePredIndicator(UChar *bReusedPrev, UInt uiPaletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize);
   Void  xWriteTruncBinCode      ( UInt uiSymbol, UInt uiMaxSymbol );
   Void codeScanRotationModeFlag ( TComDataCU* pcCU, UInt uiAbsPartIdx );
   Void  xWriteEpExGolomb     ( UInt uiSymbol, UInt uiCount );
@@ -141,10 +141,10 @@ protected:
 
 public:
   Void codeCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx );
-  Void codePLTModeFlag        ( TComDataCU* pcCU, UInt uiAbsPartIdx );
-  Void codePLTModeSyntax      ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiNumComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag );
+  Void codePaletteModeFlag        ( TComDataCU* pcCU, UInt uiAbsPartIdx );
+  Void codePaletteModeSyntax      ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiNumComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag );
   Void encodeSPointRD(UInt uiIdx, UInt uiWidth, UChar *pSPoint, UInt mode, UInt *uiRefScanOrder);
-  Void saveRestorePltCtx(UInt saveState);
+  Void saveRestorePaletteCtx(UInt saveState);
 
   Void encodeSPoint      ( TComDataCU *pcCU, UInt uiAbsPartIdx, UInt uiIdx, UInt uiWidth, UChar *pSPoint, UInt *uiRefScanOrder );
   Void codeSkipFlag      ( TComDataCU* pcCU, UInt uiAbsPartIdx );
@@ -229,11 +229,11 @@ private:
   ContextModel3DBuffer m_explicitRdpcmFlagSCModel;
   ContextModel3DBuffer m_explicitRdpcmDirSCModel;
   ContextModel3DBuffer m_cCrossComponentPredictionSCModel;
-  ContextModel3DBuffer m_PLTModeFlagSCModel;
+  ContextModel3DBuffer m_paletteModeFlagSCModel;
   ContextModel3DBuffer m_SPointSCModel;
   ContextModel3DBuffer m_cCopyTopRunSCModel;
   ContextModel3DBuffer m_cRunSCModel;
-  ContextModel3DBuffer m_PLTScanRotationModeFlagSCModel;
+  ContextModel3DBuffer m_paletteScanRotationModeFlagSCModel;
   ContextModel3DBuffer m_ChromaQpAdjFlagSCModel;
   ContextModel3DBuffer m_ChromaQpAdjIdcSCModel;
   ContextModel3DBuffer m_cCUColourTransformFlagSCModel;

@@ -139,9 +139,9 @@ private:
 
   Bool                    m_hasLosslessPSNR[MAX_NUM_COMPONENT];
   Double                  m_losslessPSNR[MAX_NUM_COMPONENT];
-  Bool                    m_encodePPSPLT;
-  UInt                    m_uiNumPLTPred;
-  Pel                     m_aiPLT[MAX_NUM_COMPONENT][MAX_PLT_PRED_SIZE];
+  Bool                    m_encodePPSPalette;
+  UInt                    m_uiNumPalettePred;
+  Pel                     m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
   Int                     m_palettePredictorBitDepth[MAX_NUM_CHANNEL_TYPE];
 
 public:
@@ -168,9 +168,9 @@ public:
   NalUnitType getNalUnitType( Int pocCurr, Int lastIdr, Bool isField );
   Void arrangeLongtermPicturesInRPS(TComSlice *, TComList<TComPic*>& );
 
-  UInt  getNumPLTPred()                     const { return m_uiNumPLTPred; }
-  Void  setNumPLTPred( UInt num )                   { m_uiNumPLTPred = num; }
-  Pel*  getPLTPred( UInt ch )                 const { return const_cast<Pel*>(m_aiPLT[ch]); }
+  UInt  getNumPalettePred()                       const { return m_uiNumPalettePred; }
+  Void  setNumPalettePred( UInt num )                   { m_uiNumPalettePred = num; }
+  Pel*  getPalettePred( UInt ch )                 const { return const_cast<Pel*>(m_aiPalette[ch]); }
   Int   getPalettePredictorBitDepth( ChannelType type ) const   { return m_palettePredictorBitDepth[type]; }
   Void  setPalettePredictorBitDepth( ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }
   TComPPS* getPPS();

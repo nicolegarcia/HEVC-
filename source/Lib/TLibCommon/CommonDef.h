@@ -247,7 +247,7 @@ static const Int MAX_ENCODER_DEBLOCKING_QUALITY_LAYERS =           8 ;
 #endif
 
 
-#define PLT_SIZE_INVALID            0xff
+#define PALETTE_SIZE_INVALID            0xff
 
 // ====================================================================================================================
 // Macro functions

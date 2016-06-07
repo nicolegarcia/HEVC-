@@ -60,7 +60,7 @@ using namespace std;
  \param    chromaFormat  chroma format
  */
 Void TEncCu::create(UChar uhTotalDepth, UInt uiMaxWidth, UInt uiMaxHeight, ChromaFormat chromaFormat
-                    , UInt uiPLTMaxSize, UInt uiPLTMaxPredSize
+                    , UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
   )
 {
   Int i;
@@ -86,10 +86,10 @@ Void TEncCu::create(UChar uhTotalDepth, UInt uiMaxWidth, UInt uiMaxHeight, Chrom
     UInt uiHeight = uiMaxHeight >> i;
 
     m_ppcBestCU[i] = new TComDataCU; m_ppcBestCU[i]->create( chromaFormat, uiNumPartitions, uiWidth, uiHeight, false, uiMaxWidth >> (m_uhTotalDepth - 1)
-                 ,uiPLTMaxSize, uiPLTMaxPredSize
+                 ,uiPaletteMaxSize, uiPaletteMaxPredSize
    );
     m_ppcTempCU[i] = new TComDataCU; m_ppcTempCU[i]->create( chromaFormat, uiNumPartitions, uiWidth, uiHeight, false, uiMaxWidth >> (m_uhTotalDepth - 1)
-                    ,uiPLTMaxSize, uiPLTMaxPredSize
+                    ,uiPaletteMaxSize, uiPaletteMaxPredSize
    );
 
     m_ppcPredYuvBest[i] = new TComYuv; m_ppcPredYuvBest[i]->create(uiWidth, uiHeight, chromaFormat);
@@ -243,7 +243,7 @@ Void TEncCu::init( TEncTop* pcEncTop )
 /** 
  \param  pCtu pointer of CU data class
  */
-Void TEncCu::compressCtu( TComDataCU* pCtu, UChar* lastPLTSize, UChar* lastPLTUsedSize, Pel lastPLT[][MAX_PLT_PRED_SIZE] )
+Void TEncCu::compressCtu( TComDataCU* pCtu, UChar* lastPaletteSize, UChar* lastPaletteUsedSize, Pel lastPalette[][MAX_PALETTE_PRED_SIZE] )
 {
   // initialize CU data
   m_ppcBestCU[0]->initCtu( pCtu->getPic(), pCtu->getCtuRsAddr() );
@@ -251,12 +251,12 @@ Void TEncCu::compressCtu( TComDataCU* pCtu, UChar* lastPLTSize, UChar* lastPLTUs
 
   for (UChar comp = 0; comp < MAX_NUM_COMPONENT; comp++)
   {
-    m_ppcBestCU[0]->setLastPLTInLcuSizeFinal(comp, lastPLTSize[comp]);
-    m_ppcTempCU[0]->setLastPLTInLcuSizeFinal(comp, lastPLTSize[comp]);
-    for (UInt idx = 0; idx < pCtu->getSlice()->getSPS()->getSpsScreenExtension().getPLTMaxPredSize(); idx++)
+    m_ppcBestCU[0]->setLastPaletteInLcuSizeFinal(comp, lastPaletteSize[comp]);
+    m_ppcTempCU[0]->setLastPaletteInLcuSizeFinal(comp, lastPaletteSize[comp]);
+    for (UInt idx = 0; idx < pCtu->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize(); idx++)
     {
-      m_ppcBestCU[0]->setLastPLTInLcuFinal(comp, lastPLT[comp][idx], idx);
-      m_ppcTempCU[0]->setLastPLTInLcuFinal(comp, lastPLT[comp][idx], idx);
+      m_ppcBestCU[0]->setLastPaletteInLcuFinal(comp, lastPalette[comp][idx], idx);
+      m_ppcTempCU[0]->setLastPaletteInLcuFinal(comp, lastPalette[comp][idx], idx);
     }
   }
 
@@ -479,19 +479,19 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
     lastIntraBCMv[i] = rpcBestCU->getLastIntraBCMv(i);
   }
 
-  UChar lastPLTSize[3];
+  UChar lastPaletteSize[3];
   UInt numValidComp = rpcBestCU->getPic()->getNumberValidComponents();
-  Pel*  lastPLT[MAX_NUM_COMPONENT];
+  Pel*  lastPalette[MAX_NUM_COMPONENT];
   for (UInt ch = 0; ch < numValidComp; ch++)
   {
-    lastPLT[ch] = (Pel*)xMalloc(Pel, rpcBestCU->getSlice()->getSPS()->getSpsScreenExtension().getPLTMaxPredSize());
+    lastPalette[ch] = (Pel*)xMalloc(Pel, rpcBestCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize());
   }
   for (UInt ch = 0; ch < numValidComp; ch++)
   {
-    lastPLTSize[ch] = rpcBestCU->getLastPLTInLcuSizeFinal(ch);
-    for (UInt i = 0; i < rpcBestCU->getSlice()->getSPS()->getSpsScreenExtension().getPLTMaxPredSize(); i++)
+    lastPaletteSize[ch] = rpcBestCU->getLastPaletteInLcuSizeFinal(ch);
+    for (UInt i = 0; i < rpcBestCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize(); i++)
     {
-      lastPLT[ch][i] = rpcBestCU->getLastPLTInLcuFinal(ch, i);
+      lastPalette[ch][i] = rpcBestCU->getLastPaletteInLcuFinal(ch, i);
     }
   }
 
@@ -1052,55 +1052,55 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
           {
             iQP = iMinQP;
           }
-          if ( rpcBestCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePLTMode() )
+          if ( rpcBestCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() )
           {
-            //Change PLT QP dependent error limit
-            Int iQP_PLT=Int(rpcBestCU->getQP(0));
-            Int iQPrem = iQP_PLT % 6;
-            Int iQPper = iQP_PLT / 6;
+            //Change Palette QP dependent error limit
+            Int iQP_Palette=Int(rpcBestCU->getQP(0));
+            Int iQPrem = iQP_Palette % 6;
+            Int iQPper = iQP_Palette / 6;
             Double quantiserScale = g_quantScales[iQPrem];
             Int quantiserRightShift = QUANT_SHIFT + iQPper;
 
             Double dQP=((Double)(1<<quantiserRightShift))/quantiserScale;
 
-            UInt pltQP;
-            pltQP=(UInt)(2.0*dQP/3.0+0.5);
-            m_pcPredSearch->setPLTErrLimit(pltQP);
+            UInt paletteQP;
+            paletteQP=(UInt)(2.0*dQP/3.0+0.5);
+            m_pcPredSearch->setPaletteErrLimit(paletteQP);
 
-            Bool forcePLTPrediction = false;
+            Bool forcePalettePrediction = false;
             for( UChar ch = 0; ch < numValidComp; ch++ )
             {
-              forcePLTPrediction = forcePLTPrediction || ( rpcTempCU->getLastPLTInLcuSizeFinal( ch ) > 0 );
+              forcePalettePrediction = forcePalettePrediction || ( rpcTempCU->getLastPaletteInLcuSizeFinal( ch ) > 0 );
             }
 
-            UInt uiIterNumber=0, pltSize[2] = {MAX_PLT_SIZE, MAX_PLT_SIZE}, testedModes[4];
+            UInt uiIterNumber=0, paletteSize[2] = {MAX_PALETTE_SIZE, MAX_PALETTE_SIZE}, testedModes[4];
 
             if( rpcTempCU->getWidth(0) != 64)
             {
               uiIterNumber = 0;
-              testedModes[uiIterNumber]=xCheckPLTMode( rpcBestCU, rpcTempCU, false, uiIterNumber, pltSize);
+              testedModes[uiIterNumber]=xCheckPaletteMode( rpcBestCU, rpcTempCU, false, uiIterNumber, paletteSize);
               rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
 
               if( !bIsLosslessMode )
               {
-                if (pltSize[0]>2 && testedModes[0]>0)
+                if (paletteSize[0]>2 && testedModes[0]>0)
                 {
                   uiIterNumber = 2;
-                  testedModes[uiIterNumber]=xCheckPLTMode( rpcBestCU, rpcTempCU, false, uiIterNumber, pltSize);
+                  testedModes[uiIterNumber]=xCheckPaletteMode( rpcBestCU, rpcTempCU, false, uiIterNumber, paletteSize);
                   rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
                 }
 
-                if( forcePLTPrediction)
+                if( forcePalettePrediction)
                 {
                   uiIterNumber = 1;
-                  testedModes[uiIterNumber]=xCheckPLTMode( rpcBestCU, rpcTempCU, true, uiIterNumber, pltSize+1);
+                  testedModes[uiIterNumber]=xCheckPaletteMode( rpcBestCU, rpcTempCU, true, uiIterNumber, paletteSize+1);
                   rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
                 }
 
-                if (forcePLTPrediction && pltSize[1]>2 && testedModes[1]>0)
+                if (forcePalettePrediction && paletteSize[1]>2 && testedModes[1]>0)
                 {
                   uiIterNumber = 3;
-                  testedModes[uiIterNumber]=xCheckPLTMode( rpcBestCU, rpcTempCU, true, uiIterNumber, pltSize+1);
+                  testedModes[uiIterNumber]=xCheckPaletteMode( rpcBestCU, rpcTempCU, true, uiIterNumber, paletteSize+1);
                   rpcTempCU->initEstData( uiDepth, iQP, bIsLosslessMode );
                 }
               }
@@ -1182,9 +1182,9 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
         }
       }
     } // is inter
-    if (rpcBestCU->getPLTModeFlag(0))
+    if (rpcBestCU->getPaletteModeFlag(0))
     {
-      rpcBestCU->saveLastPLTInLcuFinal( rpcBestCU, 0, MAX_NUM_COMPONENT );
+      rpcBestCU->saveLastPaletteInLcuFinal( rpcBestCU, 0, MAX_NUM_COMPONENT );
     }
 
     if( rpcBestCU->getTotalCost()!=MAX_DOUBLE )
@@ -1200,7 +1200,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   }
 
   // copy original YUV samples to PCM buffer
-  if( rpcBestCU->getPLTModeFlag(0) == false )
+  if( rpcBestCU->getPaletteModeFlag(0) == false )
   {
     if( rpcBestCU->getTotalCost()!=MAX_DOUBLE && rpcBestCU->isLosslessCoded(0) && (rpcBestCU->getIPCMFlag(0) == false))
     {
@@ -1250,10 +1250,10 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
 
     if( iMinQP != iMaxQP )
     {
-      memcpy( tempPalettePredictor.lastPLTSize, lastPLTSize, sizeof( lastPLTSize ) );
-      memcpy( tempPalettePredictor.lastPLT[0],  lastPLT[0], sizeof( tempPalettePredictor.lastPLT[0] ) );
-      memcpy( tempPalettePredictor.lastPLT[1],  lastPLT[1], sizeof( tempPalettePredictor.lastPLT[1] ) );
-      memcpy( tempPalettePredictor.lastPLT[2],  lastPLT[2], sizeof( tempPalettePredictor.lastPLT[2] ) );
+      memcpy( tempPalettePredictor.lastPaletteSize, lastPaletteSize, sizeof( lastPaletteSize ) );
+      memcpy( tempPalettePredictor.lastPalette[0],  lastPalette[0], sizeof( tempPalettePredictor.lastPalette[0] ) );
+      memcpy( tempPalettePredictor.lastPalette[1],  lastPalette[1], sizeof( tempPalettePredictor.lastPalette[1] ) );
+      memcpy( tempPalettePredictor.lastPalette[2],  lastPalette[2], sizeof( tempPalettePredictor.lastPalette[2] ) );
     }
 
     // further split
@@ -1270,10 +1270,10 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
 
       if( iMinQP != iMaxQP && iQP != iMinQP )
       {
-        memcpy( lastPLTSize, tempPalettePredictor.lastPLTSize, sizeof( lastPLTSize ) );
-        memcpy( lastPLT[0],  tempPalettePredictor.lastPLT[0],  sizeof( tempPalettePredictor.lastPLT[0] ) );
-        memcpy( lastPLT[1],  tempPalettePredictor.lastPLT[1],  sizeof( tempPalettePredictor.lastPLT[1] ) );
-        memcpy( lastPLT[2],  tempPalettePredictor.lastPLT[2],  sizeof( tempPalettePredictor.lastPLT[2] ) );
+        memcpy( lastPaletteSize, tempPalettePredictor.lastPaletteSize, sizeof( lastPaletteSize ) );
+        memcpy( lastPalette[0],  tempPalettePredictor.lastPalette[0],  sizeof( tempPalettePredictor.lastPalette[0] ) );
+        memcpy( lastPalette[1],  tempPalettePredictor.lastPalette[1],  sizeof( tempPalettePredictor.lastPalette[1] ) );
+        memcpy( lastPalette[2],  tempPalettePredictor.lastPalette[2],  sizeof( tempPalettePredictor.lastPalette[2] ) );
       }
 
       for ( UInt uiPartUnitIdx = 0; uiPartUnitIdx < 4; uiPartUnitIdx++ )
@@ -1289,12 +1289,12 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
 
         for (UInt ch = 0; ch < numValidComp; ch++)
         {
-          pcSubBestPartCU->setLastPLTInLcuSizeFinal(ch, lastPLTSize[ch]);
-          pcSubTempPartCU->setLastPLTInLcuSizeFinal(ch, lastPLTSize[ch]);
-          for (UInt i = 0; i < pcSlice->getSPS()->getSpsScreenExtension().getPLTMaxPredSize(); i++)
+          pcSubBestPartCU->setLastPaletteInLcuSizeFinal(ch, lastPaletteSize[ch]);
+          pcSubTempPartCU->setLastPaletteInLcuSizeFinal(ch, lastPaletteSize[ch]);
+          for (UInt i = 0; i < pcSlice->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize(); i++)
           {
-            pcSubBestPartCU->setLastPLTInLcuFinal(ch, lastPLT[ch][i], i);
-            pcSubTempPartCU->setLastPLTInLcuFinal(ch, lastPLT[ch][i], i);
+            pcSubBestPartCU->setLastPaletteInLcuFinal(ch, lastPalette[ch][i], i);
+            pcSubTempPartCU->setLastPaletteInLcuFinal(ch, lastPalette[ch][i], i);
           }
         }
 
@@ -1335,15 +1335,15 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
             }
           }
 
-          if (pcSubBestPartCU->getLastPLTInLcuSizeFinal(COMPONENT_Y) != 0)
+          if (pcSubBestPartCU->getLastPaletteInLcuSizeFinal(COMPONENT_Y) != 0)
           {
             for (UInt ch = 0; ch < numValidComp; ch++)
             {
-              lastPLTSize[ch] = pcSubBestPartCU->getLastPLTInLcuSizeFinal(ch);
-              for (UInt i = 0; i < pcSlice->getSPS()->getSpsScreenExtension().getPLTMaxPredSize(); i++)
+              lastPaletteSize[ch] = pcSubBestPartCU->getLastPaletteInLcuSizeFinal(ch);
+              for (UInt i = 0; i < pcSlice->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize(); i++)
               {
 
-                lastPLT[ch][i] = pcSubBestPartCU->getLastPLTInLcuFinal(ch, i);
+                lastPalette[ch][i] = pcSubBestPartCU->getLastPaletteInLcuFinal(ch, i);
               }
             }
           }
@@ -1379,7 +1379,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
           if( (     rpcTempCU->getCbf(uiBlkIdx, COMPONENT_Y)
                 || (rpcTempCU->getCbf(uiBlkIdx, COMPONENT_Cb) && (numberValidComponents > COMPONENT_Cb))
                 || (rpcTempCU->getCbf(uiBlkIdx, COMPONENT_Cr) && (numberValidComponents > COMPONENT_Cr)) ) 
-                || ( rpcTempCU->getPLTModeFlag(uiBlkIdx) && rpcTempCU->getPLTEscape(COMPONENT_Y, uiBlkIdx) )
+                || ( rpcTempCU->getPaletteModeFlag(uiBlkIdx) && rpcTempCU->getPaletteEscape(COMPONENT_Y, uiBlkIdx) )
                 )
           {
             hasResidual = true;
@@ -1440,10 +1440,10 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   xCopyYuv2Pic( rpcBestCU->getPic(), rpcBestCU->getCtuRsAddr(), rpcBestCU->getZorderIdxInCtu(), uiDepth, uiDepth, rpcBestCU );   // Copy Yuv data to picture Yuv
   for (UInt ch = 0; ch < numValidComp; ch++)
   {
-    if (lastPLT[ch])
+    if (lastPalette[ch])
     {
-      xFree(lastPLT[ch]);
-      lastPLT[ch] = NULL;
+      xFree(lastPalette[ch]);
+      lastPalette[ch] = NULL;
     }
   }
   if (bBoundary)
@@ -1600,9 +1600,9 @@ Void TEncCu::xEncodeCU( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
   Bool bCodeDQP = getdQPFlag();
   Bool codeChromaQpAdj = getCodeChromaQpAdjFlag();
 
-  m_pcEntropyCoder->encodePLTModeInfo( pcCU, uiAbsPartIdx, false, &bCodeDQP, &codeChromaQpAdj );
+  m_pcEntropyCoder->encodePaletteModeInfo( pcCU, uiAbsPartIdx, false, &bCodeDQP, &codeChromaQpAdj );
 
-  if ( pcCU->getPLTModeFlag(uiAbsPartIdx) )
+  if ( pcCU->getPaletteModeFlag(uiAbsPartIdx) )
   {
     setCodeChromaQpAdjFlag( codeChromaQpAdj );
     setdQPFlag( bCodeDQP );
@@ -2378,7 +2378,7 @@ Void TEncCu::xCheckRDCostIntraCSC( TComDataCU     *&rpcBestCU,
   Bool bCodeDQP = getdQPFlag();
   Bool codeChromaQpAdjFlag = getCodeChromaQpAdjFlag();
 
-  m_pcEntropyCoder->encodePLTModeInfo( rpcTempCU, 0, true, &bCodeDQP, &codeChromaQpAdjFlag );
+  m_pcEntropyCoder->encodePaletteModeInfo( rpcTempCU, 0, true, &bCodeDQP, &codeChromaQpAdjFlag );
 
   m_pcEntropyCoder->encodePartSize( rpcTempCU, 0, uiDepth, true );
   m_pcEntropyCoder->encodePredInfo( rpcTempCU, 0 );
@@ -2468,7 +2468,7 @@ Void TEncCu::xCheckRDCostIntra( TComDataCU *&rpcBestCU,
   Bool bCodeDQP = getdQPFlag();
   Bool codeChromaQpAdjFlag = getCodeChromaQpAdjFlag();
 
-  m_pcEntropyCoder->encodePLTModeInfo( rpcTempCU, 0, true, &bCodeDQP, &codeChromaQpAdjFlag );
+  m_pcEntropyCoder->encodePaletteModeInfo( rpcTempCU, 0, true, &bCodeDQP, &codeChromaQpAdjFlag );
 
   m_pcEntropyCoder->encodePartSize( rpcTempCU, 0, uiDepth, true );
   m_pcEntropyCoder->encodePredInfo( rpcTempCU, 0 );
@@ -3017,7 +3017,7 @@ Void TEncCu::xCheckIntraPCM( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU )
 
   m_pcEntropyCoder->encodeSkipFlag ( rpcTempCU, 0,          true );
   m_pcEntropyCoder->encodePredMode ( rpcTempCU, 0,          true );
-  m_pcEntropyCoder->encodePLTModeInfo( rpcTempCU, 0, true );
+  m_pcEntropyCoder->encodePaletteModeInfo( rpcTempCU, 0, true );
 
   m_pcEntropyCoder->encodePartSize ( rpcTempCU, 0, uiDepth, true );
   m_pcEntropyCoder->encodeIPCMInfo ( rpcTempCU, 0, true );
@@ -3034,7 +3034,7 @@ Void TEncCu::xCheckIntraPCM( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU )
   xCheckBestMode(rpcBestCU, rpcTempCU, uiDepth DEBUG_STRING_PASS_INTO(a) DEBUG_STRING_PASS_INTO(b));
 }
 
-UInt TEncCu::xCheckPLTMode(TComDataCU *&rpcBestCU, TComDataCU *&rpcTempCU, Bool forcePLTPrediction, UInt uiIterNumber, UInt *pltSize)
+UInt TEncCu::xCheckPaletteMode(TComDataCU *&rpcBestCU, TComDataCU *&rpcTempCU, Bool forcePalettePrediction, UInt uiIterNumber, UInt *paletteSize)
 {
   UInt uiDepth = rpcTempCU->getDepth( 0 );
 
@@ -3044,11 +3044,11 @@ UInt TEncCu::xCheckPLTMode(TComDataCU *&rpcBestCU, TComDataCU *&rpcTempCU, Bool 
   rpcTempCU->setPartSizeSubParts( SIZE_2Nx2N, 0, uiDepth );
   rpcTempCU->setPredModeSubParts( MODE_INTRA, 0, uiDepth );
   rpcTempCU->setTrIdxSubParts ( 0, 0, uiDepth );
-  rpcTempCU->setPLTModeFlagSubParts(true, 0, rpcTempCU->getDepth(0));
+  rpcTempCU->setPaletteModeFlagSubParts(true, 0, rpcTempCU->getDepth(0));
   rpcTempCU->setChromaQpAdjSubParts( rpcTempCU->getCUTransquantBypass(0) ? 0 : m_cuChromaQpOffsetIdxPlus1, 0, uiDepth );
 
-  UInt testedModes=m_pcPredSearch->PLTSearch(rpcTempCU, m_ppcOrigYuv[uiDepth], m_ppcPredYuvTemp[uiDepth], m_ppcResiYuvTemp[uiDepth],
-    m_ppcResiYuvBest[uiDepth], m_ppcRecoYuvTemp[uiDepth], forcePLTPrediction, uiIterNumber, pltSize);
+  UInt testedModes=m_pcPredSearch->paletteSearch(rpcTempCU, m_ppcOrigYuv[uiDepth], m_ppcPredYuvTemp[uiDepth], m_ppcResiYuvTemp[uiDepth],
+    m_ppcResiYuvBest[uiDepth], m_ppcRecoYuvTemp[uiDepth], forcePalettePrediction, uiIterNumber, paletteSize);
 
   xCheckDQP( rpcTempCU );
   DEBUG_STRING_NEW(a)
@@ -3111,7 +3111,7 @@ Void TEncCu::xCheckDQP( TComDataCU* pcCU )
   const TComPPS &pps = *(pcCU->getSlice()->getPPS());
   if ( pps.getUseDQP() && uiDepth <= pps.getMaxCuDQPDepth() )
   {
-    if( pcCU->getQtRootCbf(0) || ( pcCU->getPLTModeFlag(0) && pcCU->getPLTEscape(COMPONENT_Y, 0) ) )
+    if( pcCU->getQtRootCbf(0) || ( pcCU->getPaletteModeFlag(0) && pcCU->getPaletteEscape(COMPONENT_Y, 0) ) )
     {
       m_pcEntropyCoder->resetBits();
       m_pcEntropyCoder->encodeQP( pcCU, 0, false );

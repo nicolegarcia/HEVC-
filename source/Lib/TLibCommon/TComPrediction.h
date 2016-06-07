@@ -64,18 +64,18 @@ typedef enum PRED_BUF_E
   NUM_PRED_BUF=2
 } PRED_BUF;
 
-struct pltInfoStruct{
-  UInt position;
-  UChar pltMode;
-  UInt       index;
-  UInt       indexPred;
-  UInt       run;
-  UInt64     bitsRun;
-  UInt64     bitsInd;
-  UInt64     bitsAll; 
-  Double     error;
-  UInt       escape;
-  UInt       usedForCopy;
+struct PaletteInfoStruct{
+  UInt   position;
+  UChar  paletteMode;
+  UInt   index;
+  UInt   indexPred;
+  UInt   run;
+  UInt64 bitsRun;
+  UInt64 bitsInd;
+  UInt64 bitsAll;
+  Double error;
+  UInt   escape;
+  UInt   usedForCopy;
 };
 
 static const UInt MAX_INTRA_FILTER_DEPTHS=5;
@@ -86,17 +86,17 @@ private:
   static const UChar m_aucIntraFilter[MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
 
 protected:
-  Int       m_iPLTErrLimit;
+  Int       m_paletteErrLimit;
   Pel       m_cIndexBlock[MAX_CU_SIZE * MAX_CU_SIZE];
   UInt*     m_puiScanOrder;
   Pel*      m_piYuvExt[MAX_NUM_COMPONENT][NUM_PRED_BUF];
   Int       m_iYuvExtSize;
-  UInt      m_indError[32*32][MAX_PLT_SIZE+1];
-  pltInfoStruct m_pltInfo[32*32];
-  UInt      m_pltNoElements;
+  UInt      m_indError[32*32][MAX_PALETTE_SIZE+1];
+  PaletteInfoStruct m_paletteInfo[32*32];
+  UInt      m_paletteNoElements;
 
-  pltInfoStruct m_pltInfoBest[32*32];
-  UInt      m_pltNoElementsBest;
+  PaletteInfoStruct m_paletteInfoBest[32*32];
+  UInt      m_paletteNoElementsBest;
 
   Pel       m_cPosBlock[32*32];
   Pel       m_cPosBlockRD[32*32];
@@ -118,7 +118,7 @@ protected:
   UChar*     m_EscapeFlagRD;
   TCoeff*    m_RunRD;
   Pel*       m_LevelRD[MAX_NUM_COMPONENT];
-  pltInfoStruct m_pltInfoStoreRD[32*32];
+  PaletteInfoStruct m_paletteInfoStoreRD[32*32];
 
   TComYuv   m_acYuvPred[NUM_REF_PIC_LIST_01];
   TComYuv   m_cYuvPredTemp;
@@ -180,11 +180,11 @@ public:
   static Bool filteringIntraReferenceSamples(const ComponentID compID, UInt uiDirMode, UInt uiTuChWidth, UInt uiTuChHeight, const ChromaFormat chFmt, const Bool intraReferenceSmoothingDisabled);
 
   static Bool UseDPCMForFirstPassIntraEstimation(TComTU &rTu, const UInt uiDirMode);
-  Void  derivePLTLossy(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &uiPLTSize, TComRdCost *pcCost );
-  Void  derivePLTLossyIterative( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &uiPLTSize, TComRdCost *pcCost);
-  UInt  findCandidatePLTPredictors(UInt pltIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt uiPLTSizeTemp, UInt maxNoPredInd);
-  Void  derivePLTLossyForcePrediction(TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &uiPLTSize, TComRdCost *pcCost);
-  Void  derivePLTLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &uiPLTSize, Bool forcePLTPrediction);
+  Void  derivePaletteLossy(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost );
+  Void  derivePaletteLossyIterative( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost);
+  UInt  findCandidatePalettePredictors(UInt paletteIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt paletteSizeTemp, UInt maxNoPredInd);
+  Void  derivePaletteLossyForcePrediction(TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost);
+  Void  derivePaletteLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, Bool forcePalettePrediction);
   Bool  calLeftRun(TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag);
   Bool  calAboveRun(TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt uiWidth, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag);
   Void  calcPixelPred(TComDataCU* pcCU, Pel* pOrg [3], Pel *pPalette[3], Pel* pValue, Pel*paPixelValue[3], Pel*paRecoValue[3],
@@ -192,12 +192,12 @@ public:
   Double calcPixelPredRD(TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma = false);
   UInt getTruncBinBits(UInt uiSymbol, UInt uiMaxSymbol);
   UInt getEpExGolombNumBins(UInt uiSymbol, UInt uiCount);
-  Void  preCalcPLTIndex(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiPLTSize);
-  Void preCalcPLTIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiPLTSize, TComRdCost *pcCost, UInt calcErrorBits);
+  Void  preCalcPaletteIndex(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize);
+  Void preCalcPaletteIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize, TComRdCost *pcCost, UInt calcErrorBits);
 
-  Void  reorderPLT(TComDataCU* pcCU, Pel *Palette[3], UInt uiNumComp);
-  Void  setPLTErrLimit ( Int iPLTErrLimit ) {  m_iPLTErrLimit = iPLTErrLimit;  }
-  Int   getPLTErrLimit () {return m_iPLTErrLimit;}
+  Void  reorderPalette(TComDataCU* pcCU, Pel *Palette[3], UInt uiNumComp);
+  Void  setPaletteErrLimit ( Int paletteErrLimit ) {  m_paletteErrLimit = paletteErrLimit; }
+  Int   getPaletteErrLimit () {return m_paletteErrLimit;}
   Void  rotationScan( Pel* pLevel, UInt uiWidth, UInt uiHeight, Bool isInverse );
 };
 

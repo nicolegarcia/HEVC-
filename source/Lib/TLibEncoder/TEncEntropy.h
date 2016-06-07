@@ -77,8 +77,8 @@ public:
 
 public:
   virtual Void codeCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
-  virtual Void codePLTModeFlag          ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
-  virtual Void codePLTModeSyntax        (TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiNumComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag) = 0;
+  virtual Void codePaletteModeFlag          ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
+  virtual Void codePaletteModeSyntax        (TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiNumComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag) = 0;
 
   virtual Void codeScanRotationModeFlag ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
   virtual Void codeSkipFlag      ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
@@ -142,7 +142,7 @@ public:
   Void encodePPS               ( const TComPPS* pcPPS );
   Void encodeSplitFlag         ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, Bool bRD = false );
   Void encodeCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false );
-  Void encodePLTModeInfo       ( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false, Bool* bCodeDQP = NULL, Bool* codeChromaQpAdj = NULL );
+  Void encodePaletteModeInfo   ( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false, Bool* bCodeDQP = NULL, Bool* codeChromaQpAdj = NULL );
   Void encodeSkipFlag          ( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false );
   Void encodePUWise       ( TComDataCU* pcCU, UInt uiAbsPartIdx );
   Void encodeInterDirPU   ( TComDataCU* pcSubCU, UInt uiAbsPartIdx  );

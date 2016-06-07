@@ -1160,7 +1160,7 @@ TEncSearch::xEncIntraHeader( TComDataCU*  pcCU,
         }
         m_pcEntropyCoder->encodeSkipFlag( pcCU, 0, true );
         m_pcEntropyCoder->encodePredMode( pcCU, 0, true );
-        m_pcEntropyCoder->encodePLTModeInfo( pcCU, 0, true );
+        m_pcEntropyCoder->encodePaletteModeInfo( pcCU, 0, true );
       }
       else // encodePredMode has already done it
       {
@@ -1168,10 +1168,10 @@ TEncSearch::xEncIntraHeader( TComDataCU*  pcCU,
         {
           m_pcEntropyCoder->encodeCUTransquantBypassFlag(pcCU, 0, true);
         }
-        m_pcEntropyCoder->encodePLTModeInfo(pcCU, 0, true);
+        m_pcEntropyCoder->encodePaletteModeInfo(pcCU, 0, true);
       }
 
-      if (pcCU->getPLTModeFlag(0))
+      if (pcCU->getPaletteModeFlag(0))
       {
         return;
       }
@@ -4545,7 +4545,7 @@ Void TEncSearch::xEncPCM (TComDataCU* pcCU, UInt uiAbsPartIdx, Pel* pOrg, Pel* p
   }
 }
 
-UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPredYuv, TComYuv*& rpcResiYuv, TComYuv *& rpcResiBestYuv, TComYuv*& rpcRecoYuv, Bool forcePLTPrediction, UInt uiIterNumber, UInt *pltSizeCurrIter)
+UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPredYuv, TComYuv*& rpcResiYuv, TComYuv *& rpcResiBestYuv, TComYuv*& rpcRecoYuv, Bool forcePalettePrediction, UInt uiIterNumber, UInt *paletteSizeCurrIter)
 {
   UInt  uiDepth      = pcCU->getDepth(0);
   Distortion  uiDistortion = 0;
@@ -4556,95 +4556,95 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
   UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
   UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
   UInt testMode=0;
-  UInt uiPLTIdx = 0;
+  UInt paletteIdx = 0;
   for (UInt ch = 0; ch < 3; ch++)
   {
     paOrig[ch] = pcOrgYuv->getAddr((ComponentID)ch, 0);
-    paPalette[ch] = pcCU->getPLT(ch, 0);
+    paPalette[ch] = pcCU->getPalette(ch, 0);
   }
 
   pRun = pcCU->getRun(COMPONENT_Y);
   paSPoint[0] = pcCU->getSPoint(COMPONENT_Y);
   UChar* pEscapeFlag = pcCU->getEscapeFlag(COMPONENT_Y);
-  UInt uiPLTSize = 1;
+  UInt paletteSize = 1;
 
-  if (uiIterNumber < MAX_PLT_ITER)
+  if (uiIterNumber < MAX_PALETTE_ITER)
   {
     if( pcCU->getCUTransquantBypass(0) )
     {
-      derivePLTLossless(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), uiPLTSize, forcePLTPrediction);
+      derivePaletteLossless(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, forcePalettePrediction);
     }
-    else if( forcePLTPrediction )
+    else if( forcePalettePrediction )
     {
-      derivePLTLossyForcePrediction(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), uiPLTSize, m_pcRdCost);
+      derivePaletteLossyForcePrediction(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
     }
     else
     {
-      derivePLTLossy(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), uiPLTSize, m_pcRdCost);
+      derivePaletteLossy(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
     }
   }
   else
   {
-    uiPLTSize = m_prevPltSize[uiIterNumber - MAX_PLT_ITER];
+    paletteSize = m_prevPaletteSize[uiIterNumber - MAX_PALETTE_ITER];
     for (UInt ch = 0; ch < 3; ch++)
     {
-      for ( uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+      for ( paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
       {
-        paPalette[ch][uiPLTIdx] = m_prevPlt[uiIterNumber - MAX_PLT_ITER][ch][uiPLTIdx];
+        paPalette[ch][paletteIdx] = m_prevPalette[uiIterNumber - MAX_PALETTE_ITER][ch][paletteIdx];
       }
     }
-    derivePLTLossyIterative(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), uiPLTSize, m_pcRdCost);
+    derivePaletteLossyIterative(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
   }
-  *pltSizeCurrIter=uiPLTSize;
+  *paletteSizeCurrIter=paletteSize;
 
-  pcCU->setPLTSizeSubParts(0, uiPLTSize, 0, pcCU->getDepth(0));
-  pcCU->setPLTSizeSubParts(1, uiPLTSize, 0, pcCU->getDepth(0));
-  pcCU->setPLTSizeSubParts(2, uiPLTSize, 0, pcCU->getDepth(0));
-  reorderPLT(pcCU, paPalette, 3);
+  pcCU->setPaletteSizeSubParts(0, paletteSize, 0, pcCU->getDepth(0));
+  pcCU->setPaletteSizeSubParts(1, paletteSize, 0, pcCU->getDepth(0));
+  pcCU->setPaletteSizeSubParts(2, paletteSize, 0, pcCU->getDepth(0));
+  reorderPalette(pcCU, paPalette, 3);
 
   if (uiIterNumber==0)
   {
-    m_forcePltSize=uiPLTSize;
+    m_forcePaletteSize=paletteSize;
     for (UInt ch = 0; ch < 3; ch++)
     {
-      for ( uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+      for ( paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
       {
-        m_forcePlt[ch][uiPLTIdx]=paPalette[ch][uiPLTIdx];
+        m_forcePalette[ch][paletteIdx]=paPalette[ch][paletteIdx];
       }
     }
   }
   else if (uiIterNumber==1)
   {
-    UInt samePLT=0;
-    if (uiPLTSize==m_forcePltSize)
+    UInt samePalette=0;
+    if (paletteSize==m_forcePaletteSize)
     {
-      samePLT=1;
+      samePalette=1;
       for (UInt ch = 0; ch < 3; ch++)
       {
-        for ( uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+        for ( paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
         {
-          if (paPalette[ch][uiPLTIdx]!=m_forcePlt[ch][uiPLTIdx])
+          if (paPalette[ch][paletteIdx]!=m_forcePalette[ch][paletteIdx])
           {
-            samePLT=0;
+            samePalette=0;
           }
         }
       }
     }
-    if (samePLT)
+    if (samePalette)
     {
       pcCU->getTotalCost()=MAX_DOUBLE;
       return(0);
     }
   }
 
-  UInt calcErroBits = uiIterNumber < MAX_PLT_ITER ? 1 : 0;
-  preCalcPLTIndexRD(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), uiPLTSize, m_pcRdCost, calcErroBits);
+  UInt calcErroBits = uiIterNumber < MAX_PALETTE_ITER ? 1 : 0;
+  preCalcPaletteIndexRD(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), paletteSize, m_pcRdCost, calcErroBits);
 
   for (UInt ch = 0; ch < 3; ch++)
   {
-    for ( uiPLTIdx = 0; uiPLTIdx < pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPLTMaxSize(); uiPLTIdx++)
+    for ( paletteIdx = 0; paletteIdx < pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize(); paletteIdx++)
     {
-      pcCU->setPLTSubParts(ch,  paPalette[ch][uiPLTIdx], uiPLTIdx, 0, pcCU->getDepth(0));
+      pcCU->setPaletteSubParts(ch,  paPalette[ch][paletteIdx], paletteIdx, 0, pcCU->getDepth(0));
     }
     pPixelValue[ch] = pcCU->getLevel(ComponentID (ch));
   }
@@ -4658,14 +4658,14 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
   UInt uiBits      = MAX_UINT;
   m_bBestScanRotationMode = 0;
 
-  deriveRunAndCalcBits(pcCU, pcOrgYuv, rpcRecoYuv, uiBits, true,  PLT_SCAN_HORTRAV);
-  if ( (pcCU->getPLTSize( COMPONENT_Y, 0 ) + pcCU->getPLTEscape( COMPONENT_Y, 0 )) > 1 )
+  deriveRunAndCalcBits(pcCU, pcOrgYuv, rpcRecoYuv, uiBits, true,  PALETTE_SCAN_HORTRAV);
+  if ( (pcCU->getPaletteSize( COMPONENT_Y, 0 ) + pcCU->getPaletteEscape( COMPONENT_Y, 0 )) > 1 )
   {
-    deriveRunAndCalcBits( pcCU, pcOrgYuv, rpcRecoYuv, uiBits, false, PLT_SCAN_VERTRAV );
+    deriveRunAndCalcBits( pcCU, pcOrgYuv, rpcRecoYuv, uiBits, false, PALETTE_SCAN_VERTRAV );
   }
 
   UInt errorOrig, errorNew;
-  if (uiPLTSize > 2)
+  if (paletteSize > 2)
   {
     UInt uiTotalPixel = uiWidth * uiHeight, uiTotalPixelC = (uiWidth>>uiScaleX) * (uiHeight>>uiScaleY);
 
@@ -4684,7 +4684,7 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
     memcpy(m_paRunStoreRD, m_paBestRun, sizeof(TCoeff) * uiTotalPixel);
     memcpy(m_paEscapeFlagStoreRD, m_paBestEscapeFlag, sizeof(UChar) * uiTotalPixel );
 
-    memcpy(m_pltInfoStoreRD, m_pltInfoBest, sizeof(m_pltInfo));
+    memcpy(m_paletteInfoStoreRD, m_paletteInfoBest, sizeof(m_paletteInfo));
 
     m_SPointRD     = m_paBestSPoint;
     m_EscapeFlagRD = m_paBestEscapeFlag;
@@ -4693,10 +4693,10 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
     m_LevelRD[1]   = m_paBestLevel[1];
     m_LevelRD[2]   = m_paBestLevel[2];
 
-    preCalcRDMerge(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), uiPLTSize, m_pcRdCost, &errorOrig, &errorNew, calcErroBits);
+    preCalcRDMerge(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), paletteSize, m_pcRdCost, &errorOrig, &errorNew, calcErroBits);
   }
 
-  pcCU->setPLTScanRotationModeFlagSubParts( m_bBestScanRotationMode, 0, uiDepth );
+  pcCU->setPaletteScanRotationModeFlagSubParts( m_bBestScanRotationMode, 0, uiDepth );
   for (UInt ch = 0; ch < pcCU->getPic()->getNumberValidComponents(); ch++)
   {
     if ( ch == 0 )
@@ -4712,7 +4712,7 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
   memcpy(pRun,        m_paBestRun,    sizeof(TCoeff) * uiWidth * uiHeight);
   memcpy(pEscapeFlag, m_paBestEscapeFlag,  sizeof(UChar) * uiWidth * uiHeight);
 
-  if (uiPLTSize > 2 )
+  if (paletteSize > 2 )
   {
     UInt uiBitsRD;
 
@@ -4747,12 +4747,12 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
       memcpy(paSPoint[0], m_paSPointStoreRD, sizeof(UChar)* uiWidth * uiHeight);
       memcpy(pRun, m_paRunStoreRD, sizeof(TCoeff)* uiWidth * uiHeight);
       memcpy(pEscapeFlag, m_paEscapeFlagStoreRD, sizeof(UChar)* uiWidth * uiHeight);
-      memcpy(m_pltInfoBest, m_pltInfoStoreRD, sizeof(m_pltInfo));
+      memcpy(m_paletteInfoBest, m_paletteInfoStoreRD, sizeof(m_paletteInfo));
     }
 
-    if (uiIterNumber<MAX_PLT_ITER) //after cabac loading fix
+    if (uiIterNumber<MAX_PALETTE_ITER) //after cabac loading fix
     {
-      testMode = preCalcRD(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), uiPLTSize, m_pcRdCost, uiIterNumber);
+      testMode = preCalcRD(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), paletteSize, m_pcRdCost, uiIterNumber);
     }
   }
 
@@ -4767,7 +4767,7 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
     Pel *pResi    = rpcResiYuv->getAddr(compID, 0);
     Pel *pPred    = rpcPredYuv->getAddr(compID, 0);
     Pel *pLevel   = pcCU->getLevel  (COMPONENT_Y);
-    Pel *pPalette = pcCU->getPLT   (compID,0);
+    Pel *pPalette = pcCU->getPalette   (compID,0);
     Pel *pReco    = rpcRecoYuv->getAddr(compID, 0);
     Pel *pRecoPic = pcCU->getPic()->getPicYuvRec()->getAddr(ComponentID(ch), pcCU->getCtuRsAddr(), pcCU->getZorderIdxInCtu());
     const UInt uiReconStride = pcCU->getPic()->getPicYuvRec()->getStride(ComponentID(ch));
@@ -4841,7 +4841,7 @@ UInt TEncSearch::PLTSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPre
   return (testMode);
 }
 
-Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* pcRecoYuv, UInt& uiMinBits, Bool bReset, PLTScanMode pltScanMode)
+Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* pcRecoYuv, UInt& uiMinBits, Bool bReset, PaletteScanMode paletteScanMode)
 {
   UInt uiDepth = pcCU->getDepth(0);
   Pel *paOrig[3], *paPalette[3], *paLevel[3];
@@ -4856,7 +4856,7 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
   UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
   const UInt uiTotalPixelC = uiTotalPixel >> uiScaleX >> uiScaleY;
-  UInt uiPLTSize = pcCU->getPLTSize(0, 0);
+  UInt paletteSize = pcCU->getPaletteSize(0, 0);
 
   paLevel[0] = pcCU->getLevel(COMPONENT_Y);
   pRun = pcCU->getRun(COMPONENT_Y);
@@ -4866,12 +4866,12 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   for (UInt ch = 0; ch < 3; ch++)
   {
     paOrig[ch] = pcOrgYuv->getAddr((ComponentID)ch, 0);
-    paPalette[ch] = pcCU->getPLT(ch, 0);
+    paPalette[ch] = pcCU->getPalette(ch, 0);
     pPixelValue[ch] = pcCU->getLevel(ComponentID (ch));
     pRecoValue[ch] = pcRecoYuv->getAddr(ComponentID (ch), 0);
   }
-  pcCU->setPLTScanRotationModeFlagSubParts(pltScanMode, 0, uiDepth );
-  if (pltScanMode == PLT_SCAN_VERTRAV)
+  pcCU->setPaletteScanRotationModeFlagSubParts(paletteScanMode, 0, uiDepth );
+  if (paletteScanMode == PALETTE_SCAN_VERTRAV)
   {    
     rotationScan(m_cIndexBlock, uiWidth, uiHeight, false);
     rotationScan(m_cPosBlock, uiWidth, uiHeight, false);
@@ -4879,7 +4879,7 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
 
   m_puiScanOrder = g_scanOrder[SCAN_UNGROUPED][SCAN_TRAV][g_aucConvertToBit[uiWidth]+2][g_aucConvertToBit[uiHeight]+2];
 
-  xDeriveRun(pcCU, paOrig, paPalette,  paLevel[0], paSPoint[0], pPixelValue, pRecoValue, pRun, uiWidth, uiHeight, pcOrgYuv->getStride(ComponentID(0)), uiPLTSize);
+  xDeriveRun(pcCU, paOrig, paPalette,  paLevel[0], paSPoint[0], pPixelValue, pRecoValue, pRun, uiWidth, uiHeight, pcOrgYuv->getStride(ComponentID(0)), paletteSize);
 
   m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[uiDepth][CI_CURR_BEST]);
   m_pcEntropyCoder->resetBits();
@@ -4888,9 +4888,9 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   if (uiMinBits > uiTempBits)
   {
     m_pcRDGoOnSbacCoder->store(m_pppcRDSbacCoder[uiDepth][CI_TEMP_BEST]);
-    m_bBestScanRotationMode = pltScanMode;
-     memcpy(m_pltInfoBest, m_pltInfo, sizeof(m_pltInfo));
-     m_pltNoElementsBest = m_pltNoElements;
+    m_bBestScanRotationMode = paletteScanMode;
+     memcpy(m_paletteInfoBest, m_paletteInfo, sizeof(m_paletteInfo));
+     m_paletteNoElementsBest = m_paletteNoElements;
 
      memcpy(m_cPosBlockRD, m_cPosBlock, sizeof(m_cPosBlock));
      memcpy(m_cIndexBlockRD, m_cIndexBlock, sizeof(m_cIndexBlock));
@@ -4918,13 +4918,13 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   }
 }
 
-UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiPLTSize, TComRdCost *pcCost, UInt uiIterNumber)
+UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize, TComRdCost *pcCost, UInt uiIterNumber)
 {
   UInt uiTotal = uiHeight * uiWidth;
   Bool bEscape = 0;
-  UInt uiPLTSizeTemp=uiPLTSize, uiPLTSizeBest=uiPLTSize;
-  UInt pltIdxRemove1=0, pltIdxRemove2=0, pltIdxReplacement1 = MAX_PLT_SIZE-1,
-       pltIdxMapping1[MAX_PLT_SIZE] = { 0 }, pltIdxMapping2[MAX_PLT_SIZE] = { 0 }, removedIndices[MAX_PLT_SIZE] = { 0 }, removedIndicesBest[MAX_PLT_SIZE] = { 0 };
+  UInt paletteSizeTemp=paletteSize, paletteSizeBest=paletteSize;
+  UInt paletteIdxRemove1=0, paletteIdxRemove2=0, paletteIdxReplacement1 = MAX_PALETTE_SIZE-1,
+       paletteIdxMapping1[MAX_PALETTE_SIZE] = { 0 }, paletteIdxMapping2[MAX_PALETTE_SIZE] = { 0 }, removedIndices[MAX_PALETTE_SIZE] = { 0 }, removedIndicesBest[MAX_PALETTE_SIZE] = { 0 };
 
   UInt64 error = 0;
   Double rdCostNew, rdCostOrig, rdCostDiff = MAX_DOUBLE;
@@ -4933,10 +4933,10 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
   // Initial RD cost
   memset(removedIndices, 0, sizeof(removedIndices));
 
-  for (UInt uiPLTIdx = 0; uiPLTIdx < MAX_PLT_SIZE; uiPLTIdx++)
+  for (UInt paletteIdx = 0; paletteIdx < MAX_PALETTE_SIZE; paletteIdx++)
   {
-    pltIdxMapping1[uiPLTIdx] = uiPLTIdx;
-    pltIdxMapping2[uiPLTIdx] = uiPLTIdx;
+    paletteIdxMapping1[paletteIdx] = paletteIdx;
+    paletteIdxMapping2[paletteIdx] = paletteIdx;
   }
 
   error = 0;
@@ -4944,30 +4944,30 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
   {
     if (m_cIndexBlockRD[uiIdx] < 0)
     {
-      m_cIndexBlockRD[uiIdx] = (MAX_PLT_SIZE-1);
+      m_cIndexBlockRD[uiIdx] = (MAX_PALETTE_SIZE-1);
     }
-    UInt uiCurPltIdx = pltIdxMapping1[m_cIndexBlockRD[uiIdx]];
-    error += m_indError[m_cPosBlockRD[uiIdx]][uiCurPltIdx];
+    UInt curPaletteIdx = paletteIdxMapping1[m_cIndexBlockRD[uiIdx]];
+    error += m_indError[m_cPosBlockRD[uiIdx]][curPaletteIdx];
   }
 
 
-  for (UInt noElement = 0; noElement < m_pltNoElementsBest; noElement++)
+  for (UInt noElement = 0; noElement < m_paletteNoElementsBest; noElement++)
   {
-    if (m_pltInfoBest[noElement].pltMode == PLT_RUN_LEFT && m_pltInfoBest[noElement].index < (MAX_PLT_SIZE-1))
+    if (m_paletteInfoBest[noElement].paletteMode == PALETTE_RUN_LEFT && m_paletteInfoBest[noElement].index < (MAX_PALETTE_SIZE-1))
     {
-      iBits += m_pltInfoBest[noElement].bitsInd;
+      iBits += m_paletteInfoBest[noElement].bitsInd;
     }
   }
 
   rdCostOrig = pcCost->getLambda()*(Double)(iBits>>15) + error;
 
   // Initial error calculation
-  Int64 errorDiffPltIndArray[MAX_PLT_SIZE][MAX_PLT_SIZE];
-  Int64 bestIndToRemoveArray[MAX_PLT_SIZE][2];
+  Int64 errorDiffPaletteIndArray[MAX_PALETTE_SIZE][MAX_PALETTE_SIZE];
+  Int64 bestIndToRemoveArray[MAX_PALETTE_SIZE][2];
 
-  for (UInt uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+  for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
   {
-    memset(errorDiffPltIndArray[uiPLTIdx], 0, MAX_PLT_SIZE*sizeof(UInt64));
+    memset(errorDiffPaletteIndArray[paletteIdx], 0, MAX_PALETTE_SIZE*sizeof(UInt64));
   }
 
   //Calculate all the SSE if index A is mapped to index B
@@ -4975,29 +4975,29 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
   {
     UInt uiOrgIdx = m_cIndexBlockRD[uiIdx]; //Escape already converted
     UInt* indError = m_indError[m_cPosBlockRD[uiIdx]];
-    Int64* errDiffArray = errorDiffPltIndArray[uiOrgIdx];
+    Int64* errDiffArray = errorDiffPaletteIndArray[uiOrgIdx];
     
-    for (UInt uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+    for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
     {
-      errDiffArray[uiPLTIdx] += indError[uiPLTIdx];
+      errDiffArray[paletteIdx] += indError[paletteIdx];
     }
-    errDiffArray[MAX_PLT_SIZE - 1] += indError[MAX_PLT_SIZE - 1];
+    errDiffArray[MAX_PALETTE_SIZE - 1] += indError[MAX_PALETTE_SIZE - 1];
   }
 
   //select the best mapped index for each index
-  for (UInt uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+  for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
   {
-    Int64* bestIdxRemove = bestIndToRemoveArray[uiPLTIdx];
-    Int64* errDiffArray = errorDiffPltIndArray[uiPLTIdx];
+    Int64* bestIdxRemove = bestIndToRemoveArray[paletteIdx];
+    Int64* errDiffArray = errorDiffPaletteIndArray[paletteIdx];
 
-    bestIdxRemove[0] = MAX_PLT_SIZE-1;
-    bestIdxRemove[1] = errDiffArray[MAX_PLT_SIZE-1] - errDiffArray[uiPLTIdx];
+    bestIdxRemove[0] = MAX_PALETTE_SIZE-1;
+    bestIdxRemove[1] = errDiffArray[MAX_PALETTE_SIZE-1] - errDiffArray[paletteIdx];
 
-    for (UInt uiTmpIdx = 0; uiTmpIdx < uiPLTSize; uiTmpIdx++)
+    for (UInt uiTmpIdx = 0; uiTmpIdx < paletteSize; uiTmpIdx++)
     {
-      Int64 curError = errDiffArray[uiTmpIdx] - errDiffArray[uiPLTIdx];
+      Int64 curError = errDiffArray[uiTmpIdx] - errDiffArray[paletteIdx];
 
-      if (uiPLTIdx != uiTmpIdx && (curError < bestIdxRemove[1] ||
+      if (paletteIdx != uiTmpIdx && (curError < bestIdxRemove[1] ||
         (curError == bestIdxRemove[1] && uiTmpIdx < bestIdxRemove[0])))
       {
         bestIdxRemove[1] = curError;
@@ -5007,63 +5007,63 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
   }
 
   m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[pcCU->getDepth(0)][CI_CURR_BEST]);
-  m_pcRDGoOnSbacCoder->saveRestorePltCtx(1);
+  m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(1);
 
   //Remove the unused index after the mapping
-  while (uiPLTSizeTemp > 2)
+  while (paletteSizeTemp > 2)
   {
     Int64 minError = MAX_INT64;
-    UInt uiPLTCnt = 0;
-    while (uiPLTCnt < uiPLTSize)
+    UInt paletteCnt = 0;
+    while (paletteCnt < paletteSize)
     {
-      if (removedIndices[uiPLTCnt] == 0)
+      if (removedIndices[paletteCnt] == 0)
       {
-        if (bestIndToRemoveArray[uiPLTCnt][1] < minError)
+        if (bestIndToRemoveArray[paletteCnt][1] < minError)
         {
-          minError           = bestIndToRemoveArray[uiPLTCnt][1];
-          pltIdxRemove1      = uiPLTCnt;
-          pltIdxReplacement1 = UInt(bestIndToRemoveArray[uiPLTCnt][0]);
+          minError           = bestIndToRemoveArray[paletteCnt][1];
+          paletteIdxRemove1      = paletteCnt;
+          paletteIdxReplacement1 = UInt(bestIndToRemoveArray[paletteCnt][0]);
         }
       }
-      uiPLTCnt++;
+      paletteCnt++;
     }
       
-    // Merge removed index pltIdxRemove1 with pltIdxReplacement1
-    if (pltIdxReplacement1 != (MAX_PLT_SIZE-1))
+    // Merge removed index paletteIdxRemove1 with paletteIdxReplacement1
+    if (paletteIdxReplacement1 != (MAX_PALETTE_SIZE-1))
     {
-      for (UInt uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+      for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
       {
-        if (removedIndices[uiPLTIdx] == 0)
+        if (removedIndices[paletteIdx] == 0)
         {
-          errorDiffPltIndArray[pltIdxReplacement1][uiPLTIdx] += errorDiffPltIndArray[pltIdxRemove1][uiPLTIdx];
+          errorDiffPaletteIndArray[paletteIdxReplacement1][paletteIdx] += errorDiffPaletteIndArray[paletteIdxRemove1][paletteIdx];
         }
       }
-      errorDiffPltIndArray[pltIdxReplacement1][MAX_PLT_SIZE-1] += errorDiffPltIndArray[pltIdxRemove1][MAX_PLT_SIZE-1];
+      errorDiffPaletteIndArray[paletteIdxReplacement1][MAX_PALETTE_SIZE-1] += errorDiffPaletteIndArray[paletteIdxRemove1][MAX_PALETTE_SIZE-1];
     }
-    removedIndices[pltIdxRemove1]=1;
+    removedIndices[paletteIdxRemove1]=1;
 
-    // Find another min index for pltIdxReplacement1 and indices for which pltIdxRemove1 was chosen
-    for (UInt uiPLTIdxOrg = 0; uiPLTIdxOrg < uiPLTSize; uiPLTIdxOrg++)
+    // Find another min index for paletteIdxReplacement1 and indices for which paletteIdxRemove1 was chosen
+    for (UInt paletteIdxOrg = 0; paletteIdxOrg < paletteSize; paletteIdxOrg++)
     {
-      if ((removedIndices[uiPLTIdxOrg] == 0 && bestIndToRemoveArray[uiPLTIdxOrg][0] == pltIdxRemove1) || uiPLTIdxOrg == pltIdxReplacement1)
+      if ((removedIndices[paletteIdxOrg] == 0 && bestIndToRemoveArray[paletteIdxOrg][0] == paletteIdxRemove1) || paletteIdxOrg == paletteIdxReplacement1)
       {
-        Int64* bestIdxRemove = bestIndToRemoveArray[uiPLTIdxOrg];
-        Int64* errDiffArray = errorDiffPltIndArray[uiPLTIdxOrg];
+        Int64* bestIdxRemove = bestIndToRemoveArray[paletteIdxOrg];
+        Int64* errDiffArray = errorDiffPaletteIndArray[paletteIdxOrg];
 
-        bestIdxRemove[0] = MAX_PLT_SIZE-1;
-        bestIdxRemove[1] = errDiffArray[MAX_PLT_SIZE - 1] - errDiffArray[uiPLTIdxOrg];
+        bestIdxRemove[0] = MAX_PALETTE_SIZE-1;
+        bestIdxRemove[1] = errDiffArray[MAX_PALETTE_SIZE - 1] - errDiffArray[paletteIdxOrg];
 
-        for (UInt uiPLTIdxTmp = 0; uiPLTIdxTmp < uiPLTSize; uiPLTIdxTmp++)
+        for (UInt paletteIdxTmp = 0; paletteIdxTmp < paletteSize; paletteIdxTmp++)
         {
-          if (removedIndices[uiPLTIdxTmp] == 0)
+          if (removedIndices[paletteIdxTmp] == 0)
           {
-            Int64 curError = errDiffArray[uiPLTIdxTmp] - errDiffArray[uiPLTIdxOrg];
+            Int64 curError = errDiffArray[paletteIdxTmp] - errDiffArray[paletteIdxOrg];
 
-            if (uiPLTIdxTmp != uiPLTIdxOrg && (curError < bestIdxRemove[1] ||
-              (curError == bestIdxRemove[1] && uiPLTIdxTmp<bestIdxRemove[0])))
+            if (paletteIdxTmp != paletteIdxOrg && (curError < bestIdxRemove[1] ||
+              (curError == bestIdxRemove[1] && paletteIdxTmp<bestIdxRemove[0])))
             {
-              bestIndToRemoveArray[uiPLTIdxOrg][1] = curError;
-              bestIndToRemoveArray[uiPLTIdxOrg][0] = uiPLTIdxTmp;
+              bestIndToRemoveArray[paletteIdxOrg][1] = curError;
+              bestIndToRemoveArray[paletteIdxOrg][0] = paletteIdxTmp;
             }
           }
         }
@@ -5072,44 +5072,44 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
 
     }
 
-    uiPLTSizeTemp--;
+    paletteSizeTemp--;
 
     // Remapping
-    for (UInt uiPLTIdx = 0; uiPLTIdx<uiPLTSize; uiPLTIdx++)
+    for (UInt paletteIdx = 0; paletteIdx<paletteSize; paletteIdx++)
     {
-      if (uiPLTIdx == pltIdxRemove1)
+      if (paletteIdx == paletteIdxRemove1)
       {
-        removedIndices[uiPLTIdx] = 1;
+        removedIndices[paletteIdx] = 1;
       }
-      if (pltIdxMapping1[uiPLTIdx] == pltIdxRemove1)
+      if (paletteIdxMapping1[paletteIdx] == paletteIdxRemove1)
       {
-        pltIdxMapping1[uiPLTIdx] = pltIdxReplacement1;
+        paletteIdxMapping1[paletteIdx] = paletteIdxReplacement1;
       }
     }
 
-    pltIdxRemove2 = pltIdxMapping2[pltIdxRemove1];
-    UInt pltIdxReplacement2 = pltIdxMapping2[pltIdxReplacement1];
+    paletteIdxRemove2 = paletteIdxMapping2[paletteIdxRemove1];
+    UInt paletteIdxReplacement2 = paletteIdxMapping2[paletteIdxReplacement1];
 
-    for (UInt uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+    for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
     {
-      if (pltIdxMapping2[uiPLTIdx] == pltIdxRemove2)
+      if (paletteIdxMapping2[paletteIdx] == paletteIdxRemove2)
       {
-        pltIdxMapping2[uiPLTIdx] = pltIdxReplacement2;
+        paletteIdxMapping2[paletteIdx] = paletteIdxReplacement2;
       }
-      if (pltIdxMapping2[uiPLTIdx] > pltIdxRemove2 && pltIdxMapping2[uiPLTIdx] < (MAX_PLT_SIZE - 1))
+      if (paletteIdxMapping2[paletteIdx] > paletteIdxRemove2 && paletteIdxMapping2[paletteIdx] < (MAX_PALETTE_SIZE - 1))
       {
-        pltIdxMapping2[uiPLTIdx]--;
+        paletteIdxMapping2[paletteIdx]--;
       }
     }
 
     // 
     
-    if (pltIdxReplacement1 == (MAX_PLT_SIZE-1))
+    if (paletteIdxReplacement1 == (MAX_PALETTE_SIZE-1))
     {
       bEscape = 1;
     }
-    UInt uiIndexMaxSize = uiPLTSizeTemp;
-    if (pcCU->getPLTEscape(COMPONENT_Y, 0) || bEscape == 1)
+    UInt uiIndexMaxSize = paletteSizeTemp;
+    if (pcCU->getPaletteEscape(COMPONENT_Y, 0) || bEscape == 1)
     {
       uiIndexMaxSize++;
     }
@@ -5118,32 +5118,32 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
     error=0;
     for (UInt uiIdx = 0; uiIdx < uiTotal; uiIdx++)
     {
-      UInt uiCurPLTIdx = pltIdxMapping1[m_cIndexBlockRD[uiIdx]];
-      error += m_indError[m_cPosBlockRD[uiIdx]][uiCurPLTIdx];
+      UInt curPaletteIdx = paletteIdxMapping1[m_cIndexBlockRD[uiIdx]];
+      error += m_indError[m_cPosBlockRD[uiIdx]][curPaletteIdx];
     }
 
     UInt currIndex, nextIndex, noSameIndices, predIndex, run=0;
 
     iBits = 0; 
     UInt noElement = 0;
-    while (noElement < m_pltNoElementsBest)
+    while (noElement < m_paletteNoElementsBest)
     {
       noSameIndices = 0;
 
-      currIndex = pltIdxMapping2[m_pltInfoBest[noElement].index];
-      run = m_pltInfoBest[noElement].run;
-      runBits = m_pltInfoBest[noElement].bitsRun;
+      currIndex = paletteIdxMapping2[m_paletteInfoBest[noElement].index];
+      run = m_paletteInfoBest[noElement].run;
+      runBits = m_paletteInfoBest[noElement].bitsRun;
 
-      if (m_pltInfoBest[noElement].pltMode == PLT_RUN_LEFT && currIndex < (MAX_PLT_SIZE-1))
+      if (m_paletteInfoBest[noElement].paletteMode == PALETTE_RUN_LEFT && currIndex < (MAX_PALETTE_SIZE-1))
       {
         UInt uiIdx=1; 
-        while((noElement + uiIdx) < m_pltNoElementsBest)
+        while((noElement + uiIdx) < m_paletteNoElementsBest)
         {
-          nextIndex = pltIdxMapping2[m_pltInfoBest[noElement+1].index];
-          if (m_pltInfoBest[noElement+uiIdx].pltMode == PLT_RUN_LEFT && nextIndex < (MAX_PLT_SIZE-1) && nextIndex == currIndex)
+          nextIndex = paletteIdxMapping2[m_paletteInfoBest[noElement+1].index];
+          if (m_paletteInfoBest[noElement+uiIdx].paletteMode == PALETTE_RUN_LEFT && nextIndex < (MAX_PALETTE_SIZE-1) && nextIndex == currIndex)
           {
-            run     += (m_pltInfoBest[noElement+uiIdx].run+1);
-            runBits += m_pltInfoBest[noElement+uiIdx].bitsRun;
+            run     += (m_paletteInfoBest[noElement+uiIdx].run+1);
+            runBits += m_paletteInfoBest[noElement+uiIdx].bitsRun;
             uiIdx++;
           }
           else
@@ -5155,7 +5155,7 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
 
         if (noElement > 0)
         {
-          predIndex = pltIdxMapping2[m_pltInfoBest[noElement].indexPred];
+          predIndex = paletteIdxMapping2[m_paletteInfoBest[noElement].indexPred];
           if (currIndex >= predIndex && currIndex > 0)
           {
             currIndex--;
@@ -5170,10 +5170,10 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
 
         if (noSameIndices>0)
         {
-          m_pcRDGoOnSbacCoder->saveRestorePltCtx(0);
+          m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
           m_pcRDGoOnSbacCoder->resetBits();
           UInt64 initialBits = m_pcRDGoOnSbacCoder->getNumPartialBits();
-          m_pcRDGoOnSbacCoder->encodeRun(run, PLT_RUN_LEFT, currIndex, uiTotal - m_pltInfoBest[noElement].position - 1);
+          m_pcRDGoOnSbacCoder->encodeRun(run, PALETTE_RUN_LEFT, currIndex, uiTotal - m_paletteInfoBest[noElement].position - 1);
           iBits += (m_pcRDGoOnSbacCoder->getNumPartialBits() - runBits - initialBits);
         }
 
@@ -5186,7 +5186,7 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
     if ((rdCostNew - rdCostOrig) < rdCostDiff)
     {
       rdCostDiff = (rdCostNew-rdCostOrig);
-      uiPLTSizeBest = uiPLTSizeTemp;
+      paletteSizeBest = paletteSizeTemp;
       memcpy(removedIndicesBest, removedIndices, sizeof(removedIndices));
     }
   }
@@ -5194,25 +5194,25 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
   UInt testReducedInd=1;
 
 
-  m_prevPltSize[uiIterNumber]=uiPLTSizeBest;
+  m_prevPaletteSize[uiIterNumber]=paletteSizeBest;
  
-  UInt uiPLTCnt=0;
-  for (UInt uiPLTIdx = 0; uiPLTIdx < uiPLTSize; uiPLTIdx++)
+  UInt paletteCnt=0;
+  for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
   {
-    if (removedIndicesBest[uiPLTIdx] == 0)
+    if (removedIndicesBest[paletteIdx] == 0)
     {
       for (UInt ch = 0; ch < 3; ch++)
       {
-        m_prevPlt[uiIterNumber][ch][uiPLTCnt] = Palette[ch][uiPLTIdx];
+        m_prevPalette[uiIterNumber][ch][paletteCnt] = Palette[ch][paletteIdx];
       }
-      uiPLTCnt++;
+      paletteCnt++;
     }
   }
 
   return(testReducedInd);
 }
 
-UInt TEncSearch::calcPltIndexPredAndBits(Int iMaxSymbol, UInt uiIdxStart, UInt uiWidth, UInt *predIndex, UInt *currIndex)
+UInt TEncSearch::calcPaletteIndexPredAndBits(Int iMaxSymbol, UInt uiIdxStart, UInt uiWidth, UInt *predIndex, UInt *currIndex)
 {
   UInt uiTraIdx, indexBits;
 
@@ -5221,10 +5221,10 @@ UInt TEncSearch::calcPltIndexPredAndBits(Int iMaxSymbol, UInt uiIdxStart, UInt u
   {
     uiTraIdx=m_puiScanOrder[uiIdxStart];
     UInt uiTraIdxLeft = m_puiScanOrder[uiIdxStart - 1];
-    if (m_SPointRD[uiTraIdxLeft] == PLT_RUN_LEFT)  ///< copy left
+    if (m_SPointRD[uiTraIdxLeft] == PALETTE_RUN_LEFT)  ///< copy left
     {
       *predIndex = m_cIndexBlockRD[uiTraIdxLeft];
-      if(m_cIndexBlockRD[uiTraIdxLeft]==(MAX_PLT_SIZE-1))
+      if(m_cIndexBlockRD[uiTraIdxLeft]==(MAX_PALETTE_SIZE-1))
       {
         *predIndex = iMaxSymbol - 1;
       }
@@ -5232,7 +5232,7 @@ UInt TEncSearch::calcPltIndexPredAndBits(Int iMaxSymbol, UInt uiIdxStart, UInt u
     else
     {
       *predIndex = m_cIndexBlockRD[uiTraIdx - uiWidth];
-      if(m_cIndexBlockRD[uiTraIdx - uiWidth]==(MAX_PLT_SIZE-1))
+      if(m_cIndexBlockRD[uiTraIdx - uiWidth]==(MAX_PALETTE_SIZE-1))
       {
         *predIndex = iMaxSymbol - 1;
       }
@@ -5249,7 +5249,7 @@ UInt TEncSearch::calcPltIndexPredAndBits(Int iMaxSymbol, UInt uiIdxStart, UInt u
   return(indexBits);
 }
 
-UInt TEncSearch::calcPLTStartCopy(UInt positionInit, UInt positionCurrSegment, UInt uiWidth)
+UInt TEncSearch::calcPaletteStartCopy(UInt positionInit, UInt positionCurrSegment, UInt uiWidth)
 {
   UInt positionStart;
 
@@ -5271,50 +5271,50 @@ UInt TEncSearch::calcPLTStartCopy(UInt positionInit, UInt positionCurrSegment, U
   return(positionStart);
 }
 
-UInt TEncSearch::calcPltErrorCopy(UInt uiIdxStart, UInt run, UInt uiWidth, UInt *merge)
+UInt TEncSearch::calcPaletteErrorCopy(UInt uiIdxStart, UInt run, UInt uiWidth, UInt *merge)
 {
   UInt error=0;
-  UInt uiIdx, uiTraIdx, uiPLTIdx;
+  UInt uiIdx, uiTraIdx, paletteIdx;
   *merge=1;
 
   for (uiIdx=uiIdxStart; uiIdx<=(uiIdxStart+run); uiIdx++)
   {
     uiTraIdx = m_puiScanOrder[uiIdx]; 
 
-    uiPLTIdx=m_cIndexBlockRD[uiTraIdx - uiWidth];
-    if (uiPLTIdx==(MAX_PLT_SIZE-1))
+    paletteIdx=m_cIndexBlockRD[uiTraIdx - uiWidth];
+    if (paletteIdx==(MAX_PALETTE_SIZE-1))
     {
       *merge=0;
       break;
     }
-    error+=m_indError[m_cPosBlockRD[uiTraIdx]][uiPLTIdx];
+    error+=m_indError[m_cPosBlockRD[uiTraIdx]][paletteIdx];
   }
 
   return(error);
 }
 
-UInt64 TEncSearch::calcPltErrorLevel(Int idxStart, UInt run, UInt uiPLTIdx)
+UInt64 TEncSearch::calcPaletteErrorLevel(Int idxStart, UInt run, UInt paletteIdx)
 {
   UInt64 error = 0;
 
   for (Int idx = idxStart + run; idx >= idxStart; idx--)
   {
-    error += m_indError[m_cPosBlockRD[m_puiScanOrder[idx]]][uiPLTIdx];
+    error += m_indError[m_cPosBlockRD[m_puiScanOrder[idx]]][paletteIdx];
   }
 
   return(error);
 }
 
-Void TEncSearch::modifyPltSegment(UInt uiWidth, UInt uiIdxStart, UInt pltMode, UInt pltIdx, UInt run)
+Void TEncSearch::modifyPaletteSegment(UInt uiWidth, UInt uiIdxStart, UInt paletteMode, UInt paletteIdx, UInt run)
 {
   for (UInt uiIdx=uiIdxStart; uiIdx<=(uiIdxStart+run); uiIdx++){
     UInt uiTraIdx = m_puiScanOrder[uiIdx]; 
 
-    m_SPointRD[uiTraIdx]=pltMode;
+    m_SPointRD[uiTraIdx]=paletteMode;
 
-    if (pltMode==PLT_RUN_LEFT)
+    if (paletteMode==PALETTE_RUN_LEFT)
     {
-      m_cIndexBlockRD[uiTraIdx]=pltIdx;
+      m_cIndexBlockRD[uiTraIdx]=paletteIdx;
     }
     else
     {
@@ -5323,29 +5323,29 @@ Void TEncSearch::modifyPltSegment(UInt uiWidth, UInt uiIdxStart, UInt pltMode, U
   }
 }
 
-UInt TEncSearch::findPltSegment(pltInfoStruct *pltElement, TComDataCU* pcCU, UInt uiIdxStart, UInt uiIndexMaxSize, UInt uiWidth, UInt uiTotal, UInt copyPixels[],
+UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataCU* pcCU, UInt uiIdxStart, UInt uiIndexMaxSize, UInt uiWidth, UInt uiTotal, UInt copyPixels[],
   Int restrictLevelRun, UInt calcErrBits)
 {
-  UInt uiTraIdxStart=m_puiScanOrder[uiIdxStart], uiIdx, uiTraIdx, pltMode, predIndex=0, run, currIndex=0;
+  UInt uiTraIdxStart=m_puiScanOrder[uiIdxStart], uiIdx, uiTraIdx, paletteMode, predIndex=0, run, currIndex=0;
   UInt64 indexBits=0, runBits, sPointBits;
   Int iMaxSymbol; 
-  if (m_SPointRD[uiTraIdxStart]==PLT_RUN_LEFT)
+  if (m_SPointRD[uiTraIdxStart]==PALETTE_RUN_LEFT)
   {
-    pltMode=PLT_RUN_LEFT;
+    paletteMode=PALETTE_RUN_LEFT;
     iMaxSymbol=uiIndexMaxSize;
 
     currIndex=m_cIndexBlockRD[uiTraIdxStart];
 
     UInt startIndex = currIndex;
 
-    if(m_cIndexBlockRD[uiTraIdxStart]==(MAX_PLT_SIZE-1))
+    if(m_cIndexBlockRD[uiTraIdxStart]==(MAX_PALETTE_SIZE-1))
     {
       currIndex = iMaxSymbol - 1;
-      pltElement->index=(MAX_PLT_SIZE-1);
+      paletteElement->index=(MAX_PALETTE_SIZE-1);
     }
     else
     {
-      pltElement->index=currIndex;
+      paletteElement->index=currIndex;
     }
 
     if (restrictLevelRun==-1)
@@ -5376,7 +5376,7 @@ UInt TEncSearch::findPltSegment(pltInfoStruct *pltElement, TComDataCU* pcCU, UIn
         uiIdx++;
         uiTraIdx=m_puiScanOrder[uiIdx];
 
-        if (m_cIndexBlockRD[uiTraIdx] == startIndex && m_SPointRD[uiTraIdx] == PLT_RUN_LEFT)
+        if (m_cIndexBlockRD[uiTraIdx] == startIndex && m_SPointRD[uiTraIdx] == PALETTE_RUN_LEFT)
         {
           run++;
         }
@@ -5392,14 +5392,14 @@ UInt TEncSearch::findPltSegment(pltInfoStruct *pltElement, TComDataCU* pcCU, UIn
     }
     if (calcErrBits)
     {
-      indexBits=calcPltIndexPredAndBits(iMaxSymbol, uiIdxStart, uiWidth, &predIndex, &currIndex);
+      indexBits=calcPaletteIndexPredAndBits(iMaxSymbol, uiIdxStart, uiWidth, &predIndex, &currIndex);
     }
   }
   else
   {
 
-    pltMode = PLT_RUN_ABOVE;
-    pltElement->index = 0;
+    paletteMode = PALETTE_RUN_ABOVE;
+    paletteElement->index = 0;
 
     run = 0;
     uiIdx = uiIdxStart;
@@ -5424,15 +5424,15 @@ UInt TEncSearch::findPltSegment(pltInfoStruct *pltElement, TComDataCU* pcCU, UIn
   }
 
 
-  pltElement->position = uiIdxStart;
-  pltElement->pltMode = pltMode;
-  pltElement->run = run;
+  paletteElement->position = uiIdxStart;
+  paletteElement->paletteMode = paletteMode;
+  paletteElement->run = run;
 
   for (uiIdx = uiIdxStart; uiIdx <= (uiIdxStart + run); uiIdx++)
   {
     uiTraIdx = m_puiScanOrder[uiIdx];
 
-    m_SPointRD[uiTraIdx] = pltMode;
+    m_SPointRD[uiTraIdx] = paletteMode;
     m_RunRD[uiTraIdx] = run;
 
     if (m_EscapeFlagRD[uiTraIdx] == 0)
@@ -5458,7 +5458,7 @@ UInt TEncSearch::findPltSegment(pltInfoStruct *pltElement, TComDataCU* pcCU, UIn
       }
 
       UInt escFlagOrig=m_EscapeFlagRD[uiTraIdx];
-      UInt escFlagNew = index == (MAX_PLT_SIZE - 1) ? 1 : 0;
+      UInt escFlagNew = index == (MAX_PALETTE_SIZE - 1) ? 1 : 0;
       assert(escFlagOrig == escFlagNew);
 
       if (escFlagNew == 1)
@@ -5467,33 +5467,33 @@ UInt TEncSearch::findPltSegment(pltInfoStruct *pltElement, TComDataCU* pcCU, UIn
       }
     }
 
-    m_pcRDGoOnSbacCoder->saveRestorePltCtx(0);
+    m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
     m_pcRDGoOnSbacCoder->resetBits();
     UInt64 initialBits = m_pcRDGoOnSbacCoder->getNumPartialBits();
-    m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStart, uiWidth, m_SPointRD, pltMode, m_puiScanOrder);
+    m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStart, uiWidth, m_SPointRD, paletteMode, m_puiScanOrder);
     sPointBits=m_pcRDGoOnSbacCoder->getNumPartialBits()-initialBits;
-    m_pcRDGoOnSbacCoder->encodeRun(run, pltMode, currIndex, uiTotal - uiIdxStart - 1);
+    m_pcRDGoOnSbacCoder->encodeRun(run, paletteMode, currIndex, uiTotal - uiIdxStart - 1);
 
 
     runBits=m_pcRDGoOnSbacCoder->getNumPartialBits()-sPointBits-initialBits;
 
 
-    pltElement->position = uiIdxStart;
-    pltElement->pltMode = pltMode;
-    pltElement->run=run;
-    pltElement->indexPred = predIndex;
-    pltElement->bitsInd=indexBits<<15;
-    pltElement->bitsRun = runBits;
-    pltElement->bitsAll=runBits+sPointBits+(indexBits<<15);
-    pltElement->error = Double(error);
-    pltElement->escape = escape;
-    pltElement->usedForCopy = usedForCopy;
+    paletteElement->position = uiIdxStart;
+    paletteElement->paletteMode = paletteMode;
+    paletteElement->run=run;
+    paletteElement->indexPred = predIndex;
+    paletteElement->bitsInd=indexBits<<15;
+    paletteElement->bitsRun = runBits;
+    paletteElement->bitsAll=runBits+sPointBits+(indexBits<<15);
+    paletteElement->error = Double(error);
+    paletteElement->escape = escape;
+    paletteElement->usedForCopy = usedForCopy;
   }
 
   return(run);
 }
 
-Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiPLTSize, TComRdCost *pcCost, 
+Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize, TComRdCost *pcCost, 
   UInt *errorOrig, UInt *errorNew, UInt calcErrBits)
 {
   UInt uiIdx, uiIdxStart, uiTraIdx, noElement, run, uiTotal = uiHeight * uiWidth,
@@ -5508,19 +5508,19 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
   UInt modRunMode, modRunCurrentBest=0, uiModPositionNextBest=0, modRunNextBest=0;
   Double rdCostModRun, rdCostModRunMin;
-  UInt pltMode=PLT_RUN_LEFT, pltModeMerge=PLT_RUN_LEFT, uiIdxStartMerge, mergeCurrIndex=0, currIndex, mergePLTIdx=0;
+  UInt paletteMode=PALETTE_RUN_LEFT, paletteModeMerge=PALETTE_RUN_LEFT, uiIdxStartMerge, mergeCurrIndex=0, currIndex, mergePaletteIdx=0;
   UInt64 indexBits;
   Double rdCostMerge=MAX_DOUBLE, errorMin = MAX_DOUBLE;
   Int iMaxSymbol;
 
-  UInt uiPLTIdx = 0;
+  UInt paletteIdx = 0;
 
-  UInt uiPLTIdxStart, uiPLTIdxEnd; 
+  UInt paletteIdxStart, paletteIdxEnd;
 
 
-  pltInfoStruct* currentPLTElement = &m_currentPLTElement;
-  pltInfoStruct* nextPLTElement = &m_nextPLTElement;
-  pltInfoStruct *tempPLTElement;
+  PaletteInfoStruct* currentPaletteElement = &m_currentPaletteElement;
+  PaletteInfoStruct* nextPaletteElement = &m_nextPaletteElement;
+  PaletteInfoStruct *tempPaletteElement;
 
   m_puiScanOrder = g_scanOrder[SCAN_UNGROUPED][SCAN_TRAV][g_aucConvertToBit[uiWidth]+2][g_aucConvertToBit[uiHeight]+2];
 
@@ -5532,31 +5532,31 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
     uiTraIdx = m_puiScanOrder[uiIdx]; 
     if (m_EscapeFlagRD[uiTraIdx])
     {
-      errOrig += m_indError[m_cPosBlockRD[uiTraIdx]][MAX_PLT_SIZE];
+      errOrig += m_indError[m_cPosBlockRD[uiTraIdx]][MAX_PALETTE_SIZE];
     }
     else
     {
-      uiPLTIdx = m_cIndexBlockRD[uiTraIdx];
-      errOrig += m_indError[m_cPosBlockRD[uiTraIdx]][uiPLTIdx];
+      paletteIdx = m_cIndexBlockRD[uiTraIdx];
+      errOrig += m_indError[m_cPosBlockRD[uiTraIdx]][paletteIdx];
     }
   }
 
   *errorOrig = UInt(errOrig);
 
-  UInt uiIndexMaxSize = uiPLTSize;
-  if( pcCU->getPLTEscape(COMPONENT_Y, 0) )
+  UInt uiIndexMaxSize = paletteSize;
+  if( pcCU->getPaletteEscape(COMPONENT_Y, 0) )
   {
     uiIndexMaxSize++;
   }
 
   memset(copyPixels, 0, sizeof(copyPixels));
 
-  for (noElement=0; noElement<m_pltNoElementsBest; noElement++)
+  for (noElement=0; noElement<m_paletteNoElementsBest; noElement++)
   {
-    if (m_pltInfoBest[noElement].pltMode==PLT_RUN_ABOVE)
+    if (m_paletteInfoBest[noElement].paletteMode==PALETTE_RUN_ABOVE)
     {
-      UInt end = m_pltInfoBest[noElement].position + m_pltInfoBest[noElement].run;
-      for (uiIdx = m_pltInfoBest[noElement].position; uiIdx <= end; uiIdx++)
+      UInt end = m_paletteInfoBest[noElement].position + m_paletteInfoBest[noElement].run;
+      for (uiIdx = m_paletteInfoBest[noElement].position; uiIdx <= end; uiIdx++)
       {
         uiTraIdx = m_puiScanOrder[uiIdx]; 
         copyPixels[uiTraIdx - uiWidth]=1;
@@ -5569,51 +5569,51 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
   {
     if (m_cIndexBlockRD[uiIdx]<0)
     {
-      m_cIndexBlockRD[uiIdx]=(MAX_PLT_SIZE-1);
+      m_cIndexBlockRD[uiIdx]=(MAX_PALETTE_SIZE-1);
     }
   }
 
   m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[pcCU->getDepth(0)][CI_CURR_BEST]);
-  m_pcRDGoOnSbacCoder->saveRestorePltCtx(1);
+  m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(1);
 
   uiIdxStart=0; 
-  findPltSegment(currentPLTElement, pcCU, uiIdxStart, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
-  uiIdxStart=currentPLTElement->position+(currentPLTElement->run+1);
+  findPaletteSegment(currentPaletteElement, pcCU, uiIdxStart, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
+  uiIdxStart=currentPaletteElement->position+(currentPaletteElement->run+1);
 
   while (uiIdxStart < uiTotal)
   {
-    findPltSegment(nextPLTElement, pcCU, uiIdxStart, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
+    findPaletteSegment(nextPaletteElement, pcCU, uiIdxStart, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
     modMode = 0; merge = 0; forceMerge = 0;  
-    if (currentPLTElement->escape == 0 && nextPLTElement->escape == 0)
+    if (currentPaletteElement->escape == 0 && nextPaletteElement->escape == 0)
     {
-      run=currentPLTElement->run + nextPLTElement->run + 1;
+      run=currentPaletteElement->run + nextPaletteElement->run + 1;
       
-      rdCostOrig=pcCost->getLambda()*(Double)((currentPLTElement->bitsAll+nextPLTElement->bitsAll)>>15)+
-        currentPLTElement->error+nextPLTElement->error;
+      rdCostOrig=pcCost->getLambda()*(Double)((currentPaletteElement->bitsAll+nextPaletteElement->bitsAll)>>15)+
+        currentPaletteElement->error+nextPaletteElement->error;
       rdCostBestMode = rdCostOrig;
 
-      if (currentPLTElement->pltMode == nextPLTElement->pltMode && (currentPLTElement->pltMode == PLT_RUN_ABOVE || currentPLTElement->index == nextPLTElement->index))
+      if (currentPaletteElement->paletteMode == nextPaletteElement->paletteMode && (currentPaletteElement->paletteMode == PALETTE_RUN_ABOVE || currentPaletteElement->index == nextPaletteElement->index))
       {
         forceMerge = 1;
       }
      
 
       modRunMode=0;
-      if (currentPLTElement->pltMode==PLT_RUN_LEFT && nextPLTElement->pltMode==PLT_RUN_ABOVE && forceMerge==0)
+      if (currentPaletteElement->paletteMode==PALETTE_RUN_LEFT && nextPaletteElement->paletteMode==PALETTE_RUN_ABOVE && forceMerge==0)
       {
         UInt uiModPositionNext, runCurrent, runNext, tempIndex, groupInit, groupNew;
         UInt64 modRunBits;
 
         rdCostModRunMin=MAX_DOUBLE;
-        Int startCopy=calcPLTStartCopy(nextPLTElement->position, currentPLTElement->position, uiWidth);
-        runCurrent=startCopy-currentPLTElement->position-1;
+        Int startCopy=calcPaletteStartCopy(nextPaletteElement->position, currentPaletteElement->position, uiWidth);
+        runCurrent=startCopy-currentPaletteElement->position-1;
         runNext=run-runCurrent-1;
 
         groupInit=m_runGolombGroups[runNext];
 
-        for (uiModPositionNext=startCopy; uiModPositionNext<nextPLTElement->position; uiModPositionNext++)
+        for (uiModPositionNext=startCopy; uiModPositionNext<nextPaletteElement->position; uiModPositionNext++)
         {
-          runCurrent=uiModPositionNext-currentPLTElement->position-1;
+          runCurrent=uiModPositionNext-currentPaletteElement->position-1;
           runNext=run-runCurrent-1;
 
           groupNew=m_runGolombGroups[runNext];
@@ -5623,20 +5623,20 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
             groupInit=(groupNew<groupInit)? groupNew : groupInit;
             modRunMode=1;
 
-            m_pcRDGoOnSbacCoder->saveRestorePltCtx(0);
+            m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
             m_pcRDGoOnSbacCoder->resetBits();
             UInt64 initialBits=m_pcRDGoOnSbacCoder->getNumPartialBits();
-            m_pcRDGoOnSbacCoder->encodeSPointRD(currentPLTElement->position, uiWidth, m_SPointRD, PLT_RUN_LEFT, m_puiScanOrder);
-            tempIndex=currentPLTElement->index > currentPLTElement->indexPred ? currentPLTElement->index-1 : currentPLTElement->index ;
-            m_pcRDGoOnSbacCoder->encodeRun(runCurrent, PLT_RUN_LEFT, tempIndex, uiTotal - currentPLTElement->position - 1);
+            m_pcRDGoOnSbacCoder->encodeSPointRD(currentPaletteElement->position, uiWidth, m_SPointRD, PALETTE_RUN_LEFT, m_puiScanOrder);
+            tempIndex=currentPaletteElement->index > currentPaletteElement->indexPred ? currentPaletteElement->index-1 : currentPaletteElement->index ;
+            m_pcRDGoOnSbacCoder->encodeRun(runCurrent, PALETTE_RUN_LEFT, tempIndex, uiTotal - currentPaletteElement->position - 1);
 
-            // Next plt segment
-            m_pcRDGoOnSbacCoder->encodeSPointRD(uiModPositionNext, uiWidth, m_SPointRD, PLT_RUN_ABOVE, m_puiScanOrder);
+            // Next palette segment
+            m_pcRDGoOnSbacCoder->encodeSPointRD(uiModPositionNext, uiWidth, m_SPointRD, PALETTE_RUN_ABOVE, m_puiScanOrder);
 
-            m_pcRDGoOnSbacCoder->encodeRun(runNext, PLT_RUN_ABOVE, tempIndex, uiTotal - uiModPositionNext - 1);
+            m_pcRDGoOnSbacCoder->encodeRun(runNext, PALETTE_RUN_ABOVE, tempIndex, uiTotal - uiModPositionNext - 1);
 
-            modRunBits=m_pcRDGoOnSbacCoder->getNumPartialBits()+currentPLTElement->bitsInd-initialBits;
-            rdCostModRun=pcCost->getLambda()*(Double)(modRunBits>>15)+currentPLTElement->error+nextPLTElement->error;
+            modRunBits=m_pcRDGoOnSbacCoder->getNumPartialBits()+currentPaletteElement->bitsInd-initialBits;
+            rdCostModRun=pcCost->getLambda()*(Double)(modRunBits>>15)+currentPaletteElement->error+nextPaletteElement->error;
 
 
             if (rdCostModRun<rdCostModRunMin)
@@ -5658,17 +5658,17 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
       if( !pcCU->getCUTransquantBypass(0) || pcCU->getSlice()->getSPS()->getChromaFormatIdc() != CHROMA_444 )
       {
-        uiIdxStartMerge = currentPLTElement->position;
-        predIndex = currentPLTElement->indexPred;
+        uiIdxStartMerge = currentPaletteElement->position;
+        predIndex = currentPaletteElement->indexPred;
 
         UInt testLevel=0;
-        if (currentPLTElement->pltMode==PLT_RUN_LEFT)
+        if (currentPaletteElement->paletteMode==PALETTE_RUN_LEFT)
         {
-          if (currentPLTElement->pltMode==PLT_RUN_LEFT && nextPLTElement->pltMode==PLT_RUN_LEFT && (currentPLTElement->usedForCopy==0 || nextPLTElement->usedForCopy==0))
+          if (currentPaletteElement->paletteMode==PALETTE_RUN_LEFT && nextPaletteElement->paletteMode==PALETTE_RUN_LEFT && (currentPaletteElement->usedForCopy==0 || nextPaletteElement->usedForCopy==0))
           { 
             testLevel=1;
           }
-          if (nextPLTElement->pltMode==PLT_RUN_ABOVE && nextPLTElement->usedForCopy==0)
+          if (nextPaletteElement->paletteMode==PALETTE_RUN_ABOVE && nextPaletteElement->usedForCopy==0)
           { 
             testLevel=1;
           }
@@ -5678,49 +5678,49 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
           }
         }
 
-        UInt testCopy=(currentPLTElement->position>=uiWidth) ? 1 : 0;
-        if (currentPLTElement->pltMode==PLT_RUN_LEFT && currentPLTElement->usedForCopy==1)
+        UInt testCopy=(currentPaletteElement->position>=uiWidth) ? 1 : 0;
+        if (currentPaletteElement->paletteMode==PALETTE_RUN_LEFT && currentPaletteElement->usedForCopy==1)
         {
           testCopy=0;
         }
-        if (nextPLTElement->pltMode==PLT_RUN_LEFT && nextPLTElement->usedForCopy==1)
+        if (nextPaletteElement->paletteMode==PALETTE_RUN_LEFT && nextPaletteElement->usedForCopy==1)
         {
           testCopy=0;
         }
  
         if (testLevel)
         { 
-          pltMode = PLT_RUN_LEFT;
+          paletteMode = PALETTE_RUN_LEFT;
           iMaxSymbol = (uiIdxStartMerge > 0) ? uiIndexMaxSize - 1 : uiIndexMaxSize;
-          uiPLTIdxStart = 0, uiPLTIdxEnd = uiPLTSize - 1;
+          paletteIdxStart = 0, paletteIdxEnd = paletteSize - 1;
 
-          if (currentPLTElement->usedForCopy == 1)
+          if (currentPaletteElement->usedForCopy == 1)
           {
-            uiPLTIdxStart = currentPLTElement->index;
-            uiPLTIdxEnd = currentPLTElement->index;
+            paletteIdxStart = currentPaletteElement->index;
+            paletteIdxEnd = currentPaletteElement->index;
           }
-          else if (nextPLTElement->usedForCopy == 1)
+          else if (nextPaletteElement->usedForCopy == 1)
           {
-            uiPLTIdxStart = nextPLTElement->index;
-            uiPLTIdxEnd = nextPLTElement->index;
+            paletteIdxStart = nextPaletteElement->index;
+            paletteIdxEnd = nextPaletteElement->index;
           }
 
           errorMin = MAX_DOUBLE;
-          for (uiPLTIdx = uiPLTIdxStart; uiPLTIdx <= uiPLTIdxEnd; uiPLTIdx++)
+          for (paletteIdx = paletteIdxStart; paletteIdx <= paletteIdxEnd; paletteIdx++)
           {
-            if (uiPLTIdx != predIndex)
+            if (paletteIdx != predIndex)
             { // do not allow copy mode
               merge = 1;
-              currIndex = uiPLTIdx > predIndex ? uiPLTIdx - 1 : uiPLTIdx;
+              currIndex = paletteIdx > predIndex ? paletteIdx - 1 : paletteIdx;
 
               indexBits = m_truncBinBits[currIndex][iMaxSymbol];
               error = pcCost->getLambda()*indexBits; // error includes index
-              error += calcPltErrorLevel(uiIdxStartMerge, run, uiPLTIdx);
+              error += calcPaletteErrorLevel(uiIdxStartMerge, run, paletteIdx);
 
               if (error<errorMin)
               {
                 errorMin = error;
-                mergePLTIdx = uiPLTIdx;
+                mergePaletteIdx = paletteIdx;
                 mergeCurrIndex = currIndex;
               }
             }
@@ -5728,11 +5728,11 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
           if (merge==1)
           {
-            m_pcRDGoOnSbacCoder->saveRestorePltCtx(0);
+            m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
             m_pcRDGoOnSbacCoder->resetBits();
             UInt64 initialBits=m_pcRDGoOnSbacCoder->getNumPartialBits();
-            m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_SPointRD, pltMode, m_puiScanOrder);
-            m_pcRDGoOnSbacCoder->encodeRun(run, pltMode, mergeCurrIndex, uiTotal - uiIdxStartMerge - 1);
+            m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_SPointRD, paletteMode, m_puiScanOrder);
+            m_pcRDGoOnSbacCoder->encodeRun(run, paletteMode, mergeCurrIndex, uiTotal - uiIdxStartMerge - 1);
 
             rdCostMerge=pcCost->getLambda()*(Double)((m_pcRDGoOnSbacCoder->getNumPartialBits()-initialBits)>>15)+errorMin;
           }
@@ -5741,17 +5741,17 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
           {
             rdCostBestMode=rdCostMerge;
             modMode=2;
-            pltModeMerge=PLT_RUN_LEFT;
+            paletteModeMerge=PALETTE_RUN_LEFT;
           }
         }
 
 
         if (testCopy) 
         { 
-          pltMode=PLT_RUN_ABOVE;
-          errorMin=calcPltErrorCopy(uiIdxStartMerge, run, uiWidth, &merge);
+          paletteMode=PALETTE_RUN_ABOVE;
+          errorMin=calcPaletteErrorCopy(uiIdxStartMerge, run, uiWidth, &merge);
 
-          if (currentPLTElement->pltMode==PLT_RUN_ABOVE && nextPLTElement->pltMode==PLT_RUN_ABOVE)
+          if (currentPaletteElement->paletteMode==PALETTE_RUN_ABOVE && nextPaletteElement->paletteMode==PALETTE_RUN_ABOVE)
           {
             merge=1;
           }
@@ -5759,11 +5759,11 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
         if (merge == 1)
         {
-          m_pcRDGoOnSbacCoder->saveRestorePltCtx(0);
+          m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
           m_pcRDGoOnSbacCoder->resetBits();
           UInt64 initialBits = m_pcRDGoOnSbacCoder->getNumPartialBits();
-          m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_SPointRD, pltMode, m_puiScanOrder);
-          m_pcRDGoOnSbacCoder->encodeRun(run, pltMode, mergeCurrIndex, uiTotal - uiIdxStartMerge - 1);
+          m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_SPointRD, paletteMode, m_puiScanOrder);
+          m_pcRDGoOnSbacCoder->encodeRun(run, paletteMode, mergeCurrIndex, uiTotal - uiIdxStartMerge - 1);
           rdCostMerge = pcCost->getLambda()*(Double)((m_pcRDGoOnSbacCoder->getNumPartialBits() - initialBits) >> 15) + errorMin;
         }
 
@@ -5771,7 +5771,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
           {
             rdCostBestMode=rdCostMerge;
             modMode=2;
-            pltModeMerge=PLT_RUN_ABOVE;
+            paletteModeMerge=PALETTE_RUN_ABOVE;
           }
         }
 
@@ -5782,38 +5782,38 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
     if (modMode==0)
     {
-      tempPLTElement=currentPLTElement;
-      currentPLTElement=nextPLTElement;
-      nextPLTElement=tempPLTElement;
+      tempPaletteElement=currentPaletteElement;
+      currentPaletteElement=nextPaletteElement;
+      nextPaletteElement=tempPaletteElement;
     }
     else
     {
       if (modMode==1) 
       {
-        modifyPltSegment(uiWidth, uiModPositionNextBest, nextPLTElement->pltMode, nextPLTElement->index, modRunNextBest);
-        findPltSegment(currentPLTElement, pcCU, currentPLTElement->position, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, modRunCurrentBest, 1);
-        findPltSegment(currentPLTElement, pcCU, uiModPositionNextBest, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
+        modifyPaletteSegment(uiWidth, uiModPositionNextBest, nextPaletteElement->paletteMode, nextPaletteElement->index, modRunNextBest);
+        findPaletteSegment(currentPaletteElement, pcCU, currentPaletteElement->position, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, modRunCurrentBest, 1);
+        findPaletteSegment(currentPaletteElement, pcCU, uiModPositionNextBest, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
       }
       if (modMode==2)
       {
-        modifyPltSegment(uiWidth, currentPLTElement->position, pltModeMerge, mergePLTIdx, currentPLTElement->run);
-        modifyPltSegment(uiWidth, nextPLTElement->position, pltModeMerge, mergePLTIdx, nextPLTElement->run);
-        findPltSegment(currentPLTElement, pcCU, currentPLTElement->position, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
+        modifyPaletteSegment(uiWidth, currentPaletteElement->position, paletteModeMerge, mergePaletteIdx, currentPaletteElement->run);
+        modifyPaletteSegment(uiWidth, nextPaletteElement->position, paletteModeMerge, mergePaletteIdx, nextPaletteElement->run);
+        findPaletteSegment(currentPaletteElement, pcCU, currentPaletteElement->position, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -1, 1);
       }
     }
 
-    uiIdxStart=currentPLTElement->position+(currentPLTElement->run+1);
+    uiIdxStart=currentPaletteElement->position+(currentPaletteElement->run+1);
   }
 
   uiIdxStart=0; noElement=0;
   while (uiIdxStart<uiTotal)
   {
-    findPltSegment(m_pltInfoBest + noElement, pcCU, uiIdxStart, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -2, calcErrBits);
-    uiIdxStart=m_pltInfoBest[noElement].position+(m_pltInfoBest[noElement].run+1);
+    findPaletteSegment(m_paletteInfoBest + noElement, pcCU, uiIdxStart, uiIndexMaxSize, uiWidth, uiTotal, copyPixels, -2, calcErrBits);
+    uiIdxStart=m_paletteInfoBest[noElement].position+(m_paletteInfoBest[noElement].run+1);
     noElement++;
   }
 
-  m_pltNoElementsBest=noElement;
+  m_paletteNoElementsBest=noElement;
 
 
   UInt64 errNew = 0;
@@ -5823,12 +5823,12 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
     uiTraIdx = m_puiScanOrder[uiIdx]; 
     if (m_EscapeFlagRD[uiTraIdx])
     {
-      errNew += m_indError[m_cPosBlockRD[uiTraIdx]][MAX_PLT_SIZE];
+      errNew += m_indError[m_cPosBlockRD[uiTraIdx]][MAX_PALETTE_SIZE];
     }
     else
     {
-      uiPLTIdx=m_cIndexBlockRD[uiTraIdx];
-      errNew += m_indError[m_cPosBlockRD[uiTraIdx]][uiPLTIdx];
+      paletteIdx=m_cIndexBlockRD[uiTraIdx];
+      errNew += m_indError[m_cPosBlockRD[uiTraIdx]][paletteIdx];
     }
   }
 
@@ -5837,7 +5837,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
 Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  Pel* pValue, UChar* pSPoint,
   Pel** paPixelValue, Pel ** paRecoValue, TCoeff* pRun,
-  UInt uiWidth, UInt uiHeight,  UInt uiStrideOrg, UInt uiPLTSize)
+  UInt uiWidth, UInt uiHeight,  UInt uiStrideOrg, UInt paletteSize)
 {
   UInt uiTotal = uiHeight * uiWidth, uiIdx = 0;
   UInt uiStartPos = 0,  uiRun = 0, uiCopyRun = 0;
@@ -5849,31 +5849,31 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
   UInt noElements=0;
   UInt64 allBitsCopy, allBitsIndex, indexBits, runBitsIndex, runBitsCopy;
 
-  UInt uiIndexMaxSize = pcCU->getPLTSize(COMPONENT_Y, 0);
-  if( pcCU->getPLTEscape(COMPONENT_Y, 0) )
+  UInt uiIndexMaxSize = pcCU->getPaletteSize(COMPONENT_Y, 0);
+  if( pcCU->getPaletteEscape(COMPONENT_Y, 0) )
   {
     uiIndexMaxSize++;
   }
 
   m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[pcCU->getDepth(0)][CI_CURR_BEST]);
-  m_pcRDGoOnSbacCoder->saveRestorePltCtx(1);
+  m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(1);
 
   //Test Run
   while (uiIdx < uiTotal)
   {
     uiStartPos = uiIdx;
-    Double dAveBitsPerPix[NUM_PLT_RUN];
+    Double dAveBitsPerPix[NUM_PALETTE_RUN];
 
     uiRun = 0;
     Bool RunValid = calLeftRun(pcCU, pValue, pSPoint, uiStartPos, uiTotal, uiRun, pEscapeFlag);
 
     if(RunValid)
     {
-      dAveBitsPerPix[PLT_RUN_LEFT] = xGetRunBits(pcCU, pValue, uiStartPos, (uiRun + 1), PLT_RUN_LEFT, &allBitsIndex, &indexBits, &runBitsIndex);
+      dAveBitsPerPix[PALETTE_RUN_LEFT] = xGetRunBits(pcCU, pValue, uiStartPos, (uiRun + 1), PALETTE_RUN_LEFT, &allBitsIndex, &indexBits, &runBitsIndex);
     }
     else
     {
-      dAveBitsPerPix[PLT_RUN_LEFT] = std::numeric_limits<double>::max();
+      dAveBitsPerPix[PALETTE_RUN_LEFT] = std::numeric_limits<double>::max();
     }
 
     uiCopyRun = 0;
@@ -5881,11 +5881,11 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
 
     if(CopyValid)
     {
-      dAveBitsPerPix[PLT_RUN_ABOVE] = xGetRunBits(pcCU, pValue, uiStartPos, uiCopyRun, PLT_RUN_ABOVE, &allBitsCopy, &indexBits, &runBitsCopy);
+      dAveBitsPerPix[PALETTE_RUN_ABOVE] = xGetRunBits(pcCU, pValue, uiStartPos, uiCopyRun, PALETTE_RUN_ABOVE, &allBitsCopy, &indexBits, &runBitsCopy);
     }
     else
     {
-      dAveBitsPerPix[PLT_RUN_ABOVE] = std::numeric_limits<double>::max();
+      dAveBitsPerPix[PALETTE_RUN_ABOVE] = std::numeric_limits<double>::max();
     }
 
     uiTraIdx = m_puiScanOrder[uiIdx];    //unified position variable (raster scan)
@@ -5893,21 +5893,21 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
     assert(RunValid || CopyValid);
 
     {
-      if( dAveBitsPerPix[PLT_RUN_ABOVE] <= dAveBitsPerPix[PLT_RUN_LEFT] )
+      if( dAveBitsPerPix[PALETTE_RUN_ABOVE] <= dAveBitsPerPix[PALETTE_RUN_LEFT] )
       {
-        pSPoint[uiTraIdx] = PLT_RUN_ABOVE;
+        pSPoint[uiTraIdx] = PALETTE_RUN_ABOVE;
         pRun[uiTraIdx]  = uiCopyRun-1;
 
         pEscapeFlag[uiTraIdx] = ( pcIndexBlock[uiTraIdx] < 0 );
 
         Double error=0;
-        m_pltInfo[noElements].index    = 0;
-        m_pltInfo[noElements].position = uiIdx;
-        m_pltInfo[noElements].pltMode  = pSPoint[uiTraIdx];
-        m_pltInfo[noElements].run      = pRun[uiTraIdx];
-        m_pltInfo[noElements].bitsRun  = runBitsCopy;
-        m_pltInfo[noElements].bitsInd  = 0;
-        m_pltInfo[noElements].bitsAll  = allBitsCopy;
+        m_paletteInfo[noElements].index    = 0;
+        m_paletteInfo[noElements].position = uiIdx;
+        m_paletteInfo[noElements].paletteMode  = pSPoint[uiTraIdx];
+        m_paletteInfo[noElements].run      = pRun[uiTraIdx];
+        m_paletteInfo[noElements].bitsRun  = runBitsCopy;
+        m_paletteInfo[noElements].bitsInd  = 0;
+        m_paletteInfo[noElements].bitsAll  = allBitsCopy;
 
         if( pEscapeFlag[uiTraIdx] )
         {
@@ -5927,49 +5927,49 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
             calcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
           }
 
-          pSPoint[uiTraIdx] = PLT_RUN_ABOVE;
+          pSPoint[uiTraIdx] = PALETTE_RUN_ABOVE;
           uiIdx++;
 
           iTemp--;
         }
-        m_pltInfo[noElements].error = error;
+        m_paletteInfo[noElements].error = error;
         noElements++;
       }
       else
       {
-        pSPoint[uiTraIdx] = PLT_RUN_LEFT;
+        pSPoint[uiTraIdx] = PALETTE_RUN_LEFT;
         pRun[uiTraIdx] = uiRun;
 
         pEscapeFlag[uiTraIdx] = ( pcIndexBlock[uiTraIdx] < 0 );
 
         Double error=0;
-        m_pltInfo[noElements].position = uiIdx;
-        m_pltInfo[noElements].pltMode  = pSPoint[uiTraIdx];
-        m_pltInfo[noElements].run      = pRun[uiTraIdx];
-        m_pltInfo[noElements].bitsInd  = indexBits;
-        m_pltInfo[noElements].bitsRun  = runBitsIndex;
-        m_pltInfo[noElements].bitsAll  = allBitsIndex;
+        m_paletteInfo[noElements].position = uiIdx;
+        m_paletteInfo[noElements].paletteMode  = pSPoint[uiTraIdx];
+        m_paletteInfo[noElements].run      = pRun[uiTraIdx];
+        m_paletteInfo[noElements].bitsInd  = indexBits;
+        m_paletteInfo[noElements].bitsRun  = runBitsIndex;
+        m_paletteInfo[noElements].bitsAll  = allBitsIndex;
         
-        m_pltInfo[noElements].index    = pEscapeFlag[uiTraIdx] ? (MAX_PLT_SIZE - 1) : pValue[uiTraIdx];
+        m_paletteInfo[noElements].index    = pEscapeFlag[uiTraIdx] ? (MAX_PALETTE_SIZE - 1) : pValue[uiTraIdx];
        
 
         if (uiIdx>0)
         {
           UInt uiTraIdxLeft = m_puiScanOrder[uiIdx - 1];
-          if (pSPoint[uiTraIdxLeft] == PLT_RUN_LEFT)  ///< copy left
+          if (pSPoint[uiTraIdxLeft] == PALETTE_RUN_LEFT)  ///< copy left
           {
-            m_pltInfo[noElements].indexPred = pValue[uiTraIdxLeft];
+            m_paletteInfo[noElements].indexPred = pValue[uiTraIdxLeft];
             if( pEscapeFlag[uiTraIdxLeft] )
             {
-              m_pltInfo[noElements].indexPred = uiIndexMaxSize - 1;
+              m_paletteInfo[noElements].indexPred = uiIndexMaxSize - 1;
             }
           }
           else
           {
-            m_pltInfo[noElements].indexPred = pValue[uiTraIdx - uiWidth];
+            m_paletteInfo[noElements].indexPred = pValue[uiTraIdx - uiWidth];
             if( pEscapeFlag[uiTraIdx - uiWidth] )
             {
-              m_pltInfo[noElements].indexPred = uiIndexMaxSize - 1;
+              m_paletteInfo[noElements].indexPred = uiIndexMaxSize - 1;
             }
           }
         }
@@ -5993,27 +5993,27 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
             calcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
           }
 
-          pSPoint[uiTraIdx] = PLT_RUN_LEFT;
+          pSPoint[uiTraIdx] = PALETTE_RUN_LEFT;
           uiIdx++;
           iTemp--;
         }
-        m_pltInfo[noElements].error=error;
+        m_paletteInfo[noElements].error=error;
         noElements++;
       }
     }
   }
-  m_pltNoElements = noElements;
+  m_paletteNoElements = noElements;
   assert (uiIdx == uiTotal);
 }
 
-Double TEncSearch::xGetRunBits(TComDataCU* pcCU, Pel *pValue, UInt uiStartPos, UInt uiRun, PLTRunMode cPltRunMode, UInt64 *allBits, UInt64 *indexBits, UInt64 *runBits)
+Double TEncSearch::xGetRunBits(TComDataCU* pcCU, Pel *pValue, UInt uiStartPos, UInt uiRun, PaletteRunMode paletteRunMode, UInt64 *allBits, UInt64 *indexBits, UInt64 *runBits)
 {
   UInt uiWidth      = pcCU->getWidth(0);
   UInt uiHeight = pcCU->getHeight(0);
   UInt uiTotal = uiWidth * uiHeight;
   UInt siCurLevel = 0;
-  UInt uiIndexMaxSize = pcCU->getPLTSize(COMPONENT_Y, 0);
-  if( pcCU->getPLTEscape(COMPONENT_Y, 0) )
+  UInt uiIndexMaxSize = pcCU->getPaletteSize(COMPONENT_Y, 0);
+  if( pcCU->getPaletteEscape(COMPONENT_Y, 0) )
   {
     uiIndexMaxSize++;
   }
@@ -6023,7 +6023,7 @@ Double TEncSearch::xGetRunBits(TComDataCU* pcCU, Pel *pValue, UInt uiStartPos, U
   UInt   uiTraIdx    = m_puiScanOrder[uiStartPos];
   UInt   uiRealLevel = pValue[uiTraIdx];
   UChar* pEscapeFlag = pcCU->getEscapeFlag(COMPONENT_Y);
-  m_pcRDGoOnSbacCoder->saveRestorePltCtx(0);
+  m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
   m_pcEntropyCoder->resetBits();
 
   m_pcRDGoOnSbacCoder->encodeSPoint(pcCU, 0, uiStartPos, uiWidth, pSPoint, m_puiScanOrder);
@@ -6031,26 +6031,26 @@ Double TEncSearch::xGetRunBits(TComDataCU* pcCU, Pel *pValue, UInt uiStartPos, U
   UInt64 sPointBits=m_pcRDGoOnSbacCoder->getNumPartialBits();
 
   assert(uiRun >= 1);
-  switch(cPltRunMode)
+  switch(paletteRunMode)
   {
-  case PLT_RUN_LEFT:
+  case PALETTE_RUN_LEFT:
     if( pEscapeFlag[uiTraIdx] )
     {
       pValue[uiTraIdx] = uiIndexMaxSize - 1;
     }
 
-    siCurLevel = m_pcRDGoOnSbacCoder->writePLTIndex(uiStartPos, pValue, uiIndexMaxSize, pSPoint, uiWidth, pEscapeFlag);
+    siCurLevel = m_pcRDGoOnSbacCoder->writePaletteIndex(uiStartPos, pValue, uiIndexMaxSize, pSPoint, uiWidth, pEscapeFlag);
     *indexBits = m_pcRDGoOnSbacCoder->getNumPartialBits() - sPointBits;
     if( pEscapeFlag[uiTraIdx] )
     {
       pValue[uiTraIdx] = uiRealLevel;
     }
-    m_pcRDGoOnSbacCoder->encodeRun((uiRun - 1), PLT_RUN_LEFT, siCurLevel, uiTotal - uiStartPos - 1);
+    m_pcRDGoOnSbacCoder->encodeRun((uiRun - 1), PALETTE_RUN_LEFT, siCurLevel, uiTotal - uiStartPos - 1);
     *runBits = m_pcRDGoOnSbacCoder->getNumPartialBits() - sPointBits - (*indexBits);
 
     break;
-  case PLT_RUN_ABOVE:
-    m_pcRDGoOnSbacCoder->encodeRun((uiRun - 1), PLT_RUN_ABOVE, siCurLevel, uiTotal - uiStartPos - 1);
+  case PALETTE_RUN_ABOVE:
+    m_pcRDGoOnSbacCoder->encodeRun((uiRun - 1), PALETTE_RUN_ABOVE, siCurLevel, uiTotal - uiStartPos - 1);
     *runBits = m_pcRDGoOnSbacCoder->getNumPartialBits() - sPointBits;
 
     break;
@@ -12189,7 +12189,7 @@ Void  TEncSearch::xAddSymbolBitsInter( TComDataCU* pcCU, UInt& ruiBits )
     m_pcEntropyCoder->encodePredMode( pcCU, 0, true );
     Bool codeDeltaQp = false;
     Bool codeChromaQpAdj = false;
-    m_pcEntropyCoder->encodePLTModeInfo( pcCU, 0, true, &codeDeltaQp, &codeChromaQpAdj );    
+    m_pcEntropyCoder->encodePaletteModeInfo( pcCU, 0, true, &codeDeltaQp, &codeChromaQpAdj );    
     m_pcEntropyCoder->encodePartSize( pcCU, 0, pcCU->getDepth(0), true );
     m_pcEntropyCoder->encodePredInfo( pcCU, 0 );
 
