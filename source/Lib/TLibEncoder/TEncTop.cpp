@@ -510,9 +510,9 @@ Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic )
     {
       TEncPic* pcEPic = new TEncPic;
 #if REDUCED_ENCODER_MEMORY
-      pcEPic->create( m_cSPS, m_cPPS, m_cPPS.getMaxCuDQPDepth()+1, m_cSPS.getSpsScreenExtension().getPLTMaxSize(), m_cSPS.getSpsScreenExtension().getPLTMaxPredSize() );
+      pcEPic->create( m_cSPS, m_cPPS, m_cPPS.getMaxCuDQPDepth()+1 );
 #else
-      pcEPic->create( m_cSPS, m_cPPS, m_cPPS.getMaxCuDQPDepth()+1, m_cSPS.getSpsScreenExtension().getPLTMaxSize(), m_cSPS.getSpsScreenExtension().getPLTMaxPredSize(), false);
+      pcEPic->create( m_cSPS, m_cPPS, m_cPPS.getMaxCuDQPDepth()+1, false);
 #endif
       rpcPic = pcEPic;
     }

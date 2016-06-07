@@ -122,13 +122,17 @@ TEncPic::~TEncPic()
  * \param bIsVirtual
  */
 #if REDUCED_ENCODER_MEMORY
-Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize )
+Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth )
 {
-  TComPic::create( sps, pps, uiPLTMaxSize, uiPLTMaxPredSize, true, false );
+  const UInt paletteMaxSize = sps.getSpsScreenExtension().getPLTMaxSize();
+  const UInt paletteMaxPredSize = sps.getSpsScreenExtension().getPLTMaxPredSize();
+  TComPic::create( sps, pps, paletteMaxSize, paletteMaxPredSize, true, false );
 #else
-Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, Bool bIsVirtual )
+Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, Bool bIsVirtual )
 {
-  TComPic::create( sps, pps, uiPLTMaxSize, uiPLTMaxPredSize, bIsVirtual );
+  const UInt paletteMaxSize = sps.getSpsScreenExtension().getPLTMaxSize();
+  const UInt paletteMaxPredSize = sps.getSpsScreenExtension().getPLTMaxPredSize();
+  TComPic::create( sps, pps, paletteMaxSize, paletteMaxPredSize, bIsVirtual );
 #endif
   const Int  iWidth      = sps.getPicWidthInLumaSamples();
   const Int  iHeight     = sps.getPicHeightInLumaSamples();
