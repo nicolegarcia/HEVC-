@@ -103,6 +103,17 @@ TDecSbac::TDecSbac()
 , m_paletteScanRotationModeFlagSCModel       ( 1,             1,                      NUM_SCAN_ROTATION_FLAG_CTX           , m_contextModels + m_numContextModels, m_numContextModels)
 {
   assert( m_numContextModels <= MAX_NUM_CTX_MOD );
+  m_runTopLut[0] = 0;
+  m_runTopLut[1] = 1;
+  m_runTopLut[2] = 1;
+  m_runTopLut[3] = 2;
+  m_runTopLut[4] = 2;
+
+  m_runLeftLut[0] = 0;
+  m_runLeftLut[1] = 3;
+  m_runLeftLut[2] = 3;
+  m_runLeftLut[3] = 4;
+  m_runLeftLut[4] = 4;
 }
 
 TDecSbac::~TDecSbac()
@@ -561,13 +572,13 @@ Void  TDecSbac::xDecodeRun(UInt & ruiSymbol, Bool bCopyTopMode, const UInt palet
   if ( bCopyTopMode )
   {
     pcModel = m_cCopyTopRunSCModel.get(0);
-    ucCtxLut = g_ucRunTopLut;
+    ucCtxLut = m_runTopLut;
   }
   else
   {
     pcModel = m_cRunSCModel.get(0);
-    ucCtxLut = g_ucRunLeftLut;
-    g_ucRunLeftLut[0] = (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1 ? 0: (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2 ? 1 : 2));
+    ucCtxLut = m_runLeftLut;
+    m_runLeftLut[0] = (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1 ? 0: (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2 ? 1 : 2));
   }
   ruiSymbol = xReadTruncMsbP1RefinementBits( pcModel, uiMaxRun, SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE, ucCtxLut RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat) );
 }

@@ -120,8 +120,7 @@ extern const UChar  g_chroma422IntraAngleMappingTable[NUM_INTRA_MODE];
 
 // ====================================================================================================================
 
-extern        UChar g_uhPaletteQuant[52];
-extern        UChar g_uhPaletteTBC[257];
+extern const UChar  g_uhPaletteTBC[257];
 
 
 // Mode-Dependent DST Matrices
@@ -179,8 +178,6 @@ extern const Int g_quantInterDefault8x8[8*8];
 extern const UInt g_scalingListSize [SCALING_LIST_SIZE_NUM];
 extern const UInt g_scalingListSizeX[SCALING_LIST_SIZE_NUM];
 
-extern UChar g_ucRunTopLut[5];
-extern UChar g_ucRunLeftLut[5];
 extern UChar g_ucMsbP1Idx[256];
 extern UChar g_getMsbP1Idx(UInt uiVal);
 //! \}

@@ -170,6 +170,8 @@ public:
 
 private:
   UInt* m_puiScanOrder;
+  UChar m_runTopLut[5];
+  UChar m_runLeftLut[5];
   ContextModel         m_contextModels[MAX_NUM_CTX_MOD];
   Int                  m_numContextModels;
   ContextModel3DBuffer m_cCUSplitFlagSCModel;
