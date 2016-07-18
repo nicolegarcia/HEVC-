@@ -774,6 +774,56 @@ public:
   Void setCabacBypassAlignmentEnabledFlag(const Bool value)                            { m_cabacBypassAlignmentEnabledFlag = value;     }
 };
 
+/// SPS SCC class
+class TComSPSSCC
+{
+private:
+  Bool             m_useIntraBlockCopy;
+  Bool             m_usePaletteMode;
+  UInt             m_uiPaletteMaxSize;
+  UInt             m_uiPaletteMaxPredSize;
+  Int              m_motionVectorResolutionControlIdc;
+  Bool             m_disableIntraBoundaryFilter;
+
+  Bool             m_usePalettePredictor;
+  UInt             m_uiNumPalettePred;
+  Pel              m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
+public:
+  TComSPSSCC();
+  Bool settingsDifferFromDefaults() const
+  {
+    return getUseIntraBlockCopy()
+        || getUsePaletteMode()
+        || getNumPalettePred() > 0
+        || getMotionVectorResolutionControlIdc() != 0
+        || getDisableIntraBoundaryFilter();
+  }
+
+  Bool getUseIntraBlockCopy()  const                  { return m_useIntraBlockCopy;  }
+  Void setUseIntraBlockCopy(Bool value)               { m_useIntraBlockCopy = value; }
+
+  Bool getUsePaletteMode() const                      { return m_usePaletteMode;                   }
+  Void setUsePaletteMode(const Bool value)            { m_usePaletteMode = value;                  }
+
+  UInt getPaletteMaxSize() const                      { return m_uiPaletteMaxSize;                 }
+  Void setPaletteMaxSize(const UInt value)            { m_uiPaletteMaxSize = value;                }
+
+  UInt getPaletteMaxPredSize() const                  { return m_uiPaletteMaxPredSize;             }
+  Void setPaletteMaxPredSize(const UInt value)        { m_uiPaletteMaxPredSize = value;            }
+
+  Int  getMotionVectorResolutionControlIdc() const    { return m_motionVectorResolutionControlIdc; }
+  Void setMotionVectorResolutionControlIdc( Int idc ) { m_motionVectorResolutionControlIdc = idc;  }
+
+  Void setDisableIntraBoundaryFilter( Bool b)         { m_disableIntraBoundaryFilter = b;          }
+  Bool getDisableIntraBoundaryFilter() const          { return m_disableIntraBoundaryFilter;       }
+
+  Bool     getUsePalettePredictor() const             { return m_usePalettePredictor; }
+  Void     setUsePalettePredictor(Bool num)           { m_usePalettePredictor = num; }
+  UInt     getNumPalettePred() const                  { return m_uiNumPalettePred; }
+  Void     setNumPalettePred(UInt num)                { m_uiNumPalettePred = num; }
+  Pel*     getPalettePred(UInt ch) const              { return const_cast<Pel*>(m_aiPalette[ch]); }
+};
+
 /// SPS class
 class TComSPS
 {
@@ -840,6 +890,7 @@ private:
   TComVUI          m_vuiParameters;
 
   TComSPSRExt      m_spsRangeExtension;
+  TComSPSSCC       m_spsScreenExtension;
 
   static const Int m_winUnitX[NUM_CHROMA_FORMAT];
   static const Int m_winUnitY[NUM_CHROMA_FORMAT];
@@ -978,6 +1029,9 @@ public:
 
   const TComSPSRExt&     getSpsRangeExtension() const                                                    { return m_spsRangeExtension;                                          }
   TComSPSRExt&           getSpsRangeExtension()                                                          { return m_spsRangeExtension;                                          }
+  const TComSPSSCC&      getSpsScreenExtension() const                                                   { return m_spsScreenExtension;                                         }
+  TComSPSSCC&            getSpsScreenExtension()                                                         { return m_spsScreenExtension;                                         }
+
 };
 
 
@@ -1067,6 +1121,50 @@ public:
 
 };
 
+class TComPPSSCC
+{
+private:
+  Bool             m_useColourTrans;
+  Bool             m_useSliceACTOffset;
+  Int              m_actYQpOffset;
+  Int              m_actCbQpOffset;
+  Int              m_actCrQpOffset;
+  UInt             m_uiNumPalettePred;
+  Pel              m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
+  Int              m_palettePredictorBitDepth[MAX_NUM_CHANNEL_TYPE];
+  Bool             m_monochromePaletteFlag;
+  Bool             m_usePalettePredictor;
+  Bool             m_useIntraBlockCopyPps;
+public:
+  TComPPSSCC();
+
+  Bool settingsDifferFromDefaults() const
+  {
+    return getUseColourTrans()
+        || getUseIntraBlockCopy()
+        || getNumPalettePred() > 0;
+  }
+
+  Bool     getUseColourTrans()                 const { return m_useColourTrans;}
+  Void     setUseColourTrans(const Bool value)       { m_useColourTrans= value;}
+  
+  Bool     getUseSliceACTOffset()                 const { return m_useSliceACTOffset;}
+  Void     setUseSliceACTOffset(const Bool value)       { m_useSliceACTOffset= value;}
+  Void     setActQpOffset(ComponentID compID, Int i ) { if (compID==COMPONENT_Y) m_actYQpOffset = i; else if (compID==COMPONENT_Cb) m_actCbQpOffset = i; else if (compID==COMPONENT_Cr) m_actCrQpOffset= i; else assert(0); }
+  Int      getActQpOffset(ComponentID compID) const { return (compID==COMPONENT_Y) ? m_actYQpOffset : (compID==COMPONENT_Cb ? m_actCbQpOffset : m_actCrQpOffset ); }
+
+  UInt     getNumPalettePred()                     const { return m_uiNumPalettePred; }
+  Void     setNumPalettePred(UInt num)                   { m_uiNumPalettePred = num; }
+  Pel*     getPalettePred(UInt ch)                 const { return const_cast<Pel*>(m_aiPalette[ch]); }
+  Int      getPalettePredictorBitDepth(ChannelType type) const   { return m_palettePredictorBitDepth[type]; }
+  Void     setPalettePredictorBitDepth(ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }
+  Bool     getUsePalettePredictor()              const { return m_usePalettePredictor; }
+  Void     setUsePalettePredictor(Bool num)            { m_usePalettePredictor = num; }
+  Bool     getMonochromePaletteFlag()            const { return m_monochromePaletteFlag; }
+  Void     setMonochromePaletteFlag( Bool b )          { m_monochromePaletteFlag = b; }
+  Bool     getUseIntraBlockCopy()               const  { return m_useIntraBlockCopyPps;  }
+  Void     setUseIntraBlockCopy(Bool value)            { m_useIntraBlockCopyPps = value; }
+};
 
 /// PPS class
 class TComPPS
@@ -1120,8 +1218,9 @@ private:
   Bool             m_listsModificationPresentFlag;
   UInt             m_log2ParallelMergeLevelMinus2;
   Int              m_numExtraSliceHeaderBits;
-
+ 
   TComPPSRExt      m_ppsRangeExtension;
+  TComPPSSCC       m_ppsScreenExtension;
 
 public:
                          TComPPS();
@@ -1234,6 +1333,10 @@ public:
 
   const TComPPSRExt&     getPpsRangeExtension() const                                     { return m_ppsRangeExtension;                   }
   TComPPSRExt&           getPpsRangeExtension()                                           { return m_ppsRangeExtension;                   }
+  const TComPPSSCC&      getPpsScreenExtension() const                                    { return m_ppsScreenExtension;                  }
+  TComPPSSCC&            getPpsScreenExtension()                                          { return m_ppsScreenExtension;                  }
+
+
 };
 
 struct WPScalingParam
@@ -1296,6 +1399,7 @@ private:
   //  Data
   Int                        m_iSliceQpDelta;
   Int                        m_iSliceChromaQpDelta[MAX_NUM_COMPONENT];
+  Int                        m_iSliceACTQpDelta[MAX_NUM_COMPONENT];
   TComPic*                   m_apcRefPicList [NUM_REF_PIC_LIST_01][MAX_NUM_REF+1];
   Int                        m_aiRefPOCList  [NUM_REF_PIC_LIST_01][MAX_NUM_REF+1];
   Bool                       m_bIsUsedAsLongTerm[NUM_REF_PIC_LIST_01][MAX_NUM_REF+1];
@@ -1353,8 +1457,14 @@ private:
   Bool                       m_LFCrossSliceBoundaryFlag;
 
   Bool                       m_enableTMVPFlag;
+  Bool                       m_useIntegerMv;
+
+  TComPic*                   m_pcLastEncPic;
 
   SliceType                  m_encCABACTableIdx;           // Used to transmit table selection across slices.
+
+  TComPic*                   m_pcCurPicLongTerm;
+  Bool                       m_pcTwoVersionsOfCurrDecPicFlag;
 
 public:
                               TComSlice();
@@ -1399,6 +1509,7 @@ public:
 #endif
   Int                         getSliceQpDelta() const                                { return m_iSliceQpDelta;                                       }
   Int                         getSliceChromaQpDelta(ComponentID compID) const        { return isLuma(compID) ? 0 : m_iSliceChromaQpDelta[compID];    }
+  Int                         getSliceActQpDelta(ComponentID compID)    const        { return  m_iSliceACTQpDelta[compID];                           }
   Bool                        getUseChromaQpAdj() const                              { return m_ChromaQpAdjEnabled;                                  }
   Bool                        getDeblockingFilterDisable() const                     { return m_deblockingFilterDisable;                             }
   Bool                        getDeblockingFilterOverrideFlag() const                { return m_deblockingFilterOverrideFlag;                        }
@@ -1407,7 +1518,6 @@ public:
 
   Int                         getNumRefIdx( RefPicList e ) const                     { return m_aiNumRefIdx[e];                                      }
   TComPic*                    getPic()                                               { return m_pcPic;                                               }
-  const TComPic*              getPic() const                                         { return m_pcPic;                                               }
   TComPic*                    getRefPic( RefPicList e, Int iRefIdx)                  { return m_apcRefPicList[e][iRefIdx];                           }
   const TComPic*              getRefPic( RefPicList e, Int iRefIdx) const            { return m_apcRefPicList[e][iRefIdx];                           }
   Int                         getRefPOC( RefPicList e, Int iRefIdx) const            { return m_aiRefPOCList[e][iRefIdx];                            }
@@ -1438,6 +1548,7 @@ public:
   Void                        setSliceQpBase( Int i )                                { m_iSliceQpBase      = i;                                      }
 #endif
   Void                        setSliceQpDelta( Int i )                               { m_iSliceQpDelta     = i;                                      }
+  Void                        setSliceActQpDelta( ComponentID compID, Int i )        { m_iSliceACTQpDelta[compID] = i;                               }
   Void                        setSliceChromaQpDelta( ComponentID compID, Int i )     { m_iSliceChromaQpDelta[compID] = isLuma(compID) ? 0 : i;       }
   Void                        setUseChromaQpAdj( Bool b )                            { m_ChromaQpAdjEnabled = b;                                     }
   Void                        setDeblockingFilterDisable( Bool b )                   { m_deblockingFilterDisable= b;                                 }
@@ -1453,6 +1564,7 @@ public:
 
   Void                        setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTotalCurr = false );
   Void                        setRefPOCList();
+  Void                        setRefPOCListSliceHeader();
   Void                        setColFromL0Flag( Bool colFromL0 )                     { m_colFromL0Flag = colFromL0;                                  }
   Void                        setColRefIdx( UInt refIdx)                             { m_colRefIdx = refIdx;                                         }
   Void                        setCheckLDC( Bool b )                                  { m_bCheckLDC = b;                                              }
@@ -1573,8 +1685,21 @@ public:
   Void                        setEnableTMVPFlag( Bool   b )                          { m_enableTMVPFlag = b;                                         }
   Bool                        getEnableTMVPFlag() const                              { return m_enableTMVPFlag;                                      }
 
+  Void                        setUseIntegerMv( Bool b    )                           { m_useIntegerMv = b;                                           }
+  Bool                        getUseIntegerMv() const                                { return m_useIntegerMv;                                        }
+
+  TComPic*                    getLastEncPic()                                        { return m_pcLastEncPic;                                        }
+  Void                        setLastEncPic(TComPic *pcPic)                          { m_pcLastEncPic=pcPic;                                         }
+
   Void                        setEncCABACTableIdx( SliceType idx )                   { m_encCABACTableIdx = idx;                                     }
   SliceType                   getEncCABACTableIdx() const                            { return m_encCABACTableIdx;                                    }
+
+  Bool                        isOnlyCurrentPictureAsReference();
+
+  TComPic*                    getCurPicLongTerm()                                    { return m_pcCurPicLongTerm;                                    }
+  Void                        setCurPicLongTerm( TComPic* p )                        { m_pcCurPicLongTerm = p;                                       }
+  Bool                        getTwoVersionsOfCurrDecPicFlag()                       { return m_pcTwoVersionsOfCurrDecPicFlag;                       }
+  Void                        setTwoVersionsOfCurrDecPicFlag(Bool b)                 { m_pcTwoVersionsOfCurrDecPicFlag = b;                          }
 
 protected:
   TComPic*                    xGetRefPic        (TComList<TComPic*>& rcListPic, Int poc);
@@ -1582,7 +1707,7 @@ protected:
 };// END CLASS DEFINITION TComSlice
 
 
-Void calculateParameterSetChangedFlag(Bool &bChanged, const std::vector<UChar> *pOldData, const std::vector<UChar> *pNewData);
+Void calculateParameterSetChangedFlag(Bool &bChanged, const std::vector<UChar> *pOldData, const std::vector<UChar> &newData);
 
 template <class T> class ParameterSetMap
 {
@@ -1608,20 +1733,7 @@ public:
     }
   }
 
-  T *allocatePS(const Int psId)
-  {
-    assert ( psId < m_maxId );
-    if ( m_paramsetMap.find(psId) == m_paramsetMap.end() )
-    {
-      m_paramsetMap[psId].bChanged = true;
-      m_paramsetMap[psId].pNaluData=0;
-      m_paramsetMap[psId].parameterSet = new T;
-      setID(m_paramsetMap[psId].parameterSet, psId);
-    }
-    return m_paramsetMap[psId].parameterSet;
-  }
-
-  Void storePS(Int psId, T *ps, const std::vector<UChar> *pNaluData)
+  Void storePS(Int psId, T *ps, const std::vector<UChar> &naluData)
   {
     assert ( psId < m_maxId );
     if ( m_paramsetMap.find(psId) != m_paramsetMap.end() )
@@ -1629,7 +1741,7 @@ public:
       MapData<T> &mapData=m_paramsetMap[psId];
 
       // work out changed flag
-      calculateParameterSetChangedFlag(mapData.bChanged, mapData.pNaluData, pNaluData);
+      calculateParameterSetChangedFlag(mapData.bChanged, mapData.pNaluData, naluData);
       delete m_paramsetMap[psId].pNaluData;
       delete m_paramsetMap[psId].parameterSet;
 
@@ -1640,23 +1752,8 @@ public:
       m_paramsetMap[psId].parameterSet = ps;
       m_paramsetMap[psId].bChanged = false;
     }
-    if (pNaluData != 0)
-    {
-      m_paramsetMap[psId].pNaluData=new std::vector<UChar>;
-      *(m_paramsetMap[psId].pNaluData) = *pNaluData;
-    }
-    else
-    {
-      m_paramsetMap[psId].pNaluData=0;
-    }
-  }
-
-  Void setChangedFlag(Int psId, Bool bChanged=true)
-  {
-    if ( m_paramsetMap.find(psId) != m_paramsetMap.end() )
-    {
-      m_paramsetMap[psId].bChanged=bChanged;
-    }
+    m_paramsetMap[psId].pNaluData=new std::vector<UChar>;
+    *(m_paramsetMap[psId].pNaluData) = naluData;
   }
 
   Void clearChangedFlag(Int psId)
@@ -1697,10 +1794,7 @@ public:
 private:
   std::map<Int,MapData<T> > m_paramsetMap;
   Int                       m_maxId;
-
-  static Void setID(T* parameterSet, const Int psId);
 };
-
 
 class ParameterSetManager
 {
@@ -1709,7 +1803,7 @@ public:
   virtual        ~ParameterSetManager();
 
   //! store sequence parameter set and take ownership of it
-  Void           storeVPS(TComVPS *vps, const std::vector<UChar> &naluData) { m_vpsMap.storePS( vps->getVPSId(), vps, &naluData); };
+  Void           storeVPS(TComVPS *vps, const std::vector<UChar> &naluData) { m_vpsMap.storePS( vps->getVPSId(), vps, naluData); };
   //! get pointer to existing video parameter set
   TComVPS*       getVPS(Int vpsId)                                           { return m_vpsMap.getPS(vpsId); };
   Bool           getVPSChangedFlag(Int vpsId) const                          { return m_vpsMap.getChangedFlag(vpsId); }
@@ -1717,7 +1811,7 @@ public:
   TComVPS*       getFirstVPS()                                               { return m_vpsMap.getFirstPS(); };
 
   //! store sequence parameter set and take ownership of it
-  Void           storeSPS(TComSPS *sps, const std::vector<UChar> &naluData) { m_spsMap.storePS( sps->getSPSId(), sps, &naluData); };
+  Void           storeSPS(TComSPS *sps, const std::vector<UChar> &naluData) { m_spsMap.storePS( sps->getSPSId(), sps, naluData); };
   //! get pointer to existing sequence parameter set
   TComSPS*       getSPS(Int spsId)                                           { return m_spsMap.getPS(spsId); };
   Bool           getSPSChangedFlag(Int spsId) const                          { return m_spsMap.getChangedFlag(spsId); }
@@ -1725,7 +1819,7 @@ public:
   TComSPS*       getFirstSPS()                                               { return m_spsMap.getFirstPS(); };
 
   //! store picture parameter set and take ownership of it
-  Void           storePPS(TComPPS *pps, const std::vector<UChar> &naluData) { m_ppsMap.storePS( pps->getPPSId(), pps, &naluData); };
+  Void           storePPS(TComPPS *pps, const std::vector<UChar> &naluData) { m_ppsMap.storePS( pps->getPPSId(), pps, naluData); };
   //! get pointer to existing picture parameter set
   TComPPS*       getPPS(Int ppsId)                                           { return m_ppsMap.getPS(ppsId); };
   Bool           getPPSChangedFlag(Int ppsId) const                          { return m_ppsMap.getChangedFlag(ppsId); }
