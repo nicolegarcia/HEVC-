@@ -119,7 +119,7 @@ private:
   TEncSampleAdaptiveOffset*  m_pcSAO;
   TEncRateCtrl*           m_pcRateCtrl;
   // indicate sequence first
-  Bool                    m_bSeqFirst;
+  UInt                    m_uiSeqOrder;
 
   // clean decoding refresh
   Bool                    m_bRefreshPending;
@@ -136,6 +136,16 @@ private:
   TComPicYuv*             m_pcDeblockingTempPicYuv;
   Int                     m_DBParam[MAX_ENCODER_DEBLOCKING_QUALITY_LAYERS][4];   //[layer_id][0: available; 1: bDBDisabled; 2: Beta Offset Div2; 3: Tc Offset Div2;]
 #endif
+
+  Bool                    m_hasLosslessPSNR[MAX_NUM_COMPONENT];
+  Double                  m_losslessPSNR[MAX_NUM_COMPONENT];
+  Bool                    m_encodePPSPalette;
+  UInt                    m_uiNumPalettePred;
+  Pel                     m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
+  Int                     m_palettePredictorBitDepth[MAX_NUM_CHANNEL_TYPE];
+
+  list<Double>            m_CSMRate;
+  list<Double>            m_MRate;
 
 public:
   TEncGOP();
@@ -161,6 +171,15 @@ public:
   NalUnitType getNalUnitType( Int pocCurr, Int lastIdr, Bool isField );
   Void arrangeLongtermPicturesInRPS(TComSlice *, TComList<TComPic*>& );
 
+  UInt  getNumPalettePred()                       const { return m_uiNumPalettePred; }
+  Void  setNumPalettePred( UInt num )                   { m_uiNumPalettePred = num; }
+  Pel*  getPalettePred( UInt ch )                 const { return const_cast<Pel*>(m_aiPalette[ch]); }
+  Int   getPalettePredictorBitDepth( ChannelType type ) const   { return m_palettePredictorBitDepth[type]; }
+  Void  setPalettePredictorBitDepth( ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }
+#if !TEMPORAL_DISABLE_PALETTE_PREDICTOR_IN_SPS_PPS
+  TComPPS* getPPS();
+  TComSPS* getSPS();
+#endif
 protected:
   TEncRateCtrl* getRateCtrl()       { return m_pcRateCtrl;  }
 
@@ -178,6 +197,7 @@ protected:
   UInt64 xFindDistortionFrame (TComPicYuv* pcPic0, TComPicYuv* pcPic1, const BitDepths &bitDepths);
 
   Double xCalculateRVM();
+  Bool xGetUseIntegerMv( TComSlice* pcSlice );
 
   Void xWriteAccessUnitDelimiter (AccessUnit &accessUnit, TComSlice *slice);
 
