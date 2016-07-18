@@ -119,7 +119,7 @@ private:
   TEncSampleAdaptiveOffset*  m_pcSAO;
   TEncRateCtrl*           m_pcRateCtrl;
   // indicate sequence first
-  Bool                    m_bSeqFirst;
+  UInt                    m_uiSeqOrder;
 
   // clean decoding refresh
   Bool                    m_bRefreshPending;
@@ -136,6 +136,13 @@ private:
   TComPicYuv*             m_pcDeblockingTempPicYuv;
   Int                     m_DBParam[MAX_ENCODER_DEBLOCKING_QUALITY_LAYERS][4];   //[layer_id][0: available; 1: bDBDisabled; 2: Beta Offset Div2; 3: Tc Offset Div2;]
 #endif
+
+  Bool                    m_hasLosslessPSNR[MAX_NUM_COMPONENT];
+  Double                  m_losslessPSNR[MAX_NUM_COMPONENT];
+  Bool                    m_encodePPSPLT;
+  UInt                    m_uiNumPLTPred;
+  Pel                     m_aiPLT[MAX_NUM_COMPONENT][MAX_PLT_PRED_SIZE];
+  Int                     m_palettePredictorBitDepth[MAX_NUM_CHANNEL_TYPE];
 
 public:
   TEncGOP();
@@ -161,6 +168,13 @@ public:
   NalUnitType getNalUnitType( Int pocCurr, Int lastIdr, Bool isField );
   Void arrangeLongtermPicturesInRPS(TComSlice *, TComList<TComPic*>& );
 
+  UInt  getNumPLTPred()                     const { return m_uiNumPLTPred; }
+  Void  setNumPLTPred( UInt num )                   { m_uiNumPLTPred = num; }
+  Pel*  getPLTPred( UInt ch )                 const { return const_cast<Pel*>(m_aiPLT[ch]); }
+  Int   getPalettePredictorBitDepth( ChannelType type ) const   { return m_palettePredictorBitDepth[type]; }
+  Void  setPalettePredictorBitDepth( ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }
+  TComPPS* getPPS();
+  TComSPS* getSPS();
 protected:
   TEncRateCtrl* getRateCtrl()       { return m_pcRateCtrl;  }
 
@@ -173,11 +187,12 @@ protected:
   Void  xCalculateAddPSNR          ( TComPic* pcPic, TComPicYuv* pcPicD, const AccessUnit&, Double dEncTime, const InputColourSpaceConversion snr_conversion, const Bool printFrameMSE, Double* PSNR_Y );
   Void  xCalculateInterlacedAddPSNR( TComPic* pcPicOrgFirstField, TComPic* pcPicOrgSecondField,
                                      TComPicYuv* pcPicRecFirstField, TComPicYuv* pcPicRecSecondField,
-                                     const InputColourSpaceConversion snr_conversion, const Bool printFrameMSE, Double* PSNR_Y );
+                                     const InputColourSpaceConversion snr_conversion, const Bool printFrameMSE );
 
   UInt64 xFindDistortionFrame (TComPicYuv* pcPic0, TComPicYuv* pcPic1, const BitDepths &bitDepths);
 
   Double xCalculateRVM();
+  Bool xGetUseIntegerMv( TComSlice* pcSlice );
 
   Void xWriteAccessUnitDelimiter (AccessUnit &accessUnit, TComSlice *slice);
 
@@ -200,7 +215,7 @@ protected:
   Int xWriteVPS (AccessUnit &accessUnit, const TComVPS *vps);
   Int xWriteSPS (AccessUnit &accessUnit, const TComSPS *sps);
   Int xWritePPS (AccessUnit &accessUnit, const TComPPS *pps);
-  Int xWriteParameterSets (AccessUnit &accessUnit, TComSlice *slice, const Bool bSeqFirst);
+  Int xWriteParameterSets (AccessUnit &accessUnit, TComSlice *slice);
 
   Void applyDeblockingFilterMetric( TComPic* pcPic, UInt uiNumSlices );
 #if W0038_DB_OPT

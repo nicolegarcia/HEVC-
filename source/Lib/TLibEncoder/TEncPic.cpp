@@ -122,13 +122,13 @@ TEncPic::~TEncPic()
  * \param bIsVirtual
  */
 #if REDUCED_ENCODER_MEMORY
-Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth )
+Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize )
 {
-  TComPic::create( sps, pps, true, false );
+  TComPic::create( sps, pps, uiPLTMaxSize, uiPLTMaxPredSize, true, false );
 #else
-Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, Bool bIsVirtual )
+Void TEncPic::create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, Bool bIsVirtual )
 {
-  TComPic::create( sps, pps, bIsVirtual );
+  TComPic::create( sps, pps, uiPLTMaxSize, uiPLTMaxPredSize, bIsVirtual );
 #endif
   const Int  iWidth      = sps.getPicWidthInLumaSamples();
   const Int  iHeight     = sps.getPicHeightInLumaSamples();

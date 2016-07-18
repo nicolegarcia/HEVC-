@@ -103,9 +103,9 @@ public:
   virtual ~TEncPic();
 
 #if REDUCED_ENCODER_MEMORY
-  Void          create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth );
+  Void          create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize );
 #else
-  Void          create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, Bool bIsVirtual /* = false*/ );
+  Void          create( const TComSPS &sps, const TComPPS &pps, UInt uiMaxAdaptiveQPDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, Bool bIsVirtual /* = false*/ );
 #endif
   virtual Void  destroy();
 

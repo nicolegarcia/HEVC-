@@ -139,12 +139,12 @@ private:
 
 public:
 #if REDUCED_ENCODER_MEMORY
-  Void               create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, const Bool bAllocateCtuArray );
-  Void               prepareForReconstruction();
+  Void               create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize, const Bool bAllocateCtuArray );
+  Void               prepareForReconstruction( UInt uiPLTMaxSize, UInt uiPLTMaxPredSize );
   Void               releaseReconstructionIntermediateData();
   Void               releaseAllReconstructionData();
 #else
-  Void               create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth );
+  Void               create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, UInt uiPLTMaxSize, UInt uiPLTMaxPredSize );
 #endif
   Void               destroy ();
 

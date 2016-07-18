@@ -43,7 +43,7 @@
 #endif
 
 #include <vector>
-#include <utility>
+#include <cstdlib>
 
 //! \ingroup TLibCommon
 //! \{
@@ -126,19 +126,6 @@
 #endif
 #define W0038_DB_OPT                                      1 ///< adaptive DB parameter selection, LoopFilterOffsetInPPS and LoopFilterDisable are set to 0 and DeblockingFilterMetric=2;
 #define W0038_CQP_ADJ                                     1 ///< chroma QP adjustment based on TL, CQPTLAdjustEnabled is set to 1;
-
-#define SHARP_LUMA_DELTA_QP                               1 ///< inculde non-normative LCU deltaQP and normative chromaQP change
-#define ER_CHROMA_QP_WCG_PPS                              1 ///< Chroma QP model for WCG used in Anchor 3.2
-
-
-#if defined __SSE2__ || defined __AVX2__ || defined __AVX__ || defined _M_AMD64 || defined _M_X64
-#define VECTOR_CODING__INTERPOLATION_FILTER               1 ///< enable vector coding for the interpolation filter. 1 (default if SSE possible) disable SSE vector coding. Should not affect RD costs/decisions. Code back-ported from JEM2.0.
-#define VECTOR_CODING__DISTORTION_CALCULATIONS            1 ///< enable vector coding for distortion calculations   1 (default if SSE possible) disable SSE vector coding. Should not affect RD costs/decisions. Code back-ported from JEM2.0.
-#else
-#define VECTOR_CODING__INTERPOLATION_FILTER               0 ///< enable vector coding for the interpolation filter. 0 (default if SSE not possible) disable SSE vector coding. Should not affect RD costs/decisions. Code back-ported from JEM2.0.
-#define VECTOR_CODING__DISTORTION_CALCULATIONS            0 ///< enable vector coding for distortion calculations   0 (default if SSE not possible) disable SSE vector coding. Should not affect RD costs/decisions. Code back-ported from JEM2.0.
-#endif
-
 // ====================================================================================================================
 // Derived macros
 // ====================================================================================================================
@@ -180,7 +167,6 @@
   #define DEBUG_STRING_SWAP(srt1, str2)
   #define DEBUG_STRING_CHANNEL_CONDITION(compID)
 #endif
-
 // ====================================================================================================================
 // Error checks
 // ====================================================================================================================
@@ -188,6 +174,32 @@
 #if ((RExt__HIGH_PRECISION_FORWARD_TRANSFORM != 0) && (RExt__HIGH_BIT_DEPTH_SUPPORT == 0))
 #error ERROR: cannot enable RExt__HIGH_PRECISION_FORWARD_TRANSFORM without RExt__HIGH_BIT_DEPTH_SUPPORT
 #endif
+
+// ====================================================================================================================
+// SCC control settings
+// ====================================================================================================================
+
+
+//------------------------------------------------
+// Processing controls
+//------------------------------------------------
+
+#define SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS             1 ///< Align profile indications with spec in JCTVC-W1005
+//------------------------------------------------
+// Derived macros
+//------------------------------------------------
+
+#define SCM_S0067_NUM_CANDIDATES                         64 ///< Maximum number of candidates to store/test
+#define SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU               2 ///< Do full horizontal/vertical search for Nx2N
+#define SCM_S0067_MAX_CAND_SIZE                          32 ///< 32 or 64, 16 by default
+#define SCM_T0227_INTER_SEARCH_YUV                        1 ///< use 3 components for Inter in mixed CU decision(Intra BC and inter CU)
+#define SCM_T0048_PLT_PRED_IN_PPS_REFRESH                16 ///< Periodicity of the palette refresh
+#define SCM_V0034_PLT_CHROMA_SHIFT_ADJ                    5 ///< Chroma error weight as a right shift
+#define SCM_V0034_PLT_CHROMA_SETTINGS     (1<<SCM_V0034_PLT_CHROMA_SHIFT_ADJ) // Weight for non-discarded pixels
+
+//------------------------------------------------
+// Backwards-compatibility
+//------------------------------------------------
 
 // ====================================================================================================================
 // Basic type redefinition
@@ -364,7 +376,9 @@ enum RefPicList
 {
   REF_PIC_LIST_0               = 0,   ///< reference list 0
   REF_PIC_LIST_1               = 1,   ///< reference list 1
+  REF_PIC_LIST_INTRABC         = 0,
   NUM_REF_PIC_LIST_01          = 2,
+  NUM_REF_PIC_LIST_CU_MV_FIELD = 2,
   REF_PIC_LIST_X               = 100  ///< special mark
 };
 
@@ -468,7 +482,8 @@ enum COEFF_SCAN_TYPE
   SCAN_DIAG = 0,        ///< up-right diagonal scan
   SCAN_HOR  = 1,        ///< horizontal first scan
   SCAN_VER  = 2,        ///< vertical first scan
-  SCAN_NUMBER_OF_TYPES = 3
+  SCAN_TRAV = 3,
+  SCAN_NUMBER_OF_TYPES = 4
 };
 
 enum COEFF_SCAN_GROUP_TYPE
@@ -577,6 +592,11 @@ namespace Profile
     MAINSTILLPICTURE = 3,
     MAINREXT = 4,
     HIGHTHROUGHPUTREXT = 5
+#if SCM_SPEC_ALIGN_OF_PROFILE_INDICATORS
+   ,MAINSCC  = 9
+#else
+   ,MAINSCC  = 31 // Placeholder profile for development
+#endif 
   };
 }
 
@@ -639,6 +659,7 @@ enum SPSExtensionFlagIndex
   SPS_EXT__REXT           = 0,
 //SPS_EXT__MVHEVC         = 1, //for use in future versions
 //SPS_EXT__SHVC           = 2, //for use in future versions
+  SPS_EXT__SCC            = 3, // place holder
   NUM_SPS_EXTENSION_FLAGS = 8
 };
 
@@ -647,6 +668,7 @@ enum PPSExtensionFlagIndex
   PPS_EXT__REXT           = 0,
 //PPS_EXT__MVHEVC         = 1, //for use in future versions
 //PPS_EXT__SHVC           = 2, //for use in future versions
+  PPS_EXT__SCC            = 3,
   NUM_PPS_EXTENSION_FLAGS = 8
 };
 
@@ -731,15 +753,12 @@ enum NalUnitType
   NAL_UNIT_INVALID,
 };
 
-#if SHARP_LUMA_DELTA_QP
-enum LumaLevelToDQPMode
+enum ACTRDTestTypes
 {
-  LUMALVL_TO_DQP_DISABLED   = 0,
-  LUMALVL_TO_DQP_AVG_METHOD = 1, // use average of CTU to determine luma level
-  LUMALVL_TO_DQP_MAX_METHOD = 2,  // use maximum value of CTU to determine luma level
-  LUMALVL_TO_DQP_NUM_MODES  = 3
+  ACT_TWO_CLR            = 0,  //two color space
+  ACT_TRAN_CLR           = 1,  //transformed color space
+  ACT_ORG_CLR            = 2   //original color space
 };
-#endif
 
 // ====================================================================================================================
 // Type definition
@@ -880,27 +899,119 @@ struct TComSEIMasteringDisplay
   UShort    whitePoint[2];
 };
 
-#if SHARP_LUMA_DELTA_QP
-struct LumaLevelToDeltaQPMapping
+struct TComACTTURDCost
 {
-  LumaLevelToDQPMode                 mode;             ///< use deltaQP determined by block luma level
-  Double                             maxMethodWeight;  ///< weight of max luma value when mode = 2
-  std::vector< std::pair<Int, Int> > mapping;          ///< first=luma level, second=delta QP.
-  Bool isEnabled() const { return mode!=LUMALVL_TO_DQP_DISABLED; }
+  Double tmpRDCostCSCEnabled;
+  Double tmpRDCostCSCDisabled;
+  UInt   uiIsCSCEnabled;        //0 - original; 1 - transform; 2 - neutral
 };
-#endif
 
-#if ER_CHROMA_QP_WCG_PPS
-struct WCGChromaQPControl
+enum PLTRunMode
 {
-  Bool isEnabled() const { return enabled; }
-  Bool   enabled;         ///< Enabled flag (0:default)
-  Double chromaCbQpScale; ///< Chroma Cb QP Scale (1.0:default)
-  Double chromaCrQpScale; ///< Chroma Cr QP Scale (1.0:default)
-  Double chromaQpScale;   ///< Chroma QP Scale (0.0:default)
-  Double chromaQpOffset;  ///< Chroma QP Offset (0.0:default)
+  PLT_RUN_LEFT  = 0,
+  PLT_RUN_ABOVE = 1,
+  NUM_PLT_RUN   = 2
 };
-#endif
+
+enum PLTScanMode
+{
+  PLT_SCAN_HORTRAV = 0,
+  PLT_SCAN_VERTRAV = 1,
+  NUM_PLT_SCAN     = 2
+};
+
+class SortingElement
+{
+public:
+  UInt uiCnt;
+  Int uiData[3];
+  Int uiShift, uiLastCnt, uiSumData[3];
+
+  inline Bool operator<(const SortingElement &other) const
+  {
+    return uiCnt > other.uiCnt;
+  }
+
+  SortingElement() {
+    uiCnt = uiShift = uiLastCnt = 0;
+    uiData[0] = uiData[1] = uiData[2] = 0;
+    uiSumData[0] = uiSumData[1] = uiSumData[2] = 0;
+  }
+  Void setAll(UInt ui0, UInt ui1, UInt ui2) {
+    if( !ui0 && !ui1 && !ui2 )
+    {
+      uiShift = uiLastCnt = 0;
+      uiSumData[0] = uiSumData[1] = uiSumData[2] = 0;
+    }
+    uiData[0] = ui0; uiData[1] = ui1; uiData[2] = ui2;
+  }
+
+  Bool EqualData(SortingElement sElement)
+  {
+    return (uiData[0] == sElement.uiData[0]) && (uiData[1] == sElement.uiData[1]) && (uiData[2] == sElement.uiData[2]);
+  }
+
+  Void ResetElement()
+  {
+    uiCnt = uiShift = uiLastCnt = 0;
+    uiData[0] = uiData[1] = uiData[2] = 0;
+    uiSumData[0] = uiSumData[1] = uiSumData[2] = 0;
+  }
+
+  Bool almostEqualData(SortingElement sElement, Int iErrorLimit, const BitDepths& bitDepths)
+  {
+    return ( std::abs(uiData[0] - sElement.uiData[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) ) <= iErrorLimit
+        && ( std::abs(uiData[1] - sElement.uiData[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit
+        && ( std::abs(uiData[2] - sElement.uiData[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit;
+  }
+  UInt getSAD(SortingElement sElement, const BitDepths& bitDepths)
+  {
+    return ( std::abs(uiData[0] - sElement.uiData[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) )
+         + ( std::abs(uiData[1] - sElement.uiData[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) )
+         + ( std::abs(uiData[2] - sElement.uiData[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) );
+  }
+
+  Void copyDataFrom(SortingElement sElement) {
+    uiData[0] = sElement.uiData[0];
+    uiData[1] = sElement.uiData[1];
+    uiData[2] = sElement.uiData[2];
+    uiShift = 0; uiLastCnt = 1; uiSumData[0] = uiData[0]; uiSumData[1] = uiData[1]; uiSumData[2] = uiData[2];
+  }
+  Void copyAllFrom(SortingElement sElement) {
+    copyDataFrom(sElement); uiCnt = sElement.uiCnt;
+    uiSumData[0] = sElement.uiSumData[0]; uiSumData[1] = sElement.uiSumData[1]; uiSumData[2] = sElement.uiSumData[2];
+    uiLastCnt = sElement.uiLastCnt; uiShift = sElement.uiShift;
+  }
+
+  Void addElement(const SortingElement& sElement)
+  {
+    uiCnt++;
+    for ( int i=0; i<3; i++ )
+    {
+      uiSumData[i] += sElement.uiData[i];
+    }
+    if( uiCnt>1 && uiCnt==2*uiLastCnt )
+    {
+      UInt uiRnd;
+      if( uiCnt == 2 )
+      {
+        uiShift = 0;
+        uiRnd   = 1;
+      }
+      else
+      {
+        uiRnd = 1<<uiShift;
+      }
+      uiShift++;
+      for ( int i=0; i<3; i++ )
+      {
+        uiData[i] = (uiSumData[i] + uiRnd) >> uiShift;
+      }
+      uiLastCnt = uiCnt;
+    }
+  }
+};
+
 
 //! \}
 
