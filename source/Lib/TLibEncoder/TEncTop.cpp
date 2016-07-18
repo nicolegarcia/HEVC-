@@ -50,9 +50,7 @@
 // Constructor / destructor / create / destroy
 // ====================================================================================================================
 
-TEncTop::TEncTop() :
-    m_spsMap(MAX_NUM_SPS)
-  , m_ppsMap(MAX_NUM_PPS)
+TEncTop::TEncTop()
 {
   m_iPOCLast          = -1;
   m_iNumPicRcvd       =  0;
@@ -90,11 +88,14 @@ Void TEncTop::create ()
 {
   // initialize global variables
   initROM();
+  TComHash::initBlockSizeToIndex();
 
   // create processing unit classes
   m_cGOPEncoder.        create( );
   m_cSliceEncoder.      create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth );
-  m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC );
+  m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC
+                         ,m_uiPaletteMaxSize, m_uiPaletteMaxPredSize
+     );
   if (m_bUseSAO)
   {
     m_cEncSAO.create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth, m_log2SaoOffsetScale[CHANNEL_TYPE_LUMA], m_log2SaoOffsetScale[CHANNEL_TYPE_CHROMA] );
@@ -182,42 +183,28 @@ Void TEncTop::destroy ()
 
 Void TEncTop::init(Bool isFieldCoding)
 {
-  TComSPS &sps0=*(m_spsMap.allocatePS(0)); // NOTE: implementations that use more than 1 SPS need to be aware of activation issues.
-  TComPPS &pps0=*(m_ppsMap.allocatePS(0));
   // initialize SPS
-  xInitSPS(sps0);
-  xInitVPS(m_cVPS, sps0);
+  xInitSPS();
+  xInitVPS();
 
 #if U0132_TARGET_BITS_SATURATION
   if (m_RCCpbSaturationEnabled)
   {
-    m_cRateCtrl.initHrdParam(sps0.getVuiParameters()->getHrdParameters(), m_iFrameRate, m_RCInitialCpbFullness);
+    m_cRateCtrl.initHrdParam(m_cSPS.getVuiParameters()->getHrdParameters(), m_iFrameRate, m_RCInitialCpbFullness);
   }
 #endif
   m_cRdCost.setCostMode(m_costMode);
 
   // initialize PPS
-  xInitPPS(pps0, sps0);
-  xInitRPS(sps0, isFieldCoding);
+  xInitPPS();
+  xInitRPS(isFieldCoding);
 
-#if ER_CHROMA_QP_WCG_PPS
-  xInitScalingLists(sps0, pps0);
-
-  if (m_wcgChromaQpControl.isEnabled())
-  {
-    TComPPS &pps1=*(m_ppsMap.allocatePS(1));
-    xInitPPS(pps1, sps0);
-    xInitScalingLists(sps0, pps1);
-  }
-#endif
+  xInitPPSforTiles();
 
   // initialize processing unit classes
   m_cGOPEncoder.  init( this );
   m_cSliceEncoder.init( this );
   m_cCuEncoder.   init( this );
-#if SHARP_LUMA_DELTA_QP
-  m_cCuEncoder.setSliceEncoder(&m_cSliceEncoder);
-#endif
 
   // initialize transform & quantization class
   m_pcCavlcCoder = getCavlcCoder();
@@ -239,50 +226,48 @@ Void TEncTop::init(Bool isFieldCoding)
   m_cSearch.init( this, &m_cTrQuant, m_iSearchRange, m_bipredSearchRange, m_motionEstimationSearchMethod, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth, &m_cEntropyCoder, &m_cRdCost, getRDSbacCoder(), getRDGoOnSbacCoder() );
 
   m_iMaxRefPicNum = 0;
-#if !ER_CHROMA_QP_WCG_PPS
 
-  xInitScalingLists(sps0, pps0);
-#endif
+  xInitScalingLists();
 }
 
-Void TEncTop::xInitScalingLists(TComSPS &sps, TComPPS &pps)
+Void TEncTop::xInitScalingLists()
 {
   // Initialise scaling lists
   // The encoder will only use the SPS scaling lists. The PPS will never be marked present.
   const Int maxLog2TrDynamicRange[MAX_NUM_CHANNEL_TYPE] =
   {
-      sps.getMaxLog2TrDynamicRange(CHANNEL_TYPE_LUMA),
-      sps.getMaxLog2TrDynamicRange(CHANNEL_TYPE_CHROMA)
+      m_cSPS.getMaxLog2TrDynamicRange(CHANNEL_TYPE_LUMA),
+      m_cSPS.getMaxLog2TrDynamicRange(CHANNEL_TYPE_CHROMA)
   };
   if(getUseScalingListId() == SCALING_LIST_OFF)
   {
-    getTrQuant()->setFlatScalingList(maxLog2TrDynamicRange, sps.getBitDepths());
+    getTrQuant()->setFlatScalingList(maxLog2TrDynamicRange, m_cSPS.getBitDepths());
     getTrQuant()->setUseScalingList(false);
-    sps.setScalingListPresentFlag(false);
-    pps.setScalingListPresentFlag(false);
+    m_cSPS.setScalingListPresentFlag(false);
+    m_cPPS.setScalingListPresentFlag(false);
   }
   else if(getUseScalingListId() == SCALING_LIST_DEFAULT)
   {
-    sps.getScalingList().setDefaultScalingList ();
-    sps.setScalingListPresentFlag(false);
-    pps.setScalingListPresentFlag(false);
+    m_cSPS.getScalingList().setDefaultScalingList ();
+    m_cSPS.setScalingListPresentFlag(false);
+    m_cPPS.setScalingListPresentFlag(false);
 
-    getTrQuant()->setScalingList(&(sps.getScalingList()), maxLog2TrDynamicRange, sps.getBitDepths());
+    getTrQuant()->setScalingList(&(m_cSPS.getScalingList()), maxLog2TrDynamicRange, m_cSPS.getBitDepths());
     getTrQuant()->setUseScalingList(true);
   }
   else if(getUseScalingListId() == SCALING_LIST_FILE_READ)
   {
-    sps.getScalingList().setDefaultScalingList ();
-    if(sps.getScalingList().xParseScalingList(getScalingListFileName()))
+    m_cSPS.getScalingList().setDefaultScalingList ();
+    if(m_cSPS.getScalingList().xParseScalingList(getScalingListFileName()))
     {
       Bool bParsedScalingList=false; // Use of boolean so that assertion outputs useful string
       assert(bParsedScalingList);
       exit(1);
     }
-    sps.getScalingList().checkDcOfMatrix();
-    sps.setScalingListPresentFlag(sps.getScalingList().checkDefaultScalingList());
-    pps.setScalingListPresentFlag(false);
-    getTrQuant()->setScalingList(&(sps.getScalingList()), maxLog2TrDynamicRange, sps.getBitDepths());
+    m_cSPS.getScalingList().checkDcOfMatrix();
+    m_cSPS.setScalingListPresentFlag(m_cSPS.getScalingList().checkDefaultScalingList());
+    m_cPPS.setScalingListPresentFlag(false);
+    getTrQuant()->setScalingList(&(m_cSPS.getScalingList()), maxLog2TrDynamicRange, m_cSPS.getBitDepths());
     getTrQuant()->setUseScalingList(true);
   }
   else
@@ -300,7 +285,7 @@ Void TEncTop::xInitScalingLists(TComSPS &sps, TComPPS &pps)
 
       for(UInt listId = 0; listId < SCALING_LIST_NUM; listId+=predListStep)
       {
-        sps.getScalingList().checkPredMode( sizeId, listId );
+        m_cSPS.getScalingList().checkPredMode( sizeId, listId );
       }
     }
   }
@@ -345,16 +330,7 @@ Void TEncTop::encode( Bool flush, TComPicYuv* pcPicYuvOrg, TComPicYuv* pcPicYuvT
     // get original YUV
     TComPic* pcPicCurr = NULL;
 
-#if ER_CHROMA_QP_WCG_PPS
-    Int ppsID=-1; // Use default PPS ID
-    if (getWCGChromaQPControl().isEnabled())
-    {
-      ppsID=getdQPs()[ m_iPOCLast+1 ];
-    }
-    xGetNewPicBuffer( pcPicCurr, ppsID );
-#else
-    xGetNewPicBuffer( pcPicCurr, -1 ); // Uses default PPS ID. However, could be modified, for example, to use a PPS ID as a function of POC (m_iPOCLast+1)
-#endif
+    xGetNewPicBuffer( pcPicCurr );
     pcPicYuvOrg->copyToPic( pcPicCurr->getPicYuvOrg() );
     pcPicYuvTrueOrg->copyToPic( pcPicCurr->getPicYuvTrueOrg() );
 
@@ -424,7 +400,7 @@ Void TEncTop::encode(Bool flush, TComPicYuv* pcPicYuvOrg, TComPicYuv* pcPicYuvTr
       const Bool isTopField=isTff==(fieldNum==0);
 
       TComPic *pcField;
-      xGetNewPicBuffer( pcField, -1 );
+      xGetNewPicBuffer( pcField );
       pcField->setReconMark (false);                     // where is this normally?
 
       if (fieldNum==1)                                   // where is this normally?
@@ -501,63 +477,44 @@ Void TEncTop::encode(Bool flush, TComPicYuv* pcPicYuvOrg, TComPicYuv* pcPicYuvTr
  .
  \retval rpcPic obtained picture buffer
  */
-Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic, Int ppsId )
+Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic )
 {
-  rpcPic=0;
-
   // At this point, the SPS and PPS can be considered activated - they are copied to the new TComPic.
-  const TComPPS *pPPS=(ppsId<0) ? m_ppsMap.getFirstPS() : m_ppsMap.getPS(ppsId);
-  assert (pPPS!=0);
-  const TComPPS &pps=*pPPS;
-
-  const TComSPS *pSPS=m_spsMap.getPS(pps.getSPSId());
-  assert (pSPS!=0);
-  const TComSPS &sps=*pSPS;
 
   TComSlice::sortPicList(m_cListPic);
 
-  // use an entry in the buffered list if the maximum number that need buffering has been reached:
+
   if (m_cListPic.size() >= (UInt)(m_iGOPSize + getMaxDecPicBuffering(MAX_TLAYER-1) + 2) )
   {
     TComList<TComPic*>::iterator iterPic  = m_cListPic.begin();
     Int iSize = Int( m_cListPic.size() );
     for ( Int i = 0; i < iSize; i++ )
     {
-      rpcPic = *iterPic;
+      rpcPic = *(iterPic++);
       if(rpcPic->getSlice(0)->isReferenced() == false)
       {
         break;
       }
-      iterPic++;
     }
-
-    // If PPS ID is the same, we will assume that it has not changed since it was last used
-    // and return the old object.
-    if (pps.getPPSId() == rpcPic->getPicSym()->getPPS().getPPSId())
-    {
 #if REDUCED_ENCODER_MEMORY
-      rpcPic->releaseAllReconstructionData();
-      rpcPic->prepareForEncoderSourcePicYuv();
-#endif
-    }
-    else
+    if ( getMotionVectorResolutionControlIdc() == 2 )
     {
-      // the IDs differ - free up an entry in the list, and then create a new one, as with the case where the max buffering state has not been reached.
-      delete rpcPic;
-      m_cListPic.erase(iterPic);
-      rpcPic=0;
+      // has not been released if getMotionVectorResolutionControlIdc() == 2
+      rpcPic->releaseEncoderSourceImageData();
     }
+    rpcPic->releaseAllReconstructionData();
+    rpcPic->prepareForEncoderSourcePicYuv();
+#endif
   }
-
-  if (rpcPic==0)
+  else
   {
     if ( getUseAdaptiveQP() )
     {
       TEncPic* pcEPic = new TEncPic;
 #if REDUCED_ENCODER_MEMORY
-      pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1);
+      pcEPic->create( m_cSPS, m_cPPS, m_cPPS.getMaxCuDQPDepth()+1 );
 #else
-      pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1, false);
+      pcEPic->create( m_cSPS, m_cPPS, m_cPPS.getMaxCuDQPDepth()+1, false);
 #endif
       rpcPic = pcEPic;
     }
@@ -565,9 +522,9 @@ Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic, Int ppsId )
     {
       rpcPic = new TComPic;
 #if REDUCED_ENCODER_MEMORY
-      rpcPic->create( sps, pps, true, false );
+      rpcPic->create( m_cSPS, m_cPPS, true, false );
 #else
-      rpcPic->create( sps, pps, false );
+      rpcPic->create( m_cSPS, m_cPPS, false );
 #endif
     }
 
@@ -583,29 +540,37 @@ Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic, Int ppsId )
   // mark it should be extended
   rpcPic->getPicYuvRec()->setBorderExtension(false);
 #endif
+  rpcPic->getHashMap()->clearAll();
+  if( getRGBFormatFlag() && getUseColourTrans() )
+  {
+    if( rpcPic->getPicYuvCSC() == NULL )
+    {
+      rpcPic->allocateCSCBuffer( m_iSourceWidth, m_iSourceHeight, m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth );
+    }
+  }
 }
 
-Void TEncTop::xInitVPS(TComVPS &vps, const TComSPS &sps)
+Void TEncTop::xInitVPS()
 {
   // The SPS must have already been set up.
   // set the VPS profile information.
-  *vps.getPTL() = *sps.getPTL();
-  vps.setMaxOpSets(1);
-  vps.getTimingInfo()->setTimingInfoPresentFlag       ( false );
-  vps.setNumHrdParameters( 0 );
+  *m_cVPS.getPTL() = *m_cSPS.getPTL();
+  m_cVPS.setMaxOpSets(1);
+  m_cVPS.getTimingInfo()->setTimingInfoPresentFlag       ( false );
+  m_cVPS.setNumHrdParameters( 0 );
 
-  vps.createHrdParamBuffer();
-  for( UInt i = 0; i < vps.getNumHrdParameters(); i ++ )
+  m_cVPS.createHrdParamBuffer();
+  for( UInt i = 0; i < m_cVPS.getNumHrdParameters(); i ++ )
   {
-    vps.setHrdOpSetIdx( 0, i );
-    vps.setCprmsPresentFlag( false, i );
+    m_cVPS.setHrdOpSetIdx( 0, i );
+    m_cVPS.setCprmsPresentFlag( false, i );
     // Set up HrdParameters here.
   }
 }
 
-Void TEncTop::xInitSPS(TComSPS &sps)
+Void TEncTop::xInitSPS()
 {
-  ProfileTierLevel& profileTierLevel = *sps.getPTL()->getGeneralPTL();
+  ProfileTierLevel& profileTierLevel = *m_cSPS.getPTL()->getGeneralPTL();
   profileTierLevel.setLevelIdc(m_level);
   profileTierLevel.setTierFlag(m_levelTier);
   profileTierLevel.setProfileIdc(m_profile);
@@ -634,16 +599,16 @@ Void TEncTop::xInitSPS(TComSPS &sps)
   /* XXX: may be a good idea to refactor the above into a function
    * that chooses the actual compatibility based upon options */
 
-  sps.setPicWidthInLumaSamples  ( m_iSourceWidth      );
-  sps.setPicHeightInLumaSamples ( m_iSourceHeight     );
-  sps.setConformanceWindow      ( m_conformanceWindow );
-  sps.setMaxCUWidth             ( m_maxCUWidth        );
-  sps.setMaxCUHeight            ( m_maxCUHeight       );
-  sps.setMaxTotalCUDepth        ( m_maxTotalCUDepth   );
-  sps.setChromaFormatIdc( m_chromaFormatIDC);
-  sps.setLog2DiffMaxMinCodingBlockSize(m_log2DiffMaxMinCodingBlockSize);
+  m_cSPS.setPicWidthInLumaSamples  ( m_iSourceWidth      );
+  m_cSPS.setPicHeightInLumaSamples ( m_iSourceHeight     );
+  m_cSPS.setConformanceWindow      ( m_conformanceWindow );
+  m_cSPS.setMaxCUWidth             ( m_maxCUWidth        );
+  m_cSPS.setMaxCUHeight            ( m_maxCUHeight       );
+  m_cSPS.setMaxTotalCUDepth        ( m_maxTotalCUDepth   );
+  m_cSPS.setChromaFormatIdc( m_chromaFormatIDC);
+  m_cSPS.setLog2DiffMaxMinCodingBlockSize(m_log2DiffMaxMinCodingBlockSize);
 
-  Int minCUSize = sps.getMaxCUWidth() >> ( sps.getLog2DiffMaxMinCodingBlockSize() );
+  Int minCUSize = m_cSPS.getMaxCUWidth() >> ( m_cSPS.getLog2DiffMaxMinCodingBlockSize() );
   Int log2MinCUSize = 0;
   while(minCUSize > 1)
   {
@@ -651,52 +616,52 @@ Void TEncTop::xInitSPS(TComSPS &sps)
     log2MinCUSize++;
   }
 
-  sps.setLog2MinCodingBlockSize(log2MinCUSize);
+  m_cSPS.setLog2MinCodingBlockSize(log2MinCUSize);
 
-  sps.setPCMLog2MinSize (m_uiPCMLog2MinSize);
-  sps.setUsePCM        ( m_usePCM           );
-  sps.setPCMLog2MaxSize( m_pcmLog2MaxSize  );
+  m_cSPS.setPCMLog2MinSize (m_uiPCMLog2MinSize);
+  m_cSPS.setUsePCM        ( m_usePCM           );
+  m_cSPS.setPCMLog2MaxSize( m_pcmLog2MaxSize  );
 
-  sps.setQuadtreeTULog2MaxSize( m_uiQuadtreeTULog2MaxSize );
-  sps.setQuadtreeTULog2MinSize( m_uiQuadtreeTULog2MinSize );
-  sps.setQuadtreeTUMaxDepthInter( m_uiQuadtreeTUMaxDepthInter    );
-  sps.setQuadtreeTUMaxDepthIntra( m_uiQuadtreeTUMaxDepthIntra    );
+  m_cSPS.setQuadtreeTULog2MaxSize( m_uiQuadtreeTULog2MaxSize );
+  m_cSPS.setQuadtreeTULog2MinSize( m_uiQuadtreeTULog2MinSize );
+  m_cSPS.setQuadtreeTUMaxDepthInter( m_uiQuadtreeTUMaxDepthInter    );
+  m_cSPS.setQuadtreeTUMaxDepthIntra( m_uiQuadtreeTUMaxDepthIntra    );
 
-  sps.setSPSTemporalMVPEnabledFlag((getTMVPModeId() == 2 || getTMVPModeId() == 1));
+  m_cSPS.setSPSTemporalMVPEnabledFlag((getTMVPModeId() == 2 || getTMVPModeId() == 1));
 
-  sps.setMaxTrSize   ( 1 << m_uiQuadtreeTULog2MaxSize );
+  m_cSPS.setMaxTrSize   ( 1 << m_uiQuadtreeTULog2MaxSize );
 
-  sps.setUseAMP ( m_useAMP );
+  m_cSPS.setUseAMP ( m_useAMP );
 
   for (UInt channelType = 0; channelType < MAX_NUM_CHANNEL_TYPE; channelType++)
   {
-    sps.setBitDepth      (ChannelType(channelType), m_bitDepth[channelType] );
+    m_cSPS.setBitDepth      (ChannelType(channelType), m_bitDepth[channelType] );
 #if O0043_BEST_EFFORT_DECODING
-    sps.setStreamBitDepth(ChannelType(channelType), m_bitDepth[channelType] );
+    m_cSPS.setStreamBitDepth(ChannelType(channelType), m_bitDepth[channelType] );
 #endif
-    sps.setQpBDOffset  (ChannelType(channelType), (6 * (m_bitDepth[channelType] - 8)));
-    sps.setPCMBitDepth (ChannelType(channelType), m_PCMBitDepth[channelType]         );
+    m_cSPS.setQpBDOffset  (ChannelType(channelType), (6 * (m_bitDepth[channelType] - 8)));
+    m_cSPS.setPCMBitDepth (ChannelType(channelType), m_PCMBitDepth[channelType]         );
   }
 
-  sps.setUseSAO( m_bUseSAO );
+  m_cSPS.setUseSAO( m_bUseSAO );
 
-  sps.setMaxTLayers( m_maxTempLayer );
-  sps.setTemporalIdNestingFlag( ( m_maxTempLayer == 1 ) ? true : false );
+  m_cSPS.setMaxTLayers( m_maxTempLayer );
+  m_cSPS.setTemporalIdNestingFlag( ( m_maxTempLayer == 1 ) ? true : false );
 
-  for (Int i = 0; i < min(sps.getMaxTLayers(),(UInt) MAX_TLAYER); i++ )
+  for (Int i = 0; i < min(m_cSPS.getMaxTLayers(),(UInt) MAX_TLAYER); i++ )
   {
-    sps.setMaxDecPicBuffering(m_maxDecPicBuffering[i], i);
-    sps.setNumReorderPics(m_numReorderPics[i], i);
+    m_cSPS.setMaxDecPicBuffering(m_maxDecPicBuffering[i], i);
+    m_cSPS.setNumReorderPics(m_numReorderPics[i], i);
   }
 
-  sps.setPCMFilterDisableFlag  ( m_bPCMFilterDisableFlag );
-  sps.setScalingListFlag ( (m_useScalingListId == SCALING_LIST_OFF) ? 0 : 1 );
-  sps.setUseStrongIntraSmoothing( m_useStrongIntraSmoothing );
-  sps.setVuiParametersPresentFlag(getVuiParametersPresentFlag());
+  m_cSPS.setPCMFilterDisableFlag  ( m_bPCMFilterDisableFlag );
+  m_cSPS.setScalingListFlag ( (m_useScalingListId == SCALING_LIST_OFF) ? 0 : 1 );
+  m_cSPS.setUseStrongIntraSmoothing( m_useStrongIntraSmoothing );
+  m_cSPS.setVuiParametersPresentFlag(getVuiParametersPresentFlag());
 
-  if (sps.getVuiParametersPresentFlag())
+  if (m_cSPS.getVuiParametersPresentFlag())
   {
-    TComVUI* pcVUI = sps.getVuiParameters();
+    TComVUI* pcVUI = m_cSPS.getVuiParameters();
     pcVUI->setAspectRatioInfoPresentFlag(getAspectRatioInfoPresentFlag());
     pcVUI->setAspectRatioIdc(getAspectRatioIdc());
     pcVUI->setSarWidth(getSarWidth());
@@ -729,12 +694,12 @@ Void TEncTop::xInitSPS(TComSPS &sps)
     pcVUI->setLog2MaxMvLengthHorizontal(getLog2MaxMvLengthHorizontal());
     pcVUI->setLog2MaxMvLengthVertical(getLog2MaxMvLengthVertical());
   }
-  sps.setNumLongTermRefPicSPS(NUM_LONG_TERM_REF_PIC_SPS);
+  m_cSPS.setNumLongTermRefPicSPS(NUM_LONG_TERM_REF_PIC_SPS);
   assert (NUM_LONG_TERM_REF_PIC_SPS <= MAX_NUM_LONG_TERM_REF_PICS);
   for (Int k = 0; k < NUM_LONG_TERM_REF_PIC_SPS; k++)
   {
-    sps.setLtRefPicPocLsbSps(k, 0);
-    sps.setUsedByCurrPicLtSPSFlag(k, 0);
+    m_cSPS.setLtRefPicPocLsbSps(k, 0);
+    m_cSPS.setUsedByCurrPicLtSPSFlag(k, 0);
   }
 
 #if U0132_TARGET_BITS_SATURATION
@@ -743,25 +708,34 @@ Void TEncTop::xInitSPS(TComSPS &sps)
   if( getPictureTimingSEIEnabled() || getDecodingUnitInfoSEIEnabled() )
 #endif
   {
-    xInitHrdParameters(sps);
+    xInitHrdParameters();
   }
   if( getBufferingPeriodSEIEnabled() || getPictureTimingSEIEnabled() || getDecodingUnitInfoSEIEnabled() )
   {
-    sps.getVuiParameters()->setHrdParametersPresentFlag( true );
+    m_cSPS.getVuiParameters()->setHrdParametersPresentFlag( true );
   }
 
   // Set up SPS range extension settings
-  sps.getSpsRangeExtension().setTransformSkipRotationEnabledFlag(m_transformSkipRotationEnabledFlag);
-  sps.getSpsRangeExtension().setTransformSkipContextEnabledFlag(m_transformSkipContextEnabledFlag);
+  m_cSPS.getSpsRangeExtension().setTransformSkipRotationEnabledFlag(m_transformSkipRotationEnabledFlag);
+  m_cSPS.getSpsRangeExtension().setTransformSkipContextEnabledFlag(m_transformSkipContextEnabledFlag);
   for (UInt signallingModeIndex = 0; signallingModeIndex < NUMBER_OF_RDPCM_SIGNALLING_MODES; signallingModeIndex++)
   {
-    sps.getSpsRangeExtension().setRdpcmEnabledFlag(RDPCMSignallingMode(signallingModeIndex), m_rdpcmEnabledFlag[signallingModeIndex]);
+    m_cSPS.getSpsRangeExtension().setRdpcmEnabledFlag(RDPCMSignallingMode(signallingModeIndex), m_rdpcmEnabledFlag[signallingModeIndex]);
   }
-  sps.getSpsRangeExtension().setExtendedPrecisionProcessingFlag(m_extendedPrecisionProcessingFlag);
-  sps.getSpsRangeExtension().setIntraSmoothingDisabledFlag( m_intraSmoothingDisabledFlag );
-  sps.getSpsRangeExtension().setHighPrecisionOffsetsEnabledFlag(m_highPrecisionOffsetsEnabledFlag);
-  sps.getSpsRangeExtension().setPersistentRiceAdaptationEnabledFlag(m_persistentRiceAdaptationEnabledFlag);
-  sps.getSpsRangeExtension().setCabacBypassAlignmentEnabledFlag(m_cabacBypassAlignmentEnabledFlag);
+  m_cSPS.getSpsRangeExtension().setExtendedPrecisionProcessingFlag(m_extendedPrecisionProcessingFlag);
+  m_cSPS.getSpsRangeExtension().setIntraSmoothingDisabledFlag( m_intraSmoothingDisabledFlag );
+  m_cSPS.getSpsRangeExtension().setHighPrecisionOffsetsEnabledFlag(m_highPrecisionOffsetsEnabledFlag);
+  m_cSPS.getSpsRangeExtension().setPersistentRiceAdaptationEnabledFlag(m_persistentRiceAdaptationEnabledFlag);
+  m_cSPS.getSpsRangeExtension().setCabacBypassAlignmentEnabledFlag(m_cabacBypassAlignmentEnabledFlag);
+
+  // Set up SPS screen extension settings
+  m_cSPS.getSpsScreenExtension().setDisableIntraBoundaryFilter( m_disableIntraBoundaryFilter );
+  m_cSPS.getSpsScreenExtension().setUseIntraBlockCopy( m_useIntraBlockCopy );
+  m_cSPS.getSpsScreenExtension().setUsePaletteMode( m_usePaletteMode );
+  m_cSPS.getSpsScreenExtension().setPaletteMaxSize( m_uiPaletteMaxSize );
+  m_cSPS.getSpsScreenExtension().setPaletteMaxPredSize( m_uiPaletteMaxPredSize );
+  m_cSPS.getSpsScreenExtension().setMotionVectorResolutionControlIdc( m_motionVectorResolutionControlIdc );
+  assert( m_uiPaletteMaxPredSize <= 128 );
 }
 
 #if U0132_TARGET_BITS_SATURATION
@@ -784,7 +758,7 @@ Int calcScale(Int x)
   return ScaleValue;
 }
 #endif
-Void TEncTop::xInitHrdParameters(TComSPS &sps)
+Void TEncTop::xInitHrdParameters()
 {
   Bool useSubCpbParams = (getSliceMode() > 0) || (getSliceSegmentMode() > 0);
   Int  bitRate         = getTargetBitrate();
@@ -800,7 +774,7 @@ Void TEncTop::xInitHrdParameters(TComSPS &sps)
     return;
   }
 
-  TComVUI *vui = sps.getVuiParameters();
+  TComVUI *vui = m_cSPS.getVuiParameters();
   TComHRD *hrd = vui->getHrdParameters();
 
   TimingInfo *timingInfo = vui->getTimingInfo();
@@ -940,25 +914,15 @@ Void TEncTop::xInitHrdParameters(TComSPS &sps)
   }
 }
 
-Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
+Void TEncTop::xInitPPS()
 {
-  // pps ID already initialised.
-  pps.setSPSId(sps.getSPSId());
-
-  pps.setConstrainedIntraPred( m_bUseConstrainedIntraPred );
+  m_cPPS.setConstrainedIntraPred( m_bUseConstrainedIntraPred );
   Bool bUseDQP = (getMaxCuDQPDepth() > 0)? true : false;
 
   if((getMaxDeltaQP() != 0 )|| getUseAdaptiveQP())
   {
     bUseDQP = true;
   }
-
-#if SHARP_LUMA_DELTA_QP
-  if ( getLumaLevelToDeltaQPMapping().isEnabled() )
-  {
-    bUseDQP = true;
-  }
-#endif
 
   if (m_costMode==COST_SEQUENCE_LEVEL_LOSSLESS || m_costMode==COST_LOSSLESS_CODING)
   {
@@ -968,56 +932,41 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
 
   if ( m_RCEnableRateControl )
   {
-    pps.setUseDQP(true);
-    pps.setMaxCuDQPDepth( 0 );
+    m_cPPS.setUseDQP(true);
+    m_cPPS.setMaxCuDQPDepth( 0 );
   }
   else if(bUseDQP)
   {
-    pps.setUseDQP(true);
-    pps.setMaxCuDQPDepth( m_iMaxCuDQPDepth );
+    m_cPPS.setUseDQP(true);
+    m_cPPS.setMaxCuDQPDepth( m_iMaxCuDQPDepth );
   }
   else
   {
-    pps.setUseDQP(false);
-    pps.setMaxCuDQPDepth( 0 );
+    m_cPPS.setUseDQP(false);
+    m_cPPS.setMaxCuDQPDepth( 0 );
   }
 
   if ( m_diffCuChromaQpOffsetDepth >= 0 )
   {
-    pps.getPpsRangeExtension().setDiffCuChromaQpOffsetDepth(m_diffCuChromaQpOffsetDepth);
-    pps.getPpsRangeExtension().clearChromaQpOffsetList();
-    pps.getPpsRangeExtension().setChromaQpOffsetListEntry(1, 6, 6);
+    m_cPPS.getPpsRangeExtension().setDiffCuChromaQpOffsetDepth(m_diffCuChromaQpOffsetDepth);
+    m_cPPS.getPpsRangeExtension().clearChromaQpOffsetList();
+    m_cPPS.getPpsRangeExtension().setChromaQpOffsetListEntry(1, 6, 6);
     /* todo, insert table entries from command line (NB, 0 should not be touched) */
   }
   else
   {
-    pps.getPpsRangeExtension().setDiffCuChromaQpOffsetDepth(0);
-    pps.getPpsRangeExtension().clearChromaQpOffsetList();
+    m_cPPS.getPpsRangeExtension().setDiffCuChromaQpOffsetDepth(0);
+    m_cPPS.getPpsRangeExtension().clearChromaQpOffsetList();
   }
-  pps.getPpsRangeExtension().setCrossComponentPredictionEnabledFlag(m_crossComponentPredictionEnabledFlag);
-  pps.getPpsRangeExtension().setLog2SaoOffsetScale(CHANNEL_TYPE_LUMA,   m_log2SaoOffsetScale[CHANNEL_TYPE_LUMA  ]);
-  pps.getPpsRangeExtension().setLog2SaoOffsetScale(CHANNEL_TYPE_CHROMA, m_log2SaoOffsetScale[CHANNEL_TYPE_CHROMA]);
+  m_cPPS.getPpsRangeExtension().setCrossComponentPredictionEnabledFlag(m_crossComponentPredictionEnabledFlag);
+  m_cPPS.getPpsRangeExtension().setLog2SaoOffsetScale(CHANNEL_TYPE_LUMA,   m_log2SaoOffsetScale[CHANNEL_TYPE_LUMA  ]);
+  m_cPPS.getPpsRangeExtension().setLog2SaoOffsetScale(CHANNEL_TYPE_CHROMA, m_log2SaoOffsetScale[CHANNEL_TYPE_CHROMA]);
 
-#if ER_CHROMA_QP_WCG_PPS
-  if (getWCGChromaQPControl().isEnabled())
-  {
-    const Int baseQp=m_iQP+pps.getPPSId();
-    const Double chromaQp = m_wcgChromaQpControl.chromaQpScale * baseQp + m_wcgChromaQpControl.chromaQpOffset;
-    const Double dcbQP = m_wcgChromaQpControl.chromaCbQpScale * chromaQp;
-    const Double dcrQP = m_wcgChromaQpControl.chromaCrQpScale * chromaQp;
-    const Int cbQP =(Int)(dcbQP + ( dcbQP < 0 ? -0.5 : 0.5) );
-    const Int crQP =(Int)(dcrQP + ( dcrQP < 0 ? -0.5 : 0.5) );
-    pps.setQpOffset(COMPONENT_Cb, Clip3( -12, 12, min(0, cbQP) + m_chromaCbQpOffset ));
-    pps.setQpOffset(COMPONENT_Cr, Clip3( -12, 12, min(0, crQP) + m_chromaCrQpOffset));
-  }
-  else
-  {
-#endif
-  pps.setQpOffset(COMPONENT_Cb, m_chromaCbQpOffset );
-  pps.setQpOffset(COMPONENT_Cr, m_chromaCrQpOffset );
-#if ER_CHROMA_QP_WCG_PPS
-  }
-#endif
+  m_cPPS.setQpOffset(COMPONENT_Cb, m_chromaCbQpOffset );
+  m_cPPS.setQpOffset(COMPONENT_Cr, m_chromaCrQpOffset );
+  m_cPPS.getPpsScreenExtension().setActQpOffset(COMPONENT_Y, m_actYQpOffset );
+  m_cPPS.getPpsScreenExtension().setActQpOffset(COMPONENT_Cb, m_actCbQpOffset );
+  m_cPPS.getPpsScreenExtension().setActQpOffset(COMPONENT_Cr, m_actCrQpOffset );
 #if W0038_CQP_ADJ
   Bool bChromaDeltaQPEnabled = false;
   {
@@ -1034,49 +983,49 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
       }
     }
   }
-  pps.setSliceChromaQpFlag(bChromaDeltaQPEnabled);
+  m_cPPS.setSliceChromaQpFlag(bChromaDeltaQPEnabled);
 #endif
 
-  pps.setEntropyCodingSyncEnabledFlag( m_entropyCodingSyncEnabledFlag );
-  pps.setTilesEnabledFlag( (m_iNumColumnsMinus1 > 0 || m_iNumRowsMinus1 > 0) );
-  pps.setUseWP( m_useWeightedPred );
-  pps.setWPBiPred( m_useWeightedBiPred );
-  pps.setOutputFlagPresentFlag( false );
-  pps.setSignDataHidingEnabledFlag(getSignDataHidingEnabledFlag());
+  m_cPPS.setEntropyCodingSyncEnabledFlag( m_entropyCodingSyncEnabledFlag );
+  m_cPPS.setTilesEnabledFlag( (m_iNumColumnsMinus1 > 0 || m_iNumRowsMinus1 > 0) );
+  m_cPPS.setUseWP( m_useWeightedPred );
+  m_cPPS.setWPBiPred( m_useWeightedBiPred );
+  m_cPPS.setOutputFlagPresentFlag( false );
+  m_cPPS.setSignDataHidingEnabledFlag(getSignDataHidingEnabledFlag());
 
   if ( getDeblockingFilterMetric() )
   {
-    pps.setDeblockingFilterOverrideEnabledFlag(true);
-    pps.setPPSDeblockingFilterDisabledFlag(false);
+    m_cPPS.setDeblockingFilterOverrideEnabledFlag(true);
+    m_cPPS.setPPSDeblockingFilterDisabledFlag(false);
   }
   else
   {
-    pps.setDeblockingFilterOverrideEnabledFlag( !getLoopFilterOffsetInPPS() );
-    pps.setPPSDeblockingFilterDisabledFlag( getLoopFilterDisable() );
+    m_cPPS.setDeblockingFilterOverrideEnabledFlag( !getLoopFilterOffsetInPPS() );
+    m_cPPS.setPPSDeblockingFilterDisabledFlag( getLoopFilterDisable() );
   }
 
-  if (! pps.getPPSDeblockingFilterDisabledFlag())
+  if (! m_cPPS.getPPSDeblockingFilterDisabledFlag())
   {
-    pps.setDeblockingFilterBetaOffsetDiv2( getLoopFilterBetaOffset() );
-    pps.setDeblockingFilterTcOffsetDiv2( getLoopFilterTcOffset() );
+    m_cPPS.setDeblockingFilterBetaOffsetDiv2( getLoopFilterBetaOffset() );
+    m_cPPS.setDeblockingFilterTcOffsetDiv2( getLoopFilterTcOffset() );
   }
   else
   {
-    pps.setDeblockingFilterBetaOffsetDiv2(0);
-    pps.setDeblockingFilterTcOffsetDiv2(0);
+    m_cPPS.setDeblockingFilterBetaOffsetDiv2(0);
+    m_cPPS.setDeblockingFilterTcOffsetDiv2(0);
   }
 
   // deblockingFilterControlPresentFlag is true if any of the settings differ from the inferred values:
-  const Bool deblockingFilterControlPresentFlag = pps.getDeblockingFilterOverrideEnabledFlag() ||
-                                                  pps.getPPSDeblockingFilterDisabledFlag()     ||
-                                                  pps.getDeblockingFilterBetaOffsetDiv2() != 0 ||
-                                                  pps.getDeblockingFilterTcOffsetDiv2() != 0;
+  const Bool deblockingFilterControlPresentFlag = m_cPPS.getDeblockingFilterOverrideEnabledFlag() ||
+                                                  m_cPPS.getPPSDeblockingFilterDisabledFlag()      ||
+                                                  m_cPPS.getDeblockingFilterBetaOffsetDiv2() != 0 ||
+                                                  m_cPPS.getDeblockingFilterTcOffsetDiv2() != 0;
 
-  pps.setDeblockingFilterControlPresentFlag(deblockingFilterControlPresentFlag);
+  m_cPPS.setDeblockingFilterControlPresentFlag(deblockingFilterControlPresentFlag);
 
-  pps.setLog2ParallelMergeLevelMinus2   (m_log2ParallelMergeLevelMinus2 );
-  pps.setCabacInitPresentFlag(CABAC_INIT_PRESENT_FLAG);
-  pps.setLoopFilterAcrossSlicesEnabledFlag( m_bLFCrossSliceBoundaryFlag );
+  m_cPPS.setLog2ParallelMergeLevelMinus2   (m_log2ParallelMergeLevelMinus2 );
+  m_cPPS.setCabacInitPresentFlag(CABAC_INIT_PRESENT_FLAG);
+  m_cPPS.setLoopFilterAcrossSlicesEnabledFlag( m_bLFCrossSliceBoundaryFlag );
 
 
   Int histogram[MAX_NUM_REF + 1];
@@ -1101,31 +1050,39 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
     }
   }
   assert(bestPos <= 15);
-  pps.setNumRefIdxL0DefaultActive(bestPos);
-  pps.setNumRefIdxL1DefaultActive(bestPos);
-  pps.setTransquantBypassEnabledFlag(getTransquantBypassEnabledFlag());
-  pps.setUseTransformSkip( m_useTransformSkip );
-  pps.getPpsRangeExtension().setLog2MaxTransformSkipBlockSize( m_log2MaxTransformSkipBlockSize  );
+  if ( m_cSPS.getSpsScreenExtension().getUseIntraBlockCopy() )
+  {
+    m_cPPS.setNumRefIdxL0DefaultActive( bestPos + 1 );
+  }
+  else
+  {
+    m_cPPS.setNumRefIdxL0DefaultActive(bestPos);
+  }
+  m_cPPS.setNumRefIdxL1DefaultActive(bestPos);
+  m_cPPS.setTransquantBypassEnabledFlag(getTransquantBypassEnabledFlag());
+  m_cPPS.setUseTransformSkip( m_useTransformSkip );
+  m_cPPS.getPpsRangeExtension().setLog2MaxTransformSkipBlockSize( m_log2MaxTransformSkipBlockSize  );
 
   if (m_sliceSegmentMode != NO_SLICES)
   {
-    pps.setDependentSliceSegmentsEnabledFlag( true );
+    m_cPPS.setDependentSliceSegmentsEnabledFlag( true );
   }
+  m_cPPS.getPpsScreenExtension().setUseColourTrans( m_useColourTrans );
 
-  xInitPPSforTiles(pps);
+   m_cPPS.getPpsScreenExtension().setUseIntraBlockCopy(m_cSPS.getSpsScreenExtension().getUseIntraBlockCopy());
 }
 
 //Function for initializing m_RPSList, a list of TComReferencePictureSet, based on the GOPEntry objects read from the config file.
-Void TEncTop::xInitRPS(TComSPS &sps, Bool isFieldCoding)
+Void TEncTop::xInitRPS(Bool isFieldCoding)
 {
   TComReferencePictureSet*      rps;
 
-  sps.createRPSList(getGOPSize() + m_extraRPSs + 1);
-  TComRPSList* rpsList = sps.getRPSList();
+  m_cSPS.createRPSList(getGOPSize() + m_extraRPSs + 1);
+  TComRPSList* rpsList = m_cSPS.getRPSList();
 
   for( Int i = 0; i < getGOPSize()+m_extraRPSs; i++)
   {
-    const GOPEntry &ge = getGOPEntry(i);
+    GOPEntry ge = getGOPEntry(i);
     rps = rpsList->getReferencePictureSet(i);
     rps->setNumberOfPictures(ge.m_numRefPics);
     rps->setNumRefIdc(ge.m_numRefIdc);
@@ -1333,17 +1290,17 @@ Int TEncTop::getReferencePictureSetIdxForSOP(Int POCCurr, Int GOPid )
   return rpsIdx;
 }
 
-Void  TEncTop::xInitPPSforTiles(TComPPS &pps)
+Void  TEncTop::xInitPPSforTiles()
 {
-  pps.setTileUniformSpacingFlag( m_tileUniformSpacingFlag );
-  pps.setNumTileColumnsMinus1( m_iNumColumnsMinus1 );
-  pps.setNumTileRowsMinus1( m_iNumRowsMinus1 );
+  m_cPPS.setTileUniformSpacingFlag( m_tileUniformSpacingFlag );
+  m_cPPS.setNumTileColumnsMinus1( m_iNumColumnsMinus1 );
+  m_cPPS.setNumTileRowsMinus1( m_iNumRowsMinus1 );
   if( !m_tileUniformSpacingFlag )
   {
-    pps.setTileColumnWidth( m_tileColumnWidth );
-    pps.setTileRowHeight( m_tileRowHeight );
+    m_cPPS.setTileColumnWidth( m_tileColumnWidth );
+    m_cPPS.setTileRowHeight( m_tileRowHeight );
   }
-  pps.setLoopFilterAcrossTilesEnabledFlag( m_loopFilterAcrossTilesEnabledFlag );
+  m_cPPS.setLoopFilterAcrossTilesEnabledFlag( m_loopFilterAcrossTilesEnabledFlag );
 
   // # substreams is "per tile" when tiles are independent.
 }
@@ -1409,19 +1366,4 @@ Void  TEncCfg::xCheckGSParameters()
     }
   }
 }
-
-Bool TEncTop::PPSNeedsWriting(Int ppsId)
-{
-  Bool bChanged=m_ppsMap.getChangedFlag(ppsId);
-  m_ppsMap.clearChangedFlag(ppsId);
-  return bChanged;
-}
-
-Bool TEncTop::SPSNeedsWriting(Int spsId)
-{
-  Bool bChanged=m_spsMap.getChangedFlag(spsId);
-  m_spsMap.clearChangedFlag(spsId);
-  return bChanged;
-}
-
 //! \}
