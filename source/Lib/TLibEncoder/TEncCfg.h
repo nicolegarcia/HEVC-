@@ -215,6 +215,9 @@ protected:
   Int       m_actYQpOffset;
   Int       m_actCbQpOffset;
   Int       m_actCrQpOffset;
+#if ER_CHROMA_QP_WCG_PPS
+  WCGChromaQPControl m_wcgChromaQpControl;                    ///< Wide-colour-gamut chroma QP control.
+#endif
 
 #if W0038_CQP_ADJ
   UInt      m_sliceChromaQpOffsetPeriodicity;                 ///< Used in conjunction with Slice Cb/Cr QpOffsetIntraOrPeriodic. Use 0 (default) to disable periodic nature.
@@ -259,6 +262,9 @@ protected:
   Bool      m_persistentRiceAdaptationEnabledFlag;
   Bool      m_cabacBypassAlignmentEnabledFlag;
   Bool      m_rdpcmEnabledFlag[NUMBER_OF_RDPCM_SIGNALLING_MODES];
+#if SHARP_LUMA_DELTA_QP
+  LumaLevelToDeltaQPMapping m_lumaLevelToDeltaQPMapping; ///< mapping from luma level to delta QP.
+#endif
   Bool      m_bRGBformat;
   Bool      m_useColourTrans;
   Bool      m_useLL;
@@ -489,9 +495,9 @@ public:
   Void      setIntraPeriod                  ( Int   i )      { m_uiIntraPeriod = (UInt)i; }
   Void      setDecodingRefreshType          ( Int   i )      { m_uiDecodingRefreshType = (UInt)i; }
   Void      setGOPSize                      ( Int   i )      { m_iGOPSize = i; }
-  Void      setGopList                      ( GOPEntry*  GOPList ) {  for ( Int i = 0; i < MAX_GOP; i++ ) m_GOPList[i] = GOPList[i]; }
+  Void      setGopList                      ( const GOPEntry GOPList[MAX_GOP] ) {  for ( Int i = 0; i < MAX_GOP; i++ ) m_GOPList[i] = GOPList[i]; }
   Void      setExtraRPSs                    ( Int   i )      { m_extraRPSs = i; }
-  GOPEntry  getGOPEntry                     ( Int   i )      { return m_GOPList[i]; }
+  const GOPEntry &getGOPEntry               ( Int   i ) const { return m_GOPList[i]; }
   Void      setEncodedFlag                  ( Int  i, Bool value )  { m_GOPList[i].m_isEncoded = value; }
   Void      setMaxDecPicBuffering           ( UInt u, UInt tlayer ) { m_maxDecPicBuffering[tlayer] = u;    }
   Void      setNumReorderPics               ( Int  i, UInt tlayer ) { m_numReorderPics[tlayer] = i;    }
@@ -554,6 +560,10 @@ public:
   Void      setActQpYOffset                 ( Int   i )      { m_actYQpOffset  = i; }
   Void      setActQpCbOffset                ( Int   i )      { m_actCbQpOffset = i; }
   Void      setActQpCrOffset                ( Int   i )      { m_actCrQpOffset = i; }
+#if ER_CHROMA_QP_WCG_PPS
+  Void      setWCGChromaQpControl           ( const WCGChromaQPControl &ctrl )     { m_wcgChromaQpControl = ctrl; }
+  const WCGChromaQPControl &getWCGChromaQPControl () const { return m_wcgChromaQpControl; }
+#endif
 #if W0038_CQP_ADJ
   Void      setSliceChromaOffsetQpIntraOrPeriodic( UInt periodicity, Int sliceChromaQpOffsetIntraOrPeriodic[2]) { m_sliceChromaQpOffsetPeriodicity = periodicity; memcpy(m_sliceChromaQpOffsetIntraOrPeriodic, sliceChromaQpOffsetIntraOrPeriodic, sizeof(m_sliceChromaQpOffsetIntraOrPeriodic)); }
   Int       getSliceChromaOffsetQpIntraOrPeriodic( Bool bIsCr) const                                            { return m_sliceChromaQpOffsetIntraOrPeriodic[bIsCr?1:0]; }
@@ -562,6 +572,11 @@ public:
 
   Void      setChromaFormatIdc              ( ChromaFormat cf ) { m_chromaFormatIDC = cf; }
   ChromaFormat  getChromaFormatIdc          ( )              { return m_chromaFormatIDC; }
+
+#if SHARP_LUMA_DELTA_QP
+  Void      setLumaLevelToDeltaQPControls( const LumaLevelToDeltaQPMapping &lumaLevelToDeltaQPMapping ) { m_lumaLevelToDeltaQPMapping=lumaLevelToDeltaQPMapping; }
+  const LumaLevelToDeltaQPMapping& getLumaLevelToDeltaQPMapping() const { return m_lumaLevelToDeltaQPMapping; }
+#endif
 
 #if ADAPTIVE_QP_SELECTION
   Void      setUseAdaptQpSelect             ( Bool   i ) { m_bUseAdaptQpSelect    = i; }

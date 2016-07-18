@@ -176,8 +176,10 @@ public:
   Pel*  getPalettePred( UInt ch )                 const { return const_cast<Pel*>(m_aiPalette[ch]); }
   Int   getPalettePredictorBitDepth( ChannelType type ) const   { return m_palettePredictorBitDepth[type]; }
   Void  setPalettePredictorBitDepth( ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }
+#if !TEMPORAL_DISABLE_PALETTE_PREDICTOR_IN_SPS_PPS
   TComPPS* getPPS();
   TComSPS* getSPS();
+#endif
 protected:
   TEncRateCtrl* getRateCtrl()       { return m_pcRateCtrl;  }
 
@@ -218,7 +220,7 @@ protected:
   Int xWriteVPS (AccessUnit &accessUnit, const TComVPS *vps);
   Int xWriteSPS (AccessUnit &accessUnit, const TComSPS *sps);
   Int xWritePPS (AccessUnit &accessUnit, const TComPPS *pps);
-  Int xWriteParameterSets (AccessUnit &accessUnit, TComSlice *slice);
+  Int xWriteParameterSets (AccessUnit &accessUnit, TComSlice *slice, const Bool bSeqFirst);
 
   Void applyDeblockingFilterMetric( TComPic* pcPic, UInt uiNumSlices );
 #if W0038_DB_OPT

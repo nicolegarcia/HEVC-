@@ -65,7 +65,7 @@ inline Int64 abs (Int64 x) { return _abs64(x); };
 // Version information
 // ====================================================================================================================
 
-#define NV_VERSION        "16.11_SCM8.1"                 ///< Current software version
+#define NV_VERSION        "16.12_SCM8.1"                 ///< Current software version
 
 // ====================================================================================================================
 // Platform information
@@ -244,6 +244,10 @@ static const Int LAST_SIGNIFICANT_GROUPS =                        10 ;
 
 #if W0038_DB_OPT
 static const Int MAX_ENCODER_DEBLOCKING_QUALITY_LAYERS =           8 ;
+#endif
+
+#if SHARP_LUMA_DELTA_QP
+static const UInt LUMA_LEVEL_TO_DQP_LUT_MAXSIZE =                1024; ///< max LUT size for QP offset based on luma
 #endif
 
 static const Int SCM_S0067_NUM_CANDIDATES =                        64; ///< Maximum number of candidates to store/test

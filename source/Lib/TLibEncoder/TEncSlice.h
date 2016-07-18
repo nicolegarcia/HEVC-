@@ -101,7 +101,13 @@ private:
   PaletteInfoBuffer       m_entropyCodingSyncPaletteState;
   SliceType               m_encCABACTableIdx;
   Int                     m_numIDRs, m_numFrames;
+#if SHARP_LUMA_DELTA_QP
+  Int                     m_gopID;
+#endif
 
+#if SHARP_LUMA_DELTA_QP
+  Double   calculateLambda( const TComSlice* pSlice, const Int GOPid, const Int depth, const Double refQP, Double &dQP, Int &iQP );
+#endif
   Void     setUpLambda(TComSlice* slice, const Double dLambda, Int iQP);
   Void     calculateBoundingCtuTsAddrForSlice(UInt &startCtuTSAddrSlice, UInt &boundingCtuTSAddrSlice, Bool &haveReachedTileBoundary, TComPic* pcPic, const Int sliceMode, const Int sliceArgument);
 
@@ -117,6 +123,12 @@ public:
   Void    initEncSlice        ( TComPic*  pcPic, const Int pocLast, const Int pocCurr,
                                 const Int iGOPid,   TComSlice*& rpcSlice, const Bool isField );
   Void    resetQP             ( TComPic* pic, Int sliceQP, Double lambda );
+#if SHARP_LUMA_DELTA_QP
+  Void setGopID( Int iGopID )      { m_gopID = iGopID; }
+  Int  getGopID() const            { return m_gopID;   }
+  Void updateLambda(TComSlice* pSlice, Double dQP);
+#endif
+
   // compress and encode slice
   Void    precompressSlice    ( TComPic* pcPic                                     );      ///< precompress slice for multi-loop slice-level QP opt.
   Void    compressSlice       ( TComPic* pcPic, const Bool bCompressEntireSlice, const Bool bFastDeltaQP );      ///< analysis stage of slice
