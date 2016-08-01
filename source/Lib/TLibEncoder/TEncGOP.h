@@ -176,10 +176,9 @@ public:
   Pel*  getPalettePred( UInt ch )                 const { return const_cast<Pel*>(m_aiPalette[ch]); }
   Int   getPalettePredictorBitDepth( ChannelType type ) const   { return m_palettePredictorBitDepth[type]; }
   Void  setPalettePredictorBitDepth( ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }
-#if !TEMPORAL_DISABLE_PALETTE_PREDICTOR_IN_SPS_PPS
-  TComPPS* getPPS();
-  TComSPS* getSPS();
-#endif
+  TComPPS* getPPS(Int id);
+  TComPPS* copyToNewPPS(Int ppsId, TComPPS* pps0);
+  TComSPS* getSPS(Int id);
 protected:
   TEncRateCtrl* getRateCtrl()       { return m_pcRateCtrl;  }
 

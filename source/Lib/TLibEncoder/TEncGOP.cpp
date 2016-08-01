@@ -3014,17 +3014,20 @@ Void TEncGOP::applyDeblockingFilterMetric( TComPic* pcPic, UInt uiNumSlices )
   }
 }
 
-#if !TEMPORAL_DISABLE_PALETTE_PREDICTOR_IN_SPS_PPS
-TComPPS* TEncGOP::getPPS()
+TComPPS* TEncGOP::getPPS(Int id)
 {
-  return m_pcEncTop->getPPS();
+  return m_pcEncTop->getPPS(id);
 }
 
-TComSPS* TEncGOP::getSPS()
+TComPPS* TEncGOP::copyToNewPPS(Int ppsId, TComPPS* pps0)
 {
-  return m_pcEncTop->getSPS();
+  return m_pcEncTop->copyToNewPPS(ppsId, pps0);
 }
-#endif
+
+TComSPS* TEncGOP::getSPS(Int id)
+{
+  return m_pcEncTop->getSPS(id);
+}
 
 #if W0038_DB_OPT
 Void TEncGOP::applyDeblockingFilterParameterSelection( TComPic* pcPic, const UInt numSlices, const Int gopID )

@@ -191,7 +191,7 @@
 // ====================================================================================================================
 // SCC control settings
 // ====================================================================================================================
-#define TEMPORAL_DISABLE_PALETTE_PREDICTOR_IN_SPS_PPS    1   // it is expected to be solved after merge
+#define TEMPORAL_DISABLE_PALETTE_PREDICTOR_IN_SPS    1   // it is expected to be solved after merge
 
 //------------------------------------------------
 // Processing controls

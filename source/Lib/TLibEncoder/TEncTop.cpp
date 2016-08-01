@@ -1459,4 +1459,13 @@ Bool TEncTop::SPSNeedsWriting(Int spsId)
   return bChanged;
 }
 
+TComPPS* TEncTop::copyToNewPPS(Int ppsId, TComPPS* pps0)
+{
+  TComPPS* pps1= m_ppsMap.allocatePS(ppsId);
+  *pps1 = *pps0;
+  pps1->setPPSId(ppsId);
+  m_ppsMap.clearChangedFlag(ppsId);
+  return pps1;
+}
+
 //! \}
