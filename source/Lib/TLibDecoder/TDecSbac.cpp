@@ -806,7 +806,7 @@ Void TDecSbac::parsePaletteModeSyntax(TComDataCU *pcCU, UInt uiAbsPartIdx, UInt 
       bCodeDQP = false;
     }
 
-    if( pcCU->getSlice()->getUseChromaQpAdj() && codeChromaQpAdj )
+    if( pcCU->getSlice()->getUseChromaQpAdj() && !pcCU->getCUTransquantBypass( uiAbsPartIdx ) && codeChromaQpAdj )
     {
       parseChromaQpAdjustment( pcCU, uiAbsPartIdx, pcCU->getDepth( uiAbsPartIdx ) );
       codeChromaQpAdj = false;

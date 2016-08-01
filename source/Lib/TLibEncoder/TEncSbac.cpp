@@ -728,7 +728,7 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt 
       *bCodeDQP = false;
     }
 
-    if( pcCU->getSlice()->getUseChromaQpAdj() && codeChromaQpAdj && *codeChromaQpAdj )
+    if( pcCU->getSlice()->getUseChromaQpAdj() && !pcCU->getCUTransquantBypass( uiAbsPartIdx ) && codeChromaQpAdj && *codeChromaQpAdj )
     {
       codeChromaQpAdjustment( pcCU, uiAbsPartIdx );
       *codeChromaQpAdj = false;
