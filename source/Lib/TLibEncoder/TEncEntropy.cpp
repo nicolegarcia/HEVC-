@@ -88,6 +88,34 @@ Void TEncEntropy::encodeSPS( const TComSPS* pcSPS )
   return;
 }
 
+Void TEncEntropy::encodePaletteModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD, Bool* bCodeDQP, Bool* codeChromaQpAdj )
+{
+  if ( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() )
+  {
+    if ( bRD )
+    {
+      uiAbsPartIdx = 0;
+    }
+
+    // Note: the condition is log2CbSize < MaxTbLog2SizeY in 7.3.8.5 of JCTVC-T1005-v2
+    if( !pcCU->isIntra( uiAbsPartIdx ) || pcCU->getWidth(uiAbsPartIdx) == 64 )
+    {
+      return;
+    }
+
+    m_pcEntropyCoderIf->codePaletteModeFlag( pcCU, uiAbsPartIdx );
+    if ( pcCU->getPaletteModeFlag( uiAbsPartIdx ) )
+    {
+      m_pcEntropyCoderIf->codePaletteModeSyntax( pcCU, uiAbsPartIdx, 3, bCodeDQP, codeChromaQpAdj );
+
+      if (!bRD)
+      {
+        pcCU->saveLastPaletteInLcuFinal( pcCU, uiAbsPartIdx, MAX_NUM_COMPONENT );
+      }
+    }
+  }
+}
+
 Void TEncEntropy::encodeCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD )
 {
   if( bRD )
@@ -172,7 +200,6 @@ Void TEncEntropy::encodePartSize( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
 
   m_pcEntropyCoderIf->codePartSize( pcCU, uiAbsPartIdx, uiDepth );
 }
-
 
 /** Encode I_PCM information.
  * \param pcCU          pointer to CU
@@ -323,6 +350,11 @@ Void TEncEntropy::xEncodeTransform( Bool& bCodeDQP, Bool& codeChromaQpAdj, TComT
 
     if ( bHaveACodedBlock )
     {
+      if ( pcCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans() && pcCU->hasAssociatedACTFlag(uiAbsPartIdx) )
+      {
+        m_pcEntropyCoderIf->codeColourTransformFlag( pcCU, uiAbsPartIdx );
+      }
+
       // dQP: only for CTU once
       if ( pcCU->getSlice()->getPPS()->getUseDQP() )
       {
@@ -422,7 +454,6 @@ Void TEncEntropy::encodeIntraDirModeChroma( TComDataCU* pcCU, UInt uiAbsPartIdx 
   }
 #endif
 }
-
 
 Void TEncEntropy::encodePredInfo( TComDataCU* pcCU, UInt uiAbsPartIdx )
 {
