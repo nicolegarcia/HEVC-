@@ -772,8 +772,8 @@ Void TEncSlice::xSetPredFromPPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_P
 
 Void TEncSlice::xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
 {
-#if !TEMPORAL_DISABLE_PALETTE_PREDICTOR_IN_SPS
-  TComSPS *pcSPS = m_pcGOPEncoder->getSPS();
+  TComPPS *pcPPS = m_pcGOPEncoder->getPPS(pcSlice->getPPSId());
+  TComSPS *pcSPS = m_pcGOPEncoder->getSPS(pcPPS->getSPSId());
   UInt num = std::min(pcSPS->getSpsScreenExtension().getNumPalettePred(), pcSPS->getSpsScreenExtension().getPaletteMaxPredSize());
   if( !num )
   {
@@ -786,7 +786,6 @@ Void TEncSlice::xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_P
     memcpy(lastPalette[i], pcSPS->getSpsScreenExtension().getPalettePred(i), num*sizeof(Pel));
   }
   pcSlice->setSPS(pcSPS);
-#endif
 }
 
 Void TEncSlice::xSetPredDefault(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
