@@ -97,8 +97,8 @@ Void TEncEntropy::encodePaletteModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, Bo
       uiAbsPartIdx = 0;
     }
 
-    // Note: the condition is log2CbSize < MaxTbLog2SizeY in 7.3.8.5 of JCTVC-T1005-v2
-    if( !pcCU->isIntra( uiAbsPartIdx ) || pcCU->getWidth(uiAbsPartIdx) == 64 )
+    UInt log2CbSize = g_aucConvertToBit[pcCU->getWidth(uiAbsPartIdx)] + 2;
+    if( !pcCU->isIntra( uiAbsPartIdx ) || log2CbSize > pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
     {
       return;
     }

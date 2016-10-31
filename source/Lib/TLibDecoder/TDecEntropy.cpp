@@ -72,8 +72,9 @@ Void TDecEntropy::decodeCUTransquantBypassFlag(TComDataCU* pcCU, UInt uiAbsPartI
 
 Void TDecEntropy::decodePaletteModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, Bool& bCodeDQP, Bool& isChromaQpAdjCoded )
 {
-  // Note: the condition is log2CbSize < MaxTbLog2SizeY in 7.3.8.5 of JCTVC-T1005-v2
-  if( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() && pcCU->isIntra( uiAbsPartIdx ) && (pcCU->getSlice()->getSPS()->getMaxCUWidth() >> uiDepth) < 64 )
+  const UChar cuWidth =UChar(pcCU->getSlice()->getSPS()->getMaxCUWidth()>>uiDepth);
+  const UInt log2CbSize = g_aucConvertToBit[cuWidth] + 2;
+  if( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() && pcCU->isIntra( uiAbsPartIdx ) && log2CbSize <= pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
   {
     m_pcEntropyDecoderIf->parsePaletteModeFlag( pcCU, uiAbsPartIdx, uiDepth );
     if ( pcCU->getPaletteModeFlag( uiAbsPartIdx ) )
