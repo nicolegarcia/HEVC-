@@ -1192,8 +1192,9 @@ UInt  TComPrediction::findCandidatePalettePredictors(UInt paletteIndBest[], TCom
 {
   UInt uiAbsError=0, uiMinError;
   UInt palettePredError[MAX_PALETTE_PRED_SIZE];
+#if !FULL_NBIT
   BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
-
+#endif
 
   for(int t = 0; t < pcCU->getLastPaletteInLcuSizeFinal(0); t++)
   {
@@ -1417,7 +1418,9 @@ Void  TComPrediction::derivePaletteLossy( TComDataCU* pcCU, Pel *Palette[3], Pel
   Pel *pPred[3]  = { pcCU->getLastPaletteInLcuFinal(0), pcCU->getLastPaletteInLcuFinal(1), pcCU->getLastPaletteInLcuFinal(2) };
   UInt uiNumTotalBits = pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA) + (pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_CHROMA)<<1);
   Double bitCost = pcCost->getLambda() * uiNumTotalBits;
+#if !FULL_NBIT
   BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
+#endif
   for (Int i = 0; i < pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize(); i++)
   {
     if( pListSort[i].uiCnt )
@@ -2396,7 +2399,9 @@ Void TComPrediction::derivePaletteLossyForcePrediction(TComDataCU *pcCU, Pel *Pa
   UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
   UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
 
+#if !FULL_NBIT
   const BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
+#endif
   for( UInt uiY = 0; uiY < uiHeight; uiY++ )
   {
     for( UInt uiX = 0; uiX < uiWidth; uiX++ )
