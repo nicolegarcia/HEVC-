@@ -86,6 +86,7 @@ TComDataCU::TComDataCU()
     m_explicitRdpcmMode[comp]             = NULL;
     m_piPalette[comp]                     = NULL;
     m_piSPoint[comp]                      = NULL;
+    m_piLevel[comp]                       = NULL;
     m_puhPaletteEscape[comp]              = NULL;
     m_bPrevPaletteReusedFlag[comp]        = NULL;
     m_piLastPaletteInLcuFinal[comp]       = NULL;
@@ -204,6 +205,7 @@ Void TComDataCU::create( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt
       m_pcIPCMSample[compID] = (Pel*   )xMalloc(Pel , totalSize);
       m_piPalette[compID]               = (Pel*  )xMalloc(Pel, (uiNumPartition >> 2) * m_paletteMaxSize);
       m_piSPoint[compID]            = (UChar*)xMalloc(UChar, totalSize);
+      m_piLevel[compID]                 = (Pel*  )xMalloc(Pel, totalSize);
       m_puhPaletteEscape[compID]        = (UChar*)xMalloc(Bool, uiNumPartition);
       m_bPrevPaletteReusedFlag[comp]    = (UChar*)xMalloc(UChar, (uiNumPartition >> 2) * m_paletteMaxPredSize);
       m_piLastPaletteInLcuFinal[compID] = (Pel*  )xMalloc(Pel, m_paletteMaxPredSize);
@@ -367,6 +369,7 @@ Void TComDataCU::destroy()
       }
       if ( m_piPalette[comp]               ) { xFree(m_piPalette[comp]);               m_piPalette[comp]               = NULL; }
       if ( m_piSPoint[comp]            ) { xFree(m_piSPoint[comp]);            m_piSPoint[comp]            = NULL; }
+      if ( m_piLevel[comp]                 ) { xFree(m_piLevel[comp]);                 m_piLevel[comp]                 = NULL; }
       if ( m_puhPaletteEscape[comp]        ) { xFree(m_puhPaletteEscape[comp]) ;       m_puhPaletteEscape[comp]        = NULL; }
       if ( m_bPrevPaletteReusedFlag[comp]  ) { xFree(m_bPrevPaletteReusedFlag[comp]);  m_bPrevPaletteReusedFlag[comp]  = NULL; }
       if ( m_piLastPaletteInLcuFinal[comp] ) { xFree(m_piLastPaletteInLcuFinal[comp]); m_piLastPaletteInLcuFinal[comp] = NULL; }
@@ -668,6 +671,7 @@ Void TComDataCU::initEstData( const UInt uiDepth, const Int qp, const Bool bTran
 #endif
     memset( m_pcIPCMSample[comp], 0, numCoeff * sizeof( Pel) );
     memset( m_piSPoint[comp],     0, numCoeff * sizeof( UChar) );
+    memset( m_piLevel[comp],      0, numCoeff * sizeof( Pel) );
     memset( m_piEscapeFlag[comp], 0, numCoeff * sizeof( UChar ) );
   }
 }
@@ -823,6 +827,7 @@ Void TComDataCU::initSubCU( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDepth, 
 #endif
     memset( m_pcIPCMSample[ch], 0, sizeof(Pel)* (numCoeffY>>componentShift) );
     memset( m_piSPoint[ch], 0, sizeof(UChar) * (numCoeffY >> componentShift) );
+    memset( m_piLevel[ch], 0, sizeof(Pel) * (numCoeffY >> componentShift) );
     memset( m_piEscapeFlag[ch], 0, sizeof(UChar) * (numCoeffY >> componentShift) );
   }
 
@@ -938,6 +943,7 @@ Void TComDataCU::copySubCU( TComDataCU* pcCU, UInt uiAbsPartIdx )
 #endif
     m_pcIPCMSample[ch] = pcCU->getPCMSample(component) + offset;
     m_piSPoint[ch] = pcCU->getSPoint(component) + offset;
+    m_piLevel[ch] = pcCU->getLevel(component) + offset;
     m_piEscapeFlag[ch] = pcCU->getEscapeFlag(component) + offset;
   }
 }
@@ -1081,6 +1087,7 @@ Void TComDataCU::copyPartFrom( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDept
 #endif
     memcpy( m_pcIPCMSample[ch] + offset, pcCU->getPCMSample(component), sizeof(Pel)*(numCoeffY>>componentShift) );
     memcpy( m_piSPoint[ch] + offset, pcCU->getSPoint(component), sizeof(UChar) * (numCoeffY >> componentShift) );
+    memcpy( m_piLevel[ch] + offset, pcCU->getLevel(component), sizeof(Pel) * (numCoeffY >> componentShift) );
     memcpy( m_piEscapeFlag[ch] + offset, pcCU->getEscapeFlag(component), sizeof(UChar) * (numCoeffY >> componentShift) );
   }
 
@@ -1166,6 +1173,7 @@ Void TComDataCU::copyToPic( UChar uhDepth )
 #endif
     memcpy( pCtu->getPCMSample(component) + (offsetY>>componentShift), m_pcIPCMSample[component], sizeof(Pel)*(numCoeffY>>componentShift) );
     memcpy( pCtu->getSPoint(component) + (offsetY>>componentShift), m_piSPoint[component], sizeof(UChar) * (numCoeffY >> componentShift) );
+    memcpy( pCtu->getLevel(component) + (offsetY>>componentShift), m_piLevel[component], sizeof(Pel) * (numCoeffY >> componentShift) );
     memcpy( pCtu->getEscapeFlag(component) + (offsetY>>componentShift), m_piEscapeFlag[component], sizeof(UChar) * (numCoeffY >> componentShift) );
   }
 

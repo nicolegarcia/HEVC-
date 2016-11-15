@@ -1305,12 +1305,9 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
   }
 
   // copy original YUV samples to PCM buffer
-  if( rpcBestCU->getPaletteModeFlag(0) == false )
+  if( rpcBestCU->getTotalCost()!=MAX_DOUBLE && rpcBestCU->isLosslessCoded(0) && (rpcBestCU->getIPCMFlag(0) == false))
   {
-    if( rpcBestCU->getTotalCost()!=MAX_DOUBLE && rpcBestCU->isLosslessCoded(0) && (rpcBestCU->getIPCMFlag(0) == false))
-    {
-      xFillPCMBuffer(rpcBestCU, m_ppcOrigYuv[uiDepth]);
-    }
+    xFillPCMBuffer(rpcBestCU, m_ppcOrigYuv[uiDepth]);
   }
 
   if( uiDepth == pps.getMaxCuDQPDepth() )

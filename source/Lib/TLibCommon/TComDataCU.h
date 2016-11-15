@@ -141,6 +141,7 @@ private:
   SChar*        m_apiMVPNum[NUM_REF_PIC_LIST_01];       ///< array of number of possible motion vectors predictors
   Bool*         m_pbIPCMFlag;                           ///< array of intra_pcm flags
   UChar*        m_piSPoint[MAX_NUM_COMPONENT];            ///< 0: left run mode; 1: above run mode
+  Pel*          m_piLevel[MAX_NUM_COMPONENT];           ///< in run mode, it is the sample index in palette; in PCM mode, it is the abs sample value;
   Bool*         m_pbPaletteModeFlag;                          ///< array of intra_pcm flags
   Pel*          m_piPalette[MAX_NUM_COMPONENT];               ///< Palette
   UChar*        m_bPrevPaletteReusedFlag[MAX_NUM_COMPONENT];  ///< Palette
@@ -381,7 +382,7 @@ public:
   Void          setIPCMFlag                   ( UInt uiIdx, Bool b )                                       { m_pbIPCMFlag[uiIdx] = b;                   }
   Void          setIPCMFlagSubParts           ( Bool bIpcmFlag, UInt uiAbsPartIdx, UInt uiDepth );
   UChar*        getSPoint             (ComponentID component)   { return m_piSPoint[component];      }
-  Pel*          getLevel              (ComponentID component)   { return m_pcIPCMSample[component];  }
+  Pel*          getLevel              (ComponentID component)   { return m_piLevel[component];       }
   TCoeff*       getRun                (ComponentID component)   { return m_pcTrCoeff[component];     }
   Bool*         getPaletteModeFlag        ()                        { return m_pbPaletteModeFlag;            }
   Bool          getPaletteModeFlag        (UInt uiIdx) const        { return m_pbPaletteModeFlag[uiIdx];     }

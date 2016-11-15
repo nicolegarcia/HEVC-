@@ -423,12 +423,9 @@ Void TDecCu::xDecompressCU( TComDataCU* pCtu, UInt uiAbsPartIdx,  UInt uiDepth )
   }
 #endif
 
-  if ( m_ppcCU[uiDepth]->getPaletteModeFlag(0) == false )
+  if ( m_ppcCU[uiDepth]->isLosslessCoded(0) && (m_ppcCU[uiDepth]->getIPCMFlag(0) == false))
   {
-    if ( m_ppcCU[uiDepth]->isLosslessCoded(0) && (m_ppcCU[uiDepth]->getIPCMFlag(0) == false))
-    {
-      xFillPCMBuffer(m_ppcCU[uiDepth], uiDepth);
-    }
+    xFillPCMBuffer(m_ppcCU[uiDepth], uiDepth);
   }
 
   xCopyToPic( m_ppcCU[uiDepth], pcPic, uiAbsPartIdx, uiDepth );

@@ -710,10 +710,6 @@ Void TComSampleAdaptiveOffset::xPCMCURestoration ( TComDataCU* pcCU, UInt uiAbsZ
  */
 Void TComSampleAdaptiveOffset::xPCMSampleRestoration (TComDataCU* pcCU, UInt uiAbsZorderIdx, UInt uiDepth, const ComponentID compID)
 {
-  if (pcCU->getPaletteModeFlag(uiAbsZorderIdx))
-  {
-    return;
-  }
   TComPicYuv* pcPicYuvRec = pcCU->getPic()->getPicYuvRec();
   UInt uiPcmLeftShiftBit;
   const UInt uiMinCoeffSize = pcCU->getPic()->getMinCUWidth()*pcCU->getPic()->getMinCUHeight();
