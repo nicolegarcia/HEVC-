@@ -86,44 +86,14 @@ private:
   static const UChar m_aucIntraFilter[MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
 
 protected:
-  Int       m_paletteErrLimit;
-  Pel       m_cIndexBlock[MAX_CU_SIZE * MAX_CU_SIZE];
   UInt*     m_puiScanOrder;
   Pel*      m_piYuvExt[MAX_NUM_COMPONENT][NUM_PRED_BUF];
   Int       m_iYuvExtSize;
-  UInt      m_indError[32*32][MAX_PALETTE_SIZE+1];
-  PaletteInfoStruct m_paletteInfo[32*32];
-  UInt      m_paletteNoElements;
-
-  PaletteInfoStruct m_paletteInfoBest[32*32];
-  UInt      m_paletteNoElementsBest;
-
-  Pel       m_cPosBlock[32*32];
-  Pel       m_cPosBlockRD[32*32];
-  Pel       m_cIndexBlockRD[MAX_CU_SIZE * MAX_CU_SIZE];
-
-  Int       m_prevQP;
-  UInt      m_uiMaxVal[3];
-  Int       m_quantiserScale[3];
-  Int       m_quantiserRightShift[3];
-  Int       m_rightShiftOffset[3];
-  Int       m_invQuantScales[3];
-  Int       m_iQPper[3];
-  UShort**  m_truncBinBits; //ZF two dimensions related with input bitdepth
-  UShort*   m_escapeNumBins; // number of binarization bins fpr escape pixels
-  UInt      m_MaxSymbolSize;
-  UInt      m_SymbolSize;
-
-  UChar*     m_SPointRD;
-  UChar*     m_EscapeFlagRD;
-  TCoeff*    m_RunRD;
-  Pel*       m_LevelRD[MAX_NUM_COMPONENT];
-  PaletteInfoStruct m_paletteInfoStoreRD[32*32];
-
+  Int       m_prevQP; 
   TComYuv   m_acYuvPred[NUM_REF_PIC_LIST_01];
   TComYuv   m_cYuvPredTemp;
-  TComYuv m_filteredBlock[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS];
-  TComYuv m_filteredBlockTmp[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS];
+  TComYuv   m_filteredBlock[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS];
+  TComYuv   m_filteredBlockTmp[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS];
 
   TComInterpolationFilter m_if;
 
@@ -150,7 +120,6 @@ public:
   virtual ~TComPrediction();
 
   Void    initTempBuff(ChromaFormat chromaFormatIDC);
-  Void    initTBCTable(UInt bitDepth);
 
   ChromaFormat getChromaFormat() const { return m_cYuvPredTemp.getChromaFormat(); }
 
@@ -179,26 +148,7 @@ public:
 
   static Bool filteringIntraReferenceSamples(const ComponentID compID, UInt uiDirMode, UInt uiTuChWidth, UInt uiTuChHeight, const ChromaFormat chFmt, const Bool intraReferenceSmoothingDisabled);
 
-  static Bool UseDPCMForFirstPassIntraEstimation(TComTU &rTu, const UInt uiDirMode);
-  Void  derivePaletteLossy(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost );
-  Void  derivePaletteLossyIterative( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost);
-  UInt  findCandidatePalettePredictors(UInt paletteIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt paletteSizeTemp, UInt maxNoPredInd);
-  Void  derivePaletteLossyForcePrediction(TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost);
-  Void  derivePaletteLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, Bool forcePalettePrediction);
-  Bool  calLeftRun(TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag);
-  Bool  calAboveRun(TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt uiWidth, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag);
-  Void  calcPixelPred(TComDataCU* pcCU, Pel* pOrg [3], Pel *pPalette[3], Pel* pValue, Pel*paPixelValue[3], Pel*paRecoValue[3],
-                      UInt uiWidth, UInt uiHeight,  UInt uiStrideOrg, UInt uiStartPos );
-  Double calcPixelPredRD(TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma = false);
-  UInt getTruncBinBits(UInt uiSymbol, UInt uiMaxSymbol);
-  UInt getEpExGolombNumBins(UInt uiSymbol, UInt uiCount);
-  Void  preCalcPaletteIndex(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize);
-  Void preCalcPaletteIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize, TComRdCost *pcCost, UInt calcErrorBits);
-
-  Void  reorderPalette(TComDataCU* pcCU, Pel *Palette[3], UInt uiNumComp);
-  Void  setPaletteErrLimit ( Int paletteErrLimit ) {  m_paletteErrLimit = paletteErrLimit; }
-  Int   getPaletteErrLimit () {return m_paletteErrLimit;}
-  Void  rotationScan( Pel* pLevel, UInt uiWidth, UInt uiHeight, Bool isInverse );
+  static Bool UseDPCMForFirstPassIntraEstimation(TComTU &rTu, const UInt uiDirMode);  
 };
 
 //! \}

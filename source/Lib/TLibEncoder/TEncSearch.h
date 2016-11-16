@@ -169,7 +169,38 @@ protected:
 
   PaletteInfoStruct m_currentPaletteElement;
   PaletteInfoStruct m_nextPaletteElement;
-  Bool          m_isInitialized;
+  Bool              m_isInitialized;
+
+  Int               m_paletteErrLimit;
+  Pel               m_indexBlock[MAX_CU_SIZE * MAX_CU_SIZE];
+  UInt              m_indError[32*32][MAX_PALETTE_SIZE+1];
+  UInt              m_paletteNoElements;
+
+  PaletteInfoStruct m_paletteInfo[32*32];
+  PaletteInfoStruct m_paletteInfoBest[32*32];
+  PaletteInfoStruct m_paletteInfoStoreRD[32*32];
+
+  UInt              m_paletteNoElementsBest;
+  Pel               m_posBlock[32*32];
+  Pel               m_posBlockRD[32*32];
+  Pel               m_indexBlockRD[MAX_CU_SIZE * MAX_CU_SIZE];
+
+  UInt              m_maxVal[3];
+  Int               m_quantiserScale[3];
+  Int               m_quantiserRightShift[3];
+  Int               m_rightShiftOffset[3];
+  Int               m_invQuantScales[3];
+  Int               m_qpPer[3];
+  UShort**          m_truncBinBits; //ZF two dimensions related with input bitdepth
+  UShort*           m_escapeNumBins; // number of binarization bins fpr escape pixels
+  UInt              m_maxSymbolSize;
+  UInt              m_symbolSize;
+
+  UChar*            m_paletteRunMode;
+  UChar*            m_escapeFlagRD;
+  TCoeff*           m_runRD;
+  Pel*              m_levelRD[MAX_NUM_COMPONENT];
+
 public:
   TEncSearch();
   virtual ~TEncSearch();
@@ -491,7 +522,7 @@ public:
 
   IntraBCHashNode* getHashLinklist( UInt uiDepth, Int iHashIdx ) { return m_pcIntraBCHashTable[uiDepth][iHashIdx]; }
 
-
+  Void  setPaletteErrLimit                ( Int paletteErrLimit )     { m_paletteErrLimit = paletteErrLimit; }
 protected:
 
   // -------------------------------------------------------------------------------------------------------------------
@@ -609,6 +640,27 @@ protected:
 
   Void  xStoreIntraResultQT       ( const ComponentID compID, TComTU &rTu, Bool bACTCache = false);
   Void  xLoadIntraResultQT        ( const ComponentID compID, TComTU &rTu, Bool bACTCache = false);
+
+  // Palette related functions
+  Void  xInitTBCTable();
+  UShort xGetTruncBinBits                  ( const UInt index, const UInt maxSymbolP1 );
+  UShort xGetEscapeNumBins                 ( const Pel val );
+
+  Void  xDerivePaletteLossy                ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost );
+  Void  xDerivePaletteLossyIterative       ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost );
+  UInt  xFindCandidatePalettePredictors    ( UInt paletteIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt paletteSizeTemp, UInt maxNoPredInd );
+  Void  xDerivePaletteLossyForcePrediction ( TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost );
+  Void  xDerivePaletteLossless             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, Bool forcePalettePrediction );
+  Bool  xCalLeftRun                        ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag );
+  Bool  xCalAboveRun                       ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt uiWidth, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag );
+  Void  xCalcPixelPred                     ( TComDataCU* pcCU, Pel* pOrg [3], Pel *pPalette[3], Pel* pValue, Pel*paPixelValue[3], Pel*paRecoValue[3], UInt uiWidth, UInt uiHeight,  UInt uiStrideOrg, UInt uiStartPos );
+  Double xCalcPixelPredRD                  ( TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma = false );
+  UInt  xGetTruncatedBinBits               ( UInt uiSymbol, UInt uiMaxSymbol );
+  UInt  xGetEpExGolombNumBins              ( UInt uiSymbol, UInt uiCount );
+  Void  xPreCalcPaletteIndex               ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize );
+  Void  xPreCalcPaletteIndexRD             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize, TComRdCost *pcCost, UInt calcErrorBits );
+  Void  xReorderPalette                    ( TComDataCU* pcCU, Pel *Palette[3], UInt uiNumComp );
+  Void  xRotationScan                      ( Pel* pLevel, UInt uiWidth, UInt uiHeight, Bool isInverse );
 
   // -------------------------------------------------------------------------------------------------------------------
   // Inter search (AMP)

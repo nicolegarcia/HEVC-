@@ -118,6 +118,9 @@ TEncSearch::TEncSearch()
 , m_pcRDGoOnSbacCoder (NULL)
 , m_pTempPel (NULL)
 , m_isInitialized (false)
+, m_paletteErrLimit(3)
+, m_truncBinBits(NULL)
+, m_escapeNumBins(NULL)
 {
   for (UInt ch=0; ch<MAX_NUM_COMPONENT; ch++)
   {
@@ -304,6 +307,27 @@ Void TEncSearch::destroy()
   if (m_paEscapeFlagStoreRD) { xFree(m_paEscapeFlagStoreRD);    m_paEscapeFlagStoreRD=NULL;    }
 
   m_isInitialized = false;
+
+  if( m_truncBinBits )
+  {
+    for( UInt i = 0; i < m_maxSymbolSize; i++ )
+    {
+      if( m_truncBinBits[i] )
+      {
+        delete[] m_truncBinBits[i];
+        m_truncBinBits[i] = NULL;
+      }
+    }
+
+    delete[] m_truncBinBits;
+    m_truncBinBits = NULL;
+  }
+
+  if( m_escapeNumBins )
+  {
+    delete[] m_escapeNumBins;
+    m_escapeNumBins = NULL;
+  }
 }
 
 TEncSearch::~TEncSearch()
@@ -371,7 +395,10 @@ Void TEncSearch::init(TEncCfg*       pcEncCfg,
 
   const ChromaFormat cform=pcEncCfg->getChromaFormatIdc();
   initTempBuff(cform);
-  initTBCTable(pcEncCfg->getBitDepth(ChannelType(0)));
+  if( pcEncCfg->getUsePaletteMode() )
+  {
+    xInitTBCTable();
+  }
   m_pTempPel = new Pel[maxCUWidth*maxCUHeight];
 
   const UInt uiNumLayersToAllocate = pcEncCfg->getQuadtreeTULog2MaxSize()-pcEncCfg->getQuadtreeTULog2MinSize()+1;
@@ -4572,15 +4599,15 @@ UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rp
   {
     if( pcCU->getCUTransquantBypass(0) )
     {
-      derivePaletteLossless(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, forcePalettePrediction);
+      xDerivePaletteLossless(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, forcePalettePrediction);
     }
     else if( forcePalettePrediction )
     {
-      derivePaletteLossyForcePrediction(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
+      xDerivePaletteLossyForcePrediction(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
     }
     else
     {
-      derivePaletteLossy(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
+      xDerivePaletteLossy(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
     }
   }
   else
@@ -4593,14 +4620,14 @@ UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rp
         paPalette[ch][paletteIdx] = m_prevPalette[uiIterNumber - MAX_PALETTE_ITER][ch][paletteIdx];
       }
     }
-    derivePaletteLossyIterative(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
+    xDerivePaletteLossyIterative(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), pcCU->getHeight(0), paletteSize, m_pcRdCost);
   }
   *paletteSizeCurrIter=paletteSize;
 
   pcCU->setPaletteSizeSubParts(0, paletteSize, 0, pcCU->getDepth(0));
   pcCU->setPaletteSizeSubParts(1, paletteSize, 0, pcCU->getDepth(0));
   pcCU->setPaletteSizeSubParts(2, paletteSize, 0, pcCU->getDepth(0));
-  reorderPalette(pcCU, paPalette, 3);
+  xReorderPalette(pcCU, paPalette, 3);
 
   if (uiIterNumber==0)
   {
@@ -4638,7 +4665,7 @@ UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rp
   }
 
   UInt calcErroBits = uiIterNumber < MAX_PALETTE_ITER ? 1 : 0;
-  preCalcPaletteIndexRD(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), paletteSize, m_pcRdCost, calcErroBits);
+  xPreCalcPaletteIndexRD(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), paletteSize, m_pcRdCost, calcErroBits);
 
   for (UInt ch = 0; ch < 3; ch++)
   {
@@ -4653,7 +4680,7 @@ UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rp
   UInt uiHeight = pcCU->getHeight(0);
   UInt uiStride = rpcPredYuv->getStride(ComponentID(0));
 
-  memcpy(m_paOriginalLevel, m_cIndexBlock, sizeof(Pel) * (uiWidth * uiHeight));
+  memcpy(m_paOriginalLevel, m_indexBlock, sizeof(Pel) * (uiWidth * uiHeight));
 
   UInt uiBits      = MAX_UINT;
   m_bBestScanRotationMode = 0;
@@ -4686,12 +4713,12 @@ UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rp
 
     memcpy(m_paletteInfoStoreRD, m_paletteInfoBest, sizeof(m_paletteInfo));
 
-    m_SPointRD     = m_paBestSPoint;
-    m_EscapeFlagRD = m_paBestEscapeFlag;
-    m_RunRD        = m_paBestRun;
-    m_LevelRD[0]   = m_paBestLevel[0];
-    m_LevelRD[1]   = m_paBestLevel[1];
-    m_LevelRD[2]   = m_paBestLevel[2];
+    m_paletteRunMode     = m_paBestSPoint;
+    m_escapeFlagRD = m_paBestEscapeFlag;
+    m_runRD        = m_paBestRun;
+    m_levelRD[0]   = m_paBestLevel[0];
+    m_levelRD[1]   = m_paBestLevel[1];
+    m_levelRD[2]   = m_paBestLevel[2];
 
     preCalcRDMerge(pcCU, paPalette, paOrig, pcCU->getWidth(0), pcCU->getHeight(0), paletteSize, m_pcRdCost, &errorOrig, &errorNew, calcErroBits);
   }
@@ -4873,8 +4900,8 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   pcCU->setPaletteScanRotationModeFlagSubParts(paletteScanMode, 0, uiDepth );
   if (paletteScanMode == PALETTE_SCAN_VERTRAV)
   {    
-    rotationScan(m_cIndexBlock, uiWidth, uiHeight, false);
-    rotationScan(m_cPosBlock, uiWidth, uiHeight, false);
+    xRotationScan(m_indexBlock, uiWidth, uiHeight, false);
+    xRotationScan(m_posBlock, uiWidth, uiHeight, false);
   }
 
   m_puiScanOrder = g_scanOrder[SCAN_UNGROUPED][SCAN_TRAV][g_aucConvertToBit[uiWidth]+2][g_aucConvertToBit[uiHeight]+2];
@@ -4892,8 +4919,8 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
      memcpy(m_paletteInfoBest, m_paletteInfo, sizeof(m_paletteInfo));
      m_paletteNoElementsBest = m_paletteNoElements;
 
-     memcpy(m_cPosBlockRD, m_cPosBlock, sizeof(m_cPosBlock));
-     memcpy(m_cIndexBlockRD, m_cIndexBlock, sizeof(m_cIndexBlock));
+     memcpy(m_posBlockRD, m_posBlock, sizeof(m_posBlock));
+     memcpy(m_indexBlockRD, m_indexBlock, sizeof(m_indexBlock));
     for (UInt ch = 0; ch < pcCU->getPic()->getNumberValidComponents(); ch++)
     {
       if ( ch == 0 )
@@ -4912,7 +4939,7 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   }
   if (bReset)
   {
-    memcpy(m_cIndexBlock, m_paOriginalLevel, sizeof(Pel) * uiTotalPixel);
+    memcpy(m_indexBlock, m_paOriginalLevel, sizeof(Pel) * uiTotalPixel);
     memset(paSPoint[0], 0, sizeof(UChar) * uiTotalPixel);
     memset(pEscapeFlag, 0, sizeof(UChar) * uiTotalPixel);
   }
@@ -4942,12 +4969,12 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
   error = 0;
   for (UInt uiIdx=0; uiIdx < uiTotal; uiIdx++)
   {
-    if (m_cIndexBlockRD[uiIdx] < 0)
+    if (m_indexBlockRD[uiIdx] < 0)
     {
-      m_cIndexBlockRD[uiIdx] = (MAX_PALETTE_SIZE-1);
+      m_indexBlockRD[uiIdx] = (MAX_PALETTE_SIZE-1);
     }
-    UInt curPaletteIdx = paletteIdxMapping1[m_cIndexBlockRD[uiIdx]];
-    error += m_indError[m_cPosBlockRD[uiIdx]][curPaletteIdx];
+    UInt curPaletteIdx = paletteIdxMapping1[m_indexBlockRD[uiIdx]];
+    error += m_indError[m_posBlockRD[uiIdx]][curPaletteIdx];
   }
 
 
@@ -4973,8 +5000,8 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
   //Calculate all the SSE if index A is mapped to index B
   for (UInt uiIdx=0; uiIdx < uiTotal; uiIdx++)
   {
-    UInt uiOrgIdx = m_cIndexBlockRD[uiIdx]; //Escape already converted
-    UInt* indError = m_indError[m_cPosBlockRD[uiIdx]];
+    UInt uiOrgIdx = m_indexBlockRD[uiIdx]; //Escape already converted
+    UInt* indError = m_indError[m_posBlockRD[uiIdx]];
     Int64* errDiffArray = errorDiffPaletteIndArray[uiOrgIdx];
     
     for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
@@ -5118,8 +5145,8 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
     error=0;
     for (UInt uiIdx = 0; uiIdx < uiTotal; uiIdx++)
     {
-      UInt curPaletteIdx = paletteIdxMapping1[m_cIndexBlockRD[uiIdx]];
-      error += m_indError[m_cPosBlockRD[uiIdx]][curPaletteIdx];
+      UInt curPaletteIdx = paletteIdxMapping1[m_indexBlockRD[uiIdx]];
+      error += m_indError[m_posBlockRD[uiIdx]][curPaletteIdx];
     }
 
     UInt currIndex, nextIndex, noSameIndices, predIndex, run=0;
@@ -5160,11 +5187,11 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
           {
             currIndex--;
           }
-          iBits+=m_truncBinBits[currIndex][uiIndexMaxSize-1]<<15;
+          iBits += xGetTruncBinBits(currIndex, uiIndexMaxSize-1) << 15;
         }
         else
         {
-          iBits+=m_truncBinBits[currIndex][uiIndexMaxSize]<<15;
+          iBits += xGetTruncBinBits(currIndex, uiIndexMaxSize) << 15;
         }
         
 
@@ -5221,18 +5248,18 @@ UInt TEncSearch::calcPaletteIndexPredAndBits(Int iMaxSymbol, UInt uiIdxStart, UI
   {
     uiTraIdx=m_puiScanOrder[uiIdxStart];
     UInt uiTraIdxLeft = m_puiScanOrder[uiIdxStart - 1];
-    if (m_SPointRD[uiTraIdxLeft] == PALETTE_RUN_LEFT)  ///< copy left
+    if (m_paletteRunMode[uiTraIdxLeft] == PALETTE_RUN_LEFT)  ///< copy left
     {
-      *predIndex = m_cIndexBlockRD[uiTraIdxLeft];
-      if(m_cIndexBlockRD[uiTraIdxLeft]==(MAX_PALETTE_SIZE-1))
+      *predIndex = m_indexBlockRD[uiTraIdxLeft];
+      if(m_indexBlockRD[uiTraIdxLeft]==(MAX_PALETTE_SIZE-1))
       {
         *predIndex = iMaxSymbol - 1;
       }
     }
     else
     {
-      *predIndex = m_cIndexBlockRD[uiTraIdx - uiWidth];
-      if(m_cIndexBlockRD[uiTraIdx - uiWidth]==(MAX_PALETTE_SIZE-1))
+      *predIndex = m_indexBlockRD[uiTraIdx - uiWidth];
+      if(m_indexBlockRD[uiTraIdx - uiWidth]==(MAX_PALETTE_SIZE-1))
       {
         *predIndex = iMaxSymbol - 1;
       }
@@ -5244,7 +5271,7 @@ UInt TEncSearch::calcPaletteIndexPredAndBits(Int iMaxSymbol, UInt uiIdxStart, UI
   {
     (*currIndex)--;
   }
-  indexBits=m_truncBinBits[*currIndex][iMaxSymbol];
+  indexBits = xGetTruncBinBits(*currIndex, iMaxSymbol);
 
   return(indexBits);
 }
@@ -5258,7 +5285,7 @@ UInt TEncSearch::calcPaletteStartCopy(UInt positionInit, UInt positionCurrSegmen
   {
 
     UInt uiTraIdx = m_puiScanOrder[positionStart-1]; 
-    if (m_cIndexBlockRD[uiTraIdx]==m_cIndexBlockRD[uiTraIdx - uiWidth])
+    if (m_indexBlockRD[uiTraIdx]==m_indexBlockRD[uiTraIdx - uiWidth])
     {
       positionStart--;
     }
@@ -5281,13 +5308,13 @@ UInt TEncSearch::calcPaletteErrorCopy(UInt uiIdxStart, UInt run, UInt uiWidth, U
   {
     uiTraIdx = m_puiScanOrder[uiIdx]; 
 
-    paletteIdx=m_cIndexBlockRD[uiTraIdx - uiWidth];
+    paletteIdx=m_indexBlockRD[uiTraIdx - uiWidth];
     if (paletteIdx==(MAX_PALETTE_SIZE-1))
     {
       *merge=0;
       break;
     }
-    error+=m_indError[m_cPosBlockRD[uiTraIdx]][paletteIdx];
+    error+=m_indError[m_posBlockRD[uiTraIdx]][paletteIdx];
   }
 
   return(error);
@@ -5299,7 +5326,7 @@ UInt64 TEncSearch::calcPaletteErrorLevel(Int idxStart, UInt run, UInt paletteIdx
 
   for (Int idx = idxStart + run; idx >= idxStart; idx--)
   {
-    error += m_indError[m_cPosBlockRD[m_puiScanOrder[idx]]][paletteIdx];
+    error += m_indError[m_posBlockRD[m_puiScanOrder[idx]]][paletteIdx];
   }
 
   return(error);
@@ -5310,15 +5337,15 @@ Void TEncSearch::modifyPaletteSegment(UInt uiWidth, UInt uiIdxStart, UInt palett
   for (UInt uiIdx=uiIdxStart; uiIdx<=(uiIdxStart+run); uiIdx++){
     UInt uiTraIdx = m_puiScanOrder[uiIdx]; 
 
-    m_SPointRD[uiTraIdx]=paletteMode;
+    m_paletteRunMode[uiTraIdx]=paletteMode;
 
     if (paletteMode==PALETTE_RUN_LEFT)
     {
-      m_cIndexBlockRD[uiTraIdx]=paletteIdx;
+      m_indexBlockRD[uiTraIdx]=paletteIdx;
     }
     else
     {
-      m_cIndexBlockRD[uiTraIdx]=m_cIndexBlockRD[uiTraIdx - uiWidth];
+      m_indexBlockRD[uiTraIdx]=m_indexBlockRD[uiTraIdx - uiWidth];
     }
   }
 }
@@ -5329,16 +5356,16 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
   UInt uiTraIdxStart=m_puiScanOrder[uiIdxStart], uiIdx, uiTraIdx, paletteMode, predIndex=0, run, currIndex=0;
   UInt64 indexBits=0, runBits, sPointBits;
   Int iMaxSymbol; 
-  if (m_SPointRD[uiTraIdxStart]==PALETTE_RUN_LEFT)
+  if (m_paletteRunMode[uiTraIdxStart]==PALETTE_RUN_LEFT)
   {
     paletteMode=PALETTE_RUN_LEFT;
     iMaxSymbol=uiIndexMaxSize;
 
-    currIndex=m_cIndexBlockRD[uiTraIdxStart];
+    currIndex=m_indexBlockRD[uiTraIdxStart];
 
     UInt startIndex = currIndex;
 
-    if(m_cIndexBlockRD[uiTraIdxStart]==(MAX_PALETTE_SIZE-1))
+    if(m_indexBlockRD[uiTraIdxStart]==(MAX_PALETTE_SIZE-1))
     {
       currIndex = iMaxSymbol - 1;
       paletteElement->index=(MAX_PALETTE_SIZE-1);
@@ -5357,7 +5384,7 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
         uiIdx++;
         uiTraIdx=m_puiScanOrder[uiIdx];
 
-        if (m_cIndexBlockRD[uiTraIdx] == startIndex)
+        if (m_indexBlockRD[uiTraIdx] == startIndex)
         {
           run++;
         }
@@ -5376,7 +5403,7 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
         uiIdx++;
         uiTraIdx=m_puiScanOrder[uiIdx];
 
-        if (m_cIndexBlockRD[uiTraIdx] == startIndex && m_SPointRD[uiTraIdx] == PALETTE_RUN_LEFT)
+        if (m_indexBlockRD[uiTraIdx] == startIndex && m_paletteRunMode[uiTraIdx] == PALETTE_RUN_LEFT)
         {
           run++;
         }
@@ -5406,12 +5433,12 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
     uiTraIdx = m_puiScanOrder[uiIdx];
     copyPixels[uiTraIdx - uiWidth] = 1;
 
-    m_cIndexBlockRD[uiTraIdx] = m_cIndexBlockRD[uiTraIdx - uiWidth];
+    m_indexBlockRD[uiTraIdx] = m_indexBlockRD[uiTraIdx - uiWidth];
     while (uiIdx < (uiTotal-1))
     {
       uiIdx++;
       uiTraIdx=m_puiScanOrder[uiIdx];
-      if (m_cIndexBlockRD[uiTraIdx]==m_cIndexBlockRD[uiTraIdx - uiWidth])
+      if (m_indexBlockRD[uiTraIdx]==m_indexBlockRD[uiTraIdx - uiWidth])
       {
         copyPixels[uiTraIdx - uiWidth]=1;
         run++;
@@ -5432,12 +5459,12 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
   {
     uiTraIdx = m_puiScanOrder[uiIdx];
 
-    m_SPointRD[uiTraIdx] = paletteMode;
-    m_RunRD[uiTraIdx] = run;
+    m_paletteRunMode[uiTraIdx] = paletteMode;
+    m_runRD[uiTraIdx] = run;
 
-    if (m_EscapeFlagRD[uiTraIdx] == 0)
+    if (m_escapeFlagRD[uiTraIdx] == 0)
     {
-      m_LevelRD[0][uiTraIdx] = m_cIndexBlockRD[uiTraIdx];
+      m_levelRD[0][uiTraIdx] = m_indexBlockRD[uiTraIdx];
     }
   }
 
@@ -5450,14 +5477,14 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
     for (uiIdx=uiIdxStart; uiIdx<=(uiIdxStart+run); uiIdx++)
     {
       uiTraIdx = m_puiScanOrder[uiIdx]; 
-      Pel index = m_cIndexBlockRD[uiTraIdx];
-      error += m_indError[m_cPosBlockRD[uiTraIdx]][index];
+      Pel index = m_indexBlockRD[uiTraIdx];
+      error += m_indError[m_posBlockRD[uiTraIdx]][index];
       if (copyPixels[uiTraIdx])
       {
         usedForCopy = 1;
       }
 
-      UInt escFlagOrig=m_EscapeFlagRD[uiTraIdx];
+      UInt escFlagOrig=m_escapeFlagRD[uiTraIdx];
       UInt escFlagNew = index == (MAX_PALETTE_SIZE - 1) ? 1 : 0;
       assert(escFlagOrig == escFlagNew);
 
@@ -5470,7 +5497,7 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
     m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
     m_pcRDGoOnSbacCoder->resetBits();
     UInt64 initialBits = m_pcRDGoOnSbacCoder->getNumPartialBits();
-    m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStart, uiWidth, m_SPointRD, paletteMode, m_puiScanOrder);
+    m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStart, uiWidth, m_paletteRunMode, paletteMode, m_puiScanOrder);
     sPointBits=m_pcRDGoOnSbacCoder->getNumPartialBits()-initialBits;
     m_pcRDGoOnSbacCoder->encodeRun(run, paletteMode, currIndex, uiTotal - uiIdxStart - 1);
 
@@ -5530,14 +5557,14 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
   for (uiIdx=0; uiIdx<uiTotal; uiIdx++)
   {
     uiTraIdx = m_puiScanOrder[uiIdx]; 
-    if (m_EscapeFlagRD[uiTraIdx])
+    if (m_escapeFlagRD[uiTraIdx])
     {
-      errOrig += m_indError[m_cPosBlockRD[uiTraIdx]][MAX_PALETTE_SIZE];
+      errOrig += m_indError[m_posBlockRD[uiTraIdx]][MAX_PALETTE_SIZE];
     }
     else
     {
-      paletteIdx = m_cIndexBlockRD[uiTraIdx];
-      errOrig += m_indError[m_cPosBlockRD[uiTraIdx]][paletteIdx];
+      paletteIdx = m_indexBlockRD[uiTraIdx];
+      errOrig += m_indError[m_posBlockRD[uiTraIdx]][paletteIdx];
     }
   }
 
@@ -5567,9 +5594,9 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
   for (uiIdx=0; uiIdx<uiTotal; uiIdx++)
   {
-    if (m_cIndexBlockRD[uiIdx]<0)
+    if (m_indexBlockRD[uiIdx]<0)
     {
-      m_cIndexBlockRD[uiIdx]=(MAX_PALETTE_SIZE-1);
+      m_indexBlockRD[uiIdx]=(MAX_PALETTE_SIZE-1);
     }
   }
 
@@ -5626,12 +5653,12 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
             m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
             m_pcRDGoOnSbacCoder->resetBits();
             UInt64 initialBits=m_pcRDGoOnSbacCoder->getNumPartialBits();
-            m_pcRDGoOnSbacCoder->encodeSPointRD(currentPaletteElement->position, uiWidth, m_SPointRD, PALETTE_RUN_LEFT, m_puiScanOrder);
+            m_pcRDGoOnSbacCoder->encodeSPointRD(currentPaletteElement->position, uiWidth, m_paletteRunMode, PALETTE_RUN_LEFT, m_puiScanOrder);
             tempIndex=currentPaletteElement->index > currentPaletteElement->indexPred ? currentPaletteElement->index-1 : currentPaletteElement->index ;
             m_pcRDGoOnSbacCoder->encodeRun(runCurrent, PALETTE_RUN_LEFT, tempIndex, uiTotal - currentPaletteElement->position - 1);
 
             // Next palette segment
-            m_pcRDGoOnSbacCoder->encodeSPointRD(uiModPositionNext, uiWidth, m_SPointRD, PALETTE_RUN_ABOVE, m_puiScanOrder);
+            m_pcRDGoOnSbacCoder->encodeSPointRD(uiModPositionNext, uiWidth, m_paletteRunMode, PALETTE_RUN_ABOVE, m_puiScanOrder);
 
             m_pcRDGoOnSbacCoder->encodeRun(runNext, PALETTE_RUN_ABOVE, tempIndex, uiTotal - uiModPositionNext - 1);
 
@@ -5713,7 +5740,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
               merge = 1;
               currIndex = paletteIdx > predIndex ? paletteIdx - 1 : paletteIdx;
 
-              indexBits = m_truncBinBits[currIndex][iMaxSymbol];
+              indexBits = xGetTruncBinBits(currIndex, iMaxSymbol);
               error = pcCost->getLambda()*indexBits; // error includes index
               error += calcPaletteErrorLevel(uiIdxStartMerge, run, paletteIdx);
 
@@ -5731,7 +5758,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
             m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
             m_pcRDGoOnSbacCoder->resetBits();
             UInt64 initialBits=m_pcRDGoOnSbacCoder->getNumPartialBits();
-            m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_SPointRD, paletteMode, m_puiScanOrder);
+            m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_paletteRunMode, paletteMode, m_puiScanOrder);
             m_pcRDGoOnSbacCoder->encodeRun(run, paletteMode, mergeCurrIndex, uiTotal - uiIdxStartMerge - 1);
 
             rdCostMerge=pcCost->getLambda()*(Double)((m_pcRDGoOnSbacCoder->getNumPartialBits()-initialBits)>>15)+errorMin;
@@ -5762,7 +5789,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
           m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(0);
           m_pcRDGoOnSbacCoder->resetBits();
           UInt64 initialBits = m_pcRDGoOnSbacCoder->getNumPartialBits();
-          m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_SPointRD, paletteMode, m_puiScanOrder);
+          m_pcRDGoOnSbacCoder->encodeSPointRD(uiIdxStartMerge, uiWidth, m_paletteRunMode, paletteMode, m_puiScanOrder);
           m_pcRDGoOnSbacCoder->encodeRun(run, paletteMode, mergeCurrIndex, uiTotal - uiIdxStartMerge - 1);
           rdCostMerge = pcCost->getLambda()*(Double)((m_pcRDGoOnSbacCoder->getNumPartialBits() - initialBits) >> 15) + errorMin;
         }
@@ -5821,14 +5848,14 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
   for (uiIdx=0; uiIdx<uiTotal; uiIdx++)
   {
     uiTraIdx = m_puiScanOrder[uiIdx]; 
-    if (m_EscapeFlagRD[uiTraIdx])
+    if (m_escapeFlagRD[uiTraIdx])
     {
-      errNew += m_indError[m_cPosBlockRD[uiTraIdx]][MAX_PALETTE_SIZE];
+      errNew += m_indError[m_posBlockRD[uiTraIdx]][MAX_PALETTE_SIZE];
     }
     else
     {
-      paletteIdx=m_cIndexBlockRD[uiTraIdx];
-      errNew += m_indError[m_cPosBlockRD[uiTraIdx]][paletteIdx];
+      paletteIdx=m_indexBlockRD[uiTraIdx];
+      errNew += m_indError[m_posBlockRD[uiTraIdx]][paletteIdx];
     }
   }
 
@@ -5843,7 +5870,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
   UInt uiStartPos = 0,  uiRun = 0, uiCopyRun = 0;
   Int iTemp = 0;
   UInt uiTraIdx;  //unified position variable (raster scan)
-  Pel *pcIndexBlock = m_cIndexBlock;
+  Pel *pcIndexBlock = m_indexBlock;
 
   UChar *pEscapeFlag  = pcCU->getEscapeFlag(COMPONENT_Y);
   UInt noElements=0;
@@ -5865,7 +5892,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
     Double dAveBitsPerPix[NUM_PALETTE_RUN];
 
     uiRun = 0;
-    Bool RunValid = calLeftRun(pcCU, pValue, pSPoint, uiStartPos, uiTotal, uiRun, pEscapeFlag);
+    Bool RunValid = xCalLeftRun(pcCU, pValue, pSPoint, uiStartPos, uiTotal, uiRun, pEscapeFlag);
 
     if(RunValid)
     {
@@ -5877,7 +5904,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
     }
 
     uiCopyRun = 0;
-    Bool CopyValid = calAboveRun(pcCU, pValue, pSPoint, uiWidth, uiStartPos, uiTotal, uiCopyRun, pEscapeFlag);
+    Bool CopyValid = xCalAboveRun(pcCU, pValue, pSPoint, uiWidth, uiStartPos, uiTotal, uiCopyRun, pEscapeFlag);
 
     if(CopyValid)
     {
@@ -5911,7 +5938,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
 
         if( pEscapeFlag[uiTraIdx] )
         {
-          calcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx); 
+          xCalcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx); 
         }
         uiIdx++;
 
@@ -5924,7 +5951,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
 
           if( pEscapeFlag[uiTraIdx] )
           {
-            calcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
+            xCalcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
           }
 
           pSPoint[uiTraIdx] = PALETTE_RUN_ABOVE;
@@ -5976,7 +6003,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
 
         if( pEscapeFlag[uiTraIdx] )
         {
-          calcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
+          xCalcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
         }
 
         uiIdx++;
@@ -5990,7 +6017,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
 
           if( pEscapeFlag[uiTraIdx] )
           {
-            calcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
+            xCalcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, uiWidth, uiHeight, uiStrideOrg, uiTraIdx);
           }
 
           pSPoint[uiTraIdx] = PALETTE_RUN_LEFT;
@@ -12451,6 +12478,1980 @@ Void  TEncSearch::setWpScalingDistParam( TComDataCU* pcCU, Int iRefIdx, RefPicLi
   else
   {
     m_cDistParam.wpCur = wp1;
+  }
+}
+
+Void TEncSearch::xPreCalcPaletteIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize, TComRdCost *pcCost, UInt calcErroBits)
+{
+  Bool bLossless = pcCU->getCUTransquantBypass(0);
+  Int iErrorLimit = bLossless ? 0 : 3 * m_paletteErrLimit * m_paletteErrLimit;
+
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb); 
+
+  UInt paletteIdx, uiMinError, uiBestIdx, uiPos;
+  UChar useEscapeFlag=0;
+  Int maxSpsPaletteSize = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize();
+
+  Pel distAdjY = DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA] - 8) << 1);
+  Pel distAdjC = DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA] - 8) << 1);
+
+  Short iTemp;
+  UInt uiAbsError;
+
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      UInt* indError = m_indError[uiPos];
+      Int localAdjC = distAdjC;
+      Bool discardChroma = uiY&uiScaleY || uiX&uiScaleX;
+      if (discardChroma) localAdjC+=SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ;
+      UInt round = localAdjC ? (1 << (localAdjC-1)) : 0;
+      uiBestIdx=0;
+      uiMinError = MAX_UINT;
+     
+
+      paletteIdx = 0;
+      while (paletteIdx < paletteSize)
+      {
+        if( bLossless )
+        {
+          if( Palette[0][paletteIdx] != pSrc[0][uiPos] )
+          {
+            indError[paletteIdx] = uiAbsError = MAX_UINT;
+          }
+          else
+          {
+            uiAbsError  = abs(Palette[1][paletteIdx] - pSrc[1][uiPosC]);
+            uiAbsError += abs(Palette[2][paletteIdx] - pSrc[2][uiPosC]);
+            if (uiAbsError && !discardChroma)
+            {
+              indError[paletteIdx] = uiAbsError = MAX_UINT;
+            }
+            else
+            {
+              uiAbsError = std::min(1U, uiAbsError);
+              indError[paletteIdx] = 0;
+            }
+          }
+        }
+        else
+        {
+          iTemp = Palette[1][paletteIdx] - pSrc[1][uiPosC];
+          uiAbsError = iTemp * iTemp;
+          iTemp = Palette[2][paletteIdx] - pSrc[2][uiPosC];
+          uiAbsError += iTemp * iTemp;
+          uiAbsError = (uiAbsError + round) >> localAdjC;
+          iTemp = Palette[0][paletteIdx] - pSrc[0][uiPos];
+          uiAbsError += (iTemp * iTemp) >> distAdjY;
+          indError[paletteIdx] = discardChroma ? (iTemp * iTemp) >> distAdjY : uiAbsError;
+        }
+
+        if (uiAbsError < uiMinError)
+        {
+          uiBestIdx = paletteIdx;
+          uiMinError = uiAbsError;
+        }
+
+        paletteIdx++;
+      }
+      m_indexBlock[uiPos] = uiBestIdx;
+
+      UInt errorTemp;
+
+      if( discardChroma && bLossless && uiMinError != MAX_UINT )
+      {
+        uiMinError = 0;
+      }
+
+      if (uiMinError > iErrorLimit || calcErroBits)
+      {
+        Double rdCost = MAX_DOUBLE;
+        if (pcCU->getCUTransquantBypass(0))
+        {
+          errorTemp = 0;
+          UInt uiNumTotalBits = pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA);
+          if (!discardChroma) uiNumTotalBits += pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_CHROMA)<<1;
+
+          rdCost += pcCost->getLambda() * uiNumTotalBits;
+          if (uiMinError > iErrorLimit)
+          {
+            m_indexBlock[uiPos] -= maxSpsPaletteSize;
+            useEscapeFlag = 1;
+          }
+        }
+        else
+        {
+          Pel pOrg[3] = { pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC] };
+          rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp, discardChroma);
+
+          if (rdCost < uiMinError && uiMinError > iErrorLimit)
+          {
+            m_indexBlock[uiPos] -= maxSpsPaletteSize;
+            useEscapeFlag = 1;
+          }
+        }
+        indError[MAX_PALETTE_SIZE - 1] = (UInt)rdCost;
+        indError[MAX_PALETTE_SIZE] = (UInt)errorTemp;
+      } 
+      m_posBlock[uiPos] = uiPos; 
+    }
+  }
+
+  pcCU->setPaletteEscapeSubParts(0, useEscapeFlag,0, pcCU->getDepth(0));
+  pcCU->setPaletteEscapeSubParts(1, useEscapeFlag,0, pcCU->getDepth(0));
+  pcCU->setPaletteEscapeSubParts(2, useEscapeFlag,0, pcCU->getDepth(0));
+
+}
+
+Void TEncSearch::xPreCalcPaletteIndex(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt paletteSize)
+{
+  Bool bLossless = pcCU->getCUTransquantBypass(0);
+  Int iErrorLimit = bLossless ? 0 : 3 * m_paletteErrLimit;
+  UInt uiPos;
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+
+  UInt uiBestIdx = 0;
+  UChar useEscapeFlag=0;
+
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      UInt paletteIdx = 0;
+      UInt uiMinError = MAX_UINT;
+      while (paletteIdx < paletteSize)
+      {
+        UInt uiAbsError = MAX_UINT;
+        if ( bLossless )
+        {
+          uiAbsError = abs( Palette[0][paletteIdx] - pSrc[0][uiPos] ) + abs( Palette[1][paletteIdx] - pSrc[1][uiPosC] ) + abs( Palette[2][paletteIdx] - pSrc[2][uiPosC] );
+        }
+        else
+        {
+          uiAbsError = ( abs(Palette[0][paletteIdx] - pSrc[0][uiPos])  >> DISTORTION_PRECISION_ADJUSTMENT(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]  -8) )
+                     + ( abs(Palette[1][paletteIdx] - pSrc[1][uiPosC]) >> DISTORTION_PRECISION_ADJUSTMENT(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) )
+                     + ( abs(Palette[2][paletteIdx] - pSrc[2][uiPosC]) >> DISTORTION_PRECISION_ADJUSTMENT(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) );
+        }
+        if (uiAbsError < uiMinError)
+        {
+          uiBestIdx = paletteIdx;
+          uiMinError = uiAbsError;
+          if (uiMinError == 0)
+          {
+            break;
+          }
+        }
+        paletteIdx++;
+      }
+      m_indexBlock[uiPos] = uiBestIdx;
+      if (uiMinError > iErrorLimit)
+      {
+        m_indexBlock[uiPos] -= pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize();
+        useEscapeFlag=1;
+      }
+    }
+  }
+
+  pcCU->setPaletteEscapeSubParts(0, useEscapeFlag,0, pcCU->getDepth(0));
+  pcCU->setPaletteEscapeSubParts(1, useEscapeFlag,0, pcCU->getDepth(0));
+  pcCU->setPaletteEscapeSubParts(2, useEscapeFlag,0, pcCU->getDepth(0));
+}
+
+Void TEncSearch::xReorderPalette(TComDataCU* pcCU, Pel *pPalette[3], UInt uiNumComp)
+{
+  UInt uiPaletteSizePrev, uiDictMaxSize;
+  Pel * pPalettePrev[3];
+  UInt maxPaletteSize = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize();
+  UInt maxPalettePredSize = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize();
+  Pel* pPaletteTemp[3];
+  for (UInt ch = 0; ch < 3; ch++)
+  {
+    pPaletteTemp[ch] = (Pel*)xMalloc(Pel, maxPaletteSize);
+  }
+  ComponentID compBegin = COMPONENT_Y;
+
+  for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+  {
+    pPalettePrev[comp] = pcCU->getPalettePred(pcCU, pcCU->getZorderIdxInCtu(), comp, uiPaletteSizePrev);
+    for (UInt i = 0; i < maxPaletteSize; i++)
+    {
+      pPaletteTemp[comp][i] = pPalette[comp][i];
+    }
+  }
+
+  uiDictMaxSize = pcCU->getPaletteSize(compBegin, 0);
+
+  UInt uiIdxPrev = 0, uiIdxCurr = 0;
+  Bool bReused = false;
+  Bool *bPredicted, *bReusedPrev;
+  bPredicted  = (Bool*)xMalloc(Bool, maxPaletteSize + 1);
+  bReusedPrev = (Bool*)xMalloc(Bool, maxPalettePredSize + 1);
+  memset(bPredicted, 0, sizeof(Bool)*(maxPaletteSize + 1));
+  memset(bReusedPrev, 0, sizeof(Bool)*(maxPalettePredSize + 1));
+
+  Int numPaletteRceived = uiDictMaxSize;
+  UInt numPalettePredicted = 0;
+
+  for (uiIdxCurr = 0; uiIdxCurr < uiDictMaxSize; uiIdxCurr++)
+  {
+    bReused = false;
+    Int iCounter = 0;
+
+    for (uiIdxPrev = 0; uiIdxPrev < uiPaletteSizePrev; uiIdxPrev++)
+    {
+      iCounter = 0;
+
+      for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+      {
+        if (pPalettePrev[comp][uiIdxPrev] == pPalette[comp][uiIdxCurr])
+        {
+          iCounter++;
+        }
+      }
+      if (iCounter == uiNumComp)
+      {
+        bReused = true;
+        break;
+      }
+    }
+    bReusedPrev[uiIdxPrev] = bReused;
+    bPredicted[uiIdxCurr] = bReused;
+    if (bPredicted[uiIdxCurr])
+    {
+      numPaletteRceived--;
+      numPalettePredicted++;
+    }
+  }
+
+  assert( numPaletteRceived >= 0 );
+  assert( numPalettePredicted <= uiDictMaxSize );
+
+  for (uiIdxPrev = 0; uiIdxPrev < maxPalettePredSize; uiIdxPrev++)
+  {
+    for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+    {
+      pcCU->setPrevPaletteReusedFlagSubParts(comp, bReusedPrev[uiIdxPrev], uiIdxPrev, 0, pcCU->getDepth(0));
+    }
+  }
+  uiIdxCurr = 0;
+  for (UInt uiPrevIdx = 0; uiPrevIdx < uiPaletteSizePrev; uiPrevIdx++)
+  {
+    if (bReusedPrev[uiPrevIdx])
+    {
+      for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+      {
+        pPalette[comp][uiIdxCurr] = pPalettePrev[comp][uiPrevIdx];
+      }
+      uiIdxCurr++;
+    }
+  }
+
+  for (UInt uiIdx = 0; uiIdx < uiDictMaxSize; uiIdx++)
+  {
+    if (bPredicted[uiIdx] == 0)
+    {
+      for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+      {
+        pPalette[comp][uiIdxCurr] = pPaletteTemp[comp][uiIdx];
+      }
+      uiIdxCurr++;
+    }
+  }
+  for (UInt ch = 0; ch < 3; ch++)
+  {
+    if (pPaletteTemp[ch])
+    {
+      xFree(pPaletteTemp[ch]);
+      pPaletteTemp[ch] = NULL;
+    }
+  }
+  if (bPredicted)
+  {
+    xFree(bPredicted);
+    bPredicted = NULL;
+  }
+  if (bReusedPrev)
+  {
+    xFree(bReusedPrev);
+    bReusedPrev = NULL;
+  }
+}
+
+UInt TEncSearch::xFindCandidatePalettePredictors(UInt paletteIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt paletteSizeTemp, UInt maxNoPredInd)
+{
+  UInt uiAbsError=0, uiMinError;
+  UInt palettePredError[MAX_PALETTE_PRED_SIZE];
+#if !FULL_NBIT
+  BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
+#endif
+
+  for(int t = 0; t < pcCU->getLastPaletteInLcuSizeFinal(0); t++)
+  {
+    uiAbsError=0;
+    Int iTemp=pPred[0][t] - Palette[0][paletteSizeTemp]; 
+    uiAbsError += (iTemp * iTemp) >> DISTORTION_PRECISION_ADJUSTMENT((bitDepths.recon[CHANNEL_TYPE_LUMA] - 8) << 1);
+    iTemp=pPred[1][t] - Palette[1][paletteSizeTemp];     
+    uiAbsError += (iTemp * iTemp) >> DISTORTION_PRECISION_ADJUSTMENT((bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8) << 1);
+    iTemp=pPred[2][t] - Palette[2][paletteSizeTemp];     
+    uiAbsError += (iTemp * iTemp) >> DISTORTION_PRECISION_ADJUSTMENT((bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8) << 1);
+
+    palettePredError[t] = uiAbsError;
+    paletteIndBest[t] = t;
+  }
+
+  UInt bestInd;
+  for(int t=0; t < maxNoPredInd; t++)
+  {
+    bestInd = t;
+    uiMinError = palettePredError[t];
+
+    for (UInt l=t+1; l < pcCU->getLastPaletteInLcuSizeFinal(0); l++)
+    {
+      if (palettePredError[l] < uiMinError)
+      {
+        bestInd=l;
+        uiMinError=palettePredError[l];
+      }
+    }
+
+    swap(palettePredError[bestInd], palettePredError[t]);
+    swap(paletteIndBest[bestInd], paletteIndBest[t]);
+  }
+
+  UInt maxPredCheck=min((UInt)pcCU->getLastPaletteInLcuSizeFinal(0), maxNoPredInd);
+
+  return(maxPredCheck);
+}
+
+Void TEncSearch::xDerivePaletteLossy( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost )
+{
+  Int iErrorLimit = m_paletteErrLimit;
+  UInt uiTotalSize = uiHeight*uiWidth;
+  SortingElement *psList = new SortingElement [uiTotalSize];
+  SortingElement sElement;
+  UInt uiDictMaxSize = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize();
+  SortingElement *pListSort = new SortingElement [uiDictMaxSize + 1];
+  UInt uiIdx = 0;
+  UInt uiPos;
+  Int last = -1;
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+
+  SortingElement *psListHistogram = new SortingElement[uiTotalSize];
+  SortingElement *psInitial = new SortingElement[uiTotalSize];
+  UInt uiHisIdx = 0;
+
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      sElement.setAll(pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC]);
+      Int i = 0;
+      for (i = uiHisIdx - 1; i >= 0; i--)
+      {
+        if (psListHistogram[i].EqualData(sElement))
+        {
+          psListHistogram[i].addElement(sElement);
+          break;
+        }
+      }
+      if (i == -1)
+      {
+        psListHistogram[uiHisIdx].copyDataFrom(sElement);
+        psListHistogram[uiHisIdx].uiCnt = 1;
+        uiHisIdx++;
+      }
+    }
+  }
+
+  UInt uiHisCnt, uiMaxIdx;
+  UInt uiLimit = ((uiHeight << 2)*iErrorLimit) >> 7;
+  uiLimit = (uiLimit > (uiHeight >> 1)) ? uiLimit : (uiHeight >> 1);
+
+  Bool bOtherPeakExist;
+  while (true)
+  {
+    uiHisCnt = psListHistogram[0].uiCnt;
+    uiMaxIdx = 0;
+    for (UInt j = 1; j < uiHisIdx; j++)
+    {
+      if (psListHistogram[j].uiCnt >= uiHisCnt)
+      {
+        uiHisCnt = psListHistogram[j].uiCnt;
+        uiMaxIdx = j;
+      }
+    }
+
+    if (uiHisCnt >= uiLimit)
+    {
+      bOtherPeakExist = false;
+      for (UInt j = 0; j < uiHisIdx; j++)
+      {
+        if (psListHistogram[j].uiCnt >= (uiHisCnt >> 1) && j != uiMaxIdx)
+        {
+          if (psListHistogram[uiMaxIdx].almostEqualData(psListHistogram[j], iErrorLimit >> 2, pcCU->getSlice()->getSPS()->getBitDepths()))
+          {
+            bOtherPeakExist = true;
+          }
+        }
+      }
+
+      if (!bOtherPeakExist)
+      {
+        psList[uiIdx].copyAllFrom(psListHistogram[uiMaxIdx]);
+        psInitial[uiIdx].copyAllFrom(psListHistogram[uiMaxIdx]);
+        last = uiIdx;
+        uiIdx++;
+
+        for (UInt j = 0; j < uiHisIdx; j++)
+        {
+          if (psListHistogram[uiMaxIdx].almostEqualData(psListHistogram[j], iErrorLimit >> 2, pcCU->getSlice()->getSPS()->getBitDepths()) && j != uiMaxIdx)
+          {
+            psListHistogram[j].ResetElement();
+          }
+        }
+      }
+
+      psListHistogram[uiMaxIdx].ResetElement();
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  UInt uiInitialIdx = uiIdx;
+  Bool bMatched;
+
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      sElement.setAll(pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC]);
+      bMatched = false;
+      for (Int i = 0; i < uiInitialIdx; i++)
+      {
+        bMatched |= psInitial[i].EqualData(sElement);
+      }
+
+      if (!bMatched)
+      {
+        Int besti = last, bestSAD = (last == -1) ? MAX_UINT : psList[last].getSAD(sElement, pcCU->getSlice()->getSPS()->getBitDepths());
+        if (bestSAD)
+        {
+          for (Int i = uiIdx - 1; i >= 0; i--)
+          {
+            UInt sad = psList[i].getSAD(sElement, pcCU->getSlice()->getSPS()->getBitDepths());
+            if (sad < bestSAD)
+            {
+              bestSAD = sad;
+              besti = i;
+              if (!sad) break;
+            }
+          }
+        }
+
+        if (besti >= 0 && psList[besti].almostEqualData(sElement, iErrorLimit, pcCU->getSlice()->getSPS()->getBitDepths()))
+        {
+          psList[besti].addElement(sElement);
+          last = besti;
+        }
+        else
+        {
+          psList[uiIdx].copyDataFrom(sElement);
+          psList[uiIdx].uiCnt = 1;
+          last = uiIdx;
+          uiIdx++;
+        }
+      }
+    }
+  }
+
+  for (Int i = 0; i < uiDictMaxSize; i++)
+  {
+    pListSort[i].uiCnt  = 0;
+    pListSort[i].setAll(0, 0, 0) ;
+  }
+
+  //bubble sorting
+  uiDictMaxSize = 1;
+  for (Int i = 0; i < uiIdx; i++)
+  {
+    if( psList[i].uiCnt > pListSort[uiDictMaxSize-1].uiCnt )
+    {
+      Int j;
+      for (j = uiDictMaxSize; j > 0; j--)
+      {
+        if (psList[i].uiCnt > pListSort[j-1].uiCnt)
+        {
+          pListSort[j].copyAllFrom (pListSort[j-1]);
+          uiDictMaxSize = std::min(uiDictMaxSize + 1, pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize());
+        }
+        else
+        {
+          break;
+        }
+      }
+      pListSort[j].copyAllFrom (psList[i]) ;
+    }
+  }
+
+  Int paletteIndPred[MAX_PALETTE_SIZE];
+  memset(paletteIndPred, 0, MAX_PALETTE_SIZE*sizeof(Int));
+
+  paletteSize = 0;
+  Pel *pPred[3]  = { pcCU->getLastPaletteInLcuFinal(0), pcCU->getLastPaletteInLcuFinal(1), pcCU->getLastPaletteInLcuFinal(2) };
+  UInt uiNumTotalBits = pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA) + (pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_CHROMA)<<1);
+  Double bitCost = pcCost->getLambda() * uiNumTotalBits;
+#if !FULL_NBIT
+  BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
+#endif
+  for (Int i = 0; i < pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize(); i++)
+  {
+    if( pListSort[i].uiCnt )
+    {
+      Int iHalf = pListSort[i].uiCnt>>1;
+      Palette[0][paletteSize] = (pListSort[i].uiSumData[0]+iHalf)/pListSort[i].uiCnt;
+      Palette[1][paletteSize] = (pListSort[i].uiSumData[1]+iHalf)/pListSort[i].uiCnt;
+      Palette[2][paletteSize] = (pListSort[i].uiSumData[2]+iHalf)/pListSort[i].uiCnt;
+
+      Int best = -1;
+      if( iErrorLimit )
+      {
+        Double pal[3] = { pListSort[i].uiSumData[0]/(Double)pListSort[i].uiCnt,
+                          pListSort[i].uiSumData[1]/(Double)pListSort[i].uiCnt,
+                          pListSort[i].uiSumData[2]/(Double)pListSort[i].uiCnt };
+
+        Double err      = pal[0] - Palette[0][paletteSize];
+        Double bestCost = (err*err) / ( 1<<(2*DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]-8)) );
+        err = pal[1] - Palette[1][paletteSize]; bestCost += (err*err) / ( 1<<(2*DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8)) );
+        err = pal[2] - Palette[2][paletteSize]; bestCost += (err*err) / ( 1<<(2*DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8)) );
+        bestCost = bestCost * pListSort[i].uiCnt + bitCost;
+
+        for(int t=0; t<pcCU->getLastPaletteInLcuSizeFinal(0); t++)
+        {
+          err = pal[0] - pPred[0][t];
+          Double cost = (err*err) / ( 1<<(2*DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]-8)) );
+          err = pal[1] - pPred[1][t]; cost += (err*err) / ( 1<<(2*DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8)) );
+          err = pal[2] - pPred[2][t]; cost += (err*err) / ( 1<<(2*DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8)) );
+          cost *= pListSort[i].uiCnt;
+          if(cost < bestCost)
+          {
+            best = t;
+            bestCost = cost;
+          }
+        }
+        if( best != -1 )
+        {
+          Palette[0][paletteSize] = pPred[0][best];
+          Palette[1][paletteSize] = pPred[1][best];
+          Palette[2][paletteSize] = pPred[2][best];
+        }
+        paletteIndPred[paletteSize]=best;
+      }
+
+      Bool bDuplicate = false;
+      if( pListSort[i].uiCnt == 1 && best == -1 )
+      {
+        bDuplicate = true;
+      }
+      else
+      {
+        for( Int t=0; t<paletteSize; t++)
+        {
+          if( Palette[0][paletteSize] == Palette[0][t] && Palette[1][paletteSize] == Palette[1][t] && Palette[2][paletteSize] == Palette[2][t] )
+          {
+            bDuplicate = true;
+            break;
+          }
+        }
+      }
+      if( !bDuplicate ) paletteSize++;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  UInt palettePredSamples[MAX_PALETTE_SIZE][5];
+  memset(palettePredSamples, 0, sizeof(palettePredSamples));
+  Int iErrorLimitSqr = 3 * m_paletteErrLimit * m_paletteErrLimit;
+
+  UInt uiAbsError;
+  UInt uiMinError;
+
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      UInt uiBestIdx=0, paletteIdx = 0;
+      Bool discardChroma = uiY&uiScaleY || uiX&uiScaleX;
+      uiMinError = MAX_UINT;
+
+      while (paletteIdx < paletteSize)
+      {
+        Int iTemp=Palette[0][paletteIdx] - pSrc[0][uiPos];
+        uiAbsError = (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]-8) << 1));
+        iTemp=Palette[1][paletteIdx] - pSrc[1][uiPosC];
+        uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+        iTemp=Palette[2][paletteIdx] - pSrc[2][uiPosC];
+        uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+
+        if (uiAbsError < uiMinError)
+        {
+          uiBestIdx = paletteIdx;
+          uiMinError = uiAbsError;
+          if (uiMinError == 0)
+          {
+            break;
+          }
+        }
+        paletteIdx++;
+      }
+
+      UInt escape=0;
+      if (uiMinError > iErrorLimitSqr)
+      {
+        Pel pOrg[3]={ pSrc[0][uiPos],  pSrc[1][uiPosC],  pSrc[2][uiPosC]};
+        UInt errorTemp;
+        Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp); 
+        if (rdCost<uiMinError) 
+        {
+          escape=1;
+        }
+      }
+
+      if (escape==0)
+      {
+        palettePredSamples[uiBestIdx][0]++;
+        palettePredSamples[uiBestIdx][1] += pSrc[0][uiPos];
+        if (!discardChroma)
+        {
+          palettePredSamples[uiBestIdx][2] += SCM_V0034_PALETTE_CHROMA_SETTINGS*pSrc[1][uiPosC];
+          palettePredSamples[uiBestIdx][3] += SCM_V0034_PALETTE_CHROMA_SETTINGS*pSrc[2][uiPosC];
+          palettePredSamples[uiBestIdx][4] += SCM_V0034_PALETTE_CHROMA_SETTINGS;
+        }
+        else
+        {
+          palettePredSamples[uiBestIdx][2] += pSrc[1][uiPosC];
+          palettePredSamples[uiBestIdx][3] += pSrc[2][uiPosC];
+          palettePredSamples[uiBestIdx][4]++;
+        }
+        m_indexBlock[uiPos] = uiBestIdx;
+      }
+      else
+      {
+        m_indexBlock[uiPos]=-1;
+      }
+    }
+  }
+
+  UInt paletteIndBest[MAX_PALETTE_PRED_SIZE];
+
+  UInt   paletteSizeTemp=0;
+  for (Int i = 0; i < paletteSize; i++)
+  {
+    if(palettePredSamples[i][0] > 0)
+    {
+      Palette[0][paletteSizeTemp] = (palettePredSamples[i][1]+palettePredSamples[i][0]/2)/palettePredSamples[i][0];
+      Palette[1][paletteSizeTemp] = (palettePredSamples[i][2]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
+      Palette[2][paletteSizeTemp] = (palettePredSamples[i][3]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
+
+      Double dMinError = pcCost->getLambda()*(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]+2*pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]); 
+
+
+      for (UInt uiY = 0; uiY < uiHeight; uiY++)
+      {
+        for (UInt uiX = 0; uiX < uiWidth; uiX++)
+        {
+          uiPos = uiY * uiWidth + uiX;
+          if (m_indexBlock[uiPos]==i)
+          {
+            UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+
+            Int iTemp=Palette[0][paletteSizeTemp] - pSrc[0][uiPos];
+            dMinError += (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]-8) << 1));
+            iTemp=Palette[1][paletteSizeTemp] - pSrc[1][uiPosC];
+            dMinError += (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+            iTemp=Palette[2][paletteSizeTemp] - pSrc[2][uiPosC];
+            dMinError += (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+          }
+        }
+      }
+
+      UInt maxPredCheck=xFindCandidatePalettePredictors(paletteIndBest, pcCU, Palette, pPred, paletteSizeTemp, MAX_PRED_CHEK);
+  
+      Int best=-1;
+      if (paletteIndPred[i]>=0)
+      {
+        for (int t=0; t<maxPredCheck; t++)
+        {
+          if (paletteIndPred[i]==paletteIndBest[t])
+          {
+            best=1;
+          }
+        }
+        if (best==-1)
+        {
+          paletteIndBest[maxPredCheck]=paletteIndPred[i];
+          maxPredCheck++;
+        }
+      }
+
+      best=-1;
+      UInt testedPalettePred;
+
+      for(int t=0; t<maxPredCheck; t++)
+      {
+        testedPalettePred=paletteIndBest[t];
+
+        uiAbsError=0;
+        for (UInt uiY = 0; uiY < uiHeight; uiY++)
+        {
+          for (UInt uiX = 0; uiX < uiWidth; uiX++)
+          {
+            uiPos = uiY * uiWidth + uiX;
+            if (m_indexBlock[uiPos]==i)
+            {
+
+              UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+              Int iTemp=pPred[0][testedPalettePred] - pSrc[0][uiPos];
+              uiAbsError += (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]-8) << 1));
+              iTemp=pPred[1][testedPalettePred] - pSrc[1][uiPosC];
+              uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+              iTemp=pPred[2][testedPalettePred] - pSrc[2][uiPosC];
+              uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+            }
+          }
+          if (uiAbsError>dMinError)
+          {
+            break;
+          }
+        }
+
+        if (uiAbsError < dMinError || (uiAbsError == dMinError && best>testedPalettePred))
+        {
+          best = testedPalettePred;
+          dMinError = uiAbsError;
+        }
+      }
+
+
+      if( best != -1 )
+      {
+        Palette[0][paletteSizeTemp] = pPred[0][best];
+        Palette[1][paletteSizeTemp] = pPred[1][best];
+        Palette[2][paletteSizeTemp] = pPred[2][best];
+      }
+
+
+      Bool bDuplicate = false;
+      if( palettePredSamples[i][0] == 1 && best == -1 )
+      {
+        bDuplicate = true;
+      }
+      else
+      {
+        for( Int t=0; t<paletteSizeTemp; t++)
+        {
+          if( Palette[0][paletteSizeTemp] == Palette[0][t] && Palette[1][paletteSizeTemp] == Palette[1][t] && Palette[2][paletteSizeTemp] == Palette[2][t] )
+          {
+            bDuplicate = true;
+            break;
+          }
+        }
+      }
+      if( !bDuplicate ) paletteSizeTemp++;
+    }
+  }
+
+  paletteSize=paletteSizeTemp;
+
+  delete[] psList;
+  delete[] pListSort;
+
+  delete[] psListHistogram;
+  delete[] psInitial;
+}
+
+Void TEncSearch::xDerivePaletteLossyIterative(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],  UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost)
+{
+  UInt uiPos, paletteIdx = 0, uiBestIdx;
+
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+
+  Int distAdjY = DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA] - 8) << 1);
+  Int distAdjC = DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA] - 8) << 1);
+  UInt palettePredSamples[MAX_PALETTE_SIZE][5], noSamples[MAX_PALETTE_SIZE];
+  memset(palettePredSamples, 0, sizeof(palettePredSamples));
+  Int iErrorLimitSqr = pcCU->getCUTransquantBypass(0) ? 0 : 3 * m_paletteErrLimit * m_paletteErrLimit;
+
+  Pel *pPred[3]  = { pcCU->getLastPaletteInLcuFinal(0), pcCU->getLastPaletteInLcuFinal(1), pcCU->getLastPaletteInLcuFinal(2) };
+  Pel pPaletteTemp[3][MAX_PALETTE_SIZE];
+
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      uiPos = uiY * uiWidth + uiX;
+
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      Int  localAdjC = distAdjC;
+      Bool discardChroma = uiY&uiScaleY || uiX&uiScaleX;
+      if (discardChroma) localAdjC+=SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ;
+
+      uiBestIdx=0;
+      UInt uiMinError = MAX_UINT;
+
+      paletteIdx=0;
+      while (paletteIdx < paletteSize)
+      {
+        Int iTemp=Palette[0][paletteIdx] - pSrc[0][uiPos];
+        UInt uiAbsError = ( iTemp * iTemp ) >> distAdjY;
+        iTemp           = Palette[1][paletteIdx] - pSrc[1][uiPosC];
+        uiAbsError     += ( iTemp * iTemp ) >> localAdjC;
+        iTemp           = Palette[2][paletteIdx] - pSrc[2][uiPosC];
+        uiAbsError     += ( iTemp * iTemp ) >> localAdjC;
+
+        if (uiAbsError < uiMinError)
+        {
+          uiBestIdx = paletteIdx;
+          uiMinError = uiAbsError;
+          if (uiMinError == 0)
+          {
+            break;
+          }
+        }
+        paletteIdx++;
+      }
+
+      UInt escape=0;
+      if (uiMinError > iErrorLimitSqr)
+      {
+        UInt errorTemp;
+        Pel pOrg[3]={ pSrc[0][uiPos],  pSrc[1][uiPosC],  pSrc[2][uiPosC]};
+        Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp, discardChroma);
+
+        if (rdCost<uiMinError) 
+        {
+          escape=1;
+        }
+      }
+
+      if (escape==0)
+      {
+        palettePredSamples[uiBestIdx][0]++;
+        palettePredSamples[uiBestIdx][1] += pSrc[0][uiPos];
+        if (!discardChroma)
+        {
+          palettePredSamples[uiBestIdx][2] += SCM_V0034_PALETTE_CHROMA_SETTINGS*pSrc[1][uiPosC];
+          palettePredSamples[uiBestIdx][3] += SCM_V0034_PALETTE_CHROMA_SETTINGS*pSrc[2][uiPosC];
+          palettePredSamples[uiBestIdx][4] += SCM_V0034_PALETTE_CHROMA_SETTINGS;
+        }
+        else
+        {
+          palettePredSamples[uiBestIdx][2] += pSrc[1][uiPosC];
+          palettePredSamples[uiBestIdx][3] += pSrc[2][uiPosC];
+          palettePredSamples[uiBestIdx][4]++;
+        }
+        m_indexBlock[uiPos] = uiBestIdx;
+      }
+      else
+      {
+        m_indexBlock[uiPos]=-1;
+      }
+    }
+  }
+
+  UInt paletteIndBest[MAX_PALETTE_PRED_SIZE];
+  UInt   paletteSizeTemp=0;
+  for (Int i = 0; i < paletteSize; i++)
+  {
+    if(palettePredSamples[i][0]>0)
+    {
+      pPaletteTemp[0][paletteSizeTemp] = (palettePredSamples[i][1]+palettePredSamples[i][0]/2)/palettePredSamples[i][0];
+      pPaletteTemp[1][paletteSizeTemp] = (palettePredSamples[i][2]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
+      pPaletteTemp[2][paletteSizeTemp] = (palettePredSamples[i][3]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
+
+      noSamples[paletteSizeTemp]=palettePredSamples[i][0];
+
+      Double uiMinError = pcCost->getLambda()*(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]+2*pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]), 
+        uiAbsError;
+
+      for (UInt uiY = 0; uiY < uiHeight; uiY++)
+      {
+        for (UInt uiX = 0; uiX < uiWidth; uiX++)
+        {
+          uiPos = uiY * uiWidth + uiX;
+          if (m_indexBlock[uiPos]==i)
+          {
+
+            UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+            Int iTemp=pPaletteTemp[0][paletteSizeTemp] - pSrc[0][uiPos];
+            Int  localAdjC = distAdjC;
+            if (uiY&uiScaleY || uiX&uiScaleX) localAdjC+=SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ;
+            uiMinError += ( iTemp * iTemp ) >> distAdjY;
+            iTemp       = pPaletteTemp[1][paletteSizeTemp] - pSrc[1][uiPosC];
+            uiMinError += ( iTemp * iTemp ) >> localAdjC;
+            iTemp       = pPaletteTemp[2][paletteSizeTemp] - pSrc[2][uiPosC];
+            uiMinError += ( iTemp * iTemp ) >> localAdjC;
+          }
+        }
+      }
+
+
+      UInt maxPredCheck=xFindCandidatePalettePredictors(paletteIndBest, pcCU, Palette, pPred, paletteSizeTemp, MAX_PRED_CHEK);
+      Int best=-1;
+      UInt testedPalettePred;
+
+      for(int t=0; t<maxPredCheck; t++)
+      {
+        testedPalettePred=paletteIndBest[t];
+
+        uiAbsError=0;
+        for (UInt uiY = 0; uiY < uiHeight; uiY++)
+        {
+          for (UInt uiX = 0; uiX < uiWidth; uiX++)
+          {
+            uiPos = uiY * uiWidth + uiX;
+            if (m_indexBlock[uiPos]==i)
+            {
+
+              UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+
+              Int iTemp=pPred[0][testedPalettePred] - pSrc[0][uiPos];
+              Int  localAdjC = distAdjC;
+              if (uiY&uiScaleY || uiX&uiScaleX) localAdjC+=SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ;
+              uiAbsError += ( iTemp * iTemp ) >> distAdjY;
+              iTemp       = pPred[1][testedPalettePred] - pSrc[1][uiPosC];
+              uiAbsError += ( iTemp * iTemp ) >> localAdjC;
+              iTemp       = pPred[2][testedPalettePred] - pSrc[2][uiPosC];
+              uiAbsError += ( iTemp * iTemp ) >> localAdjC;
+            }
+          }
+          if (uiAbsError>uiMinError)
+          {
+            break;
+          }
+        }
+
+        if (uiAbsError < uiMinError || (uiAbsError == uiMinError && best>testedPalettePred))
+        {
+          best = testedPalettePred;
+          uiMinError = uiAbsError;
+        }
+      }
+
+      if( best != -1 )
+      {
+        pPaletteTemp[0][paletteSizeTemp] = pPred[0][best];
+        pPaletteTemp[1][paletteSizeTemp] = pPred[1][best];
+        pPaletteTemp[2][paletteSizeTemp] = pPred[2][best];
+      }
+
+
+      Bool bDuplicate = false;
+      if( palettePredSamples[i][0] == 1 && best == -1 )
+      {
+        bDuplicate = true;
+      }
+      else
+      {
+        for( Int t=0; t<paletteSizeTemp; t++)
+        {
+          if( pPaletteTemp[0][paletteSizeTemp] == pPaletteTemp[0][t] && pPaletteTemp[1][paletteSizeTemp] == pPaletteTemp[1][t] && pPaletteTemp[2][paletteSizeTemp] == pPaletteTemp[2][t] )
+          {
+            bDuplicate = true;
+            break;
+          }
+        }
+      }
+      if( !bDuplicate ) paletteSizeTemp++;
+    }
+  }
+
+  paletteSize=paletteSizeTemp;
+
+  for (paletteIdx=0; paletteIdx<paletteSize; paletteIdx++)
+  {
+    uiBestIdx=paletteIdx;
+    UInt maxSamples=noSamples[paletteIdx];
+
+    for (UInt paletteIdxSec=paletteIdx+1; paletteIdxSec<paletteSize; paletteIdxSec++)
+    {
+      if (noSamples[paletteIdxSec]>maxSamples)
+      {
+        uiBestIdx=paletteIdxSec;
+        maxSamples=noSamples[paletteIdxSec];
+      }
+    }
+    
+    Palette[0][paletteIdx]=pPaletteTemp[0][uiBestIdx];
+    Palette[1][paletteIdx]=pPaletteTemp[1][uiBestIdx];
+    Palette[2][paletteIdx]=pPaletteTemp[2][uiBestIdx];
+    
+    pPaletteTemp[0][uiBestIdx]=pPaletteTemp[0][paletteIdx];
+    pPaletteTemp[1][uiBestIdx]=pPaletteTemp[1][paletteIdx];
+    pPaletteTemp[2][uiBestIdx]=pPaletteTemp[2][paletteIdx];
+
+    noSamples[uiBestIdx]=noSamples[paletteIdx];
+    
+  }
+}
+
+Void TEncSearch::xDerivePaletteLossless(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, Bool forcePalettePrediction)
+{
+  std::vector<SortingElement> psList;
+  SortingElement sElement;
+  Int uiIdx = 0;
+  UInt uiPos;
+
+  const UInt maxPaletteSizeSPS = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize();
+  paletteSize = 0;
+
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+
+  uiIdx = 0;
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      Bool discardChroma = uiY&uiScaleY || uiX&uiScaleX;
+      Int  defIdx = -1, defSAD = MAX_INT;
+      Int  discIdx = -1, discSAD = MAX_INT;
+
+      Int i = 0;
+      sElement.setAll(pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC]);
+      for (i = uiIdx - 1; i >= 0; i--)
+      {
+        if( psList[i].uiData[0] == sElement.uiData[0] && psList[i].uiData[1] == sElement.uiData[1] && psList[i].uiData[2] == sElement.uiData[2] )
+        {
+          psList[i].uiCnt++;
+          if ( !discardChroma )
+          {
+            psList[i].uiLastCnt = 1;
+          }
+          break;
+        }
+
+        if( (uiScaleX||uiScaleY) && psList[i].uiData[0] == sElement.uiData[0] )
+        {
+          Int sad = abs(psList[i].uiData[1] - pSrc[1][uiPosC]) + abs(psList[i].uiData[2] - pSrc[2][uiPosC]);
+          if( !discardChroma && !psList[i].uiLastCnt && sad < discSAD )
+          {
+            discIdx = i;
+            discSAD = sad;
+          }
+          if( discardChroma && sad < defSAD )
+          {
+            defIdx = i;
+            defSAD = sad;
+          }
+        }
+      }
+      if( discIdx >= 0 )
+      {
+        psList[discIdx].uiCnt++;
+        psList[discIdx].setAll(pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC]);
+        psList[discIdx].uiLastCnt = 1;
+      }
+      else if( i == -1 && defIdx >= 0 )
+      {
+        psList[defIdx].uiCnt++;
+      }
+      else if (i == -1)
+      {
+        psList.push_back(sElement);
+        psList[uiIdx].uiCnt++;
+        psList[uiIdx].uiLastCnt = discardChroma ? 0 : 1;
+        uiIdx++;
+      }
+    }
+  }
+
+  //insertion sort, high frequency -> low frequency
+  std::stable_sort(psList.begin(), psList.end());
+  UInt uiPaletteSizePrev;
+  Pel *pPalettePrev[3];
+  for (UInt comp = 0; comp < 3; comp++)
+  {
+    pPalettePrev[comp] = pcCU->getPalettePred(pcCU, pcCU->getZorderIdxInCtu(), comp, uiPaletteSizePrev);
+  }
+
+  if( paletteSize < maxPaletteSizeSPS )
+  {
+    for (Int i = 0; i < uiIdx; i++)
+    {
+      Bool includeIntoPalette = true;
+      if( (uiScaleX||uiScaleY) && psList[i].uiCnt > 0 && !psList[i].uiLastCnt ) // Find if it can be replaced
+      {
+        Int bestCand = -1;
+        for( UInt uiIdxPrev = 0; uiIdxPrev < uiPaletteSizePrev; uiIdxPrev++ )
+        {
+          if( psList[i].uiData[0] == pPalettePrev[0][uiIdxPrev] )
+          {
+            bestCand = uiIdxPrev;
+            break;
+          }
+        }
+
+        if( bestCand != -1 )
+        {
+          psList[i].uiData[1] = pPalettePrev[1][bestCand];
+          psList[i].uiData[2] = pPalettePrev[2][bestCand];
+        }
+        else if( psList[i].uiCnt < 3 )
+          includeIntoPalette = false;
+      }
+      else if( psList[i].uiCnt == 1 )
+      {
+        includeIntoPalette = false;
+        for( UInt uiIdxPrev = 0; uiIdxPrev < uiPaletteSizePrev; uiIdxPrev++ )
+        {
+          UInt iCounter = 0;
+
+          for( UInt comp = 0; comp < 3; comp++ )
+          {
+            if( psList[i].uiData[comp] == pPalettePrev[comp][uiIdxPrev] )
+            {
+              iCounter++;
+            }
+            else
+            {
+              break;
+            }
+          }
+          if( iCounter == 3 )
+          {
+            includeIntoPalette = true;
+            break;
+          }
+        }
+      }
+
+      if( includeIntoPalette && psList[i].uiCnt)
+      {
+        Palette[0][paletteSize] = psList[i].uiData[0];
+        Palette[1][paletteSize] = psList[i].uiData[1];
+        Palette[2][paletteSize] = psList[i].uiData[2];
+        paletteSize++;
+        if (paletteSize == pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize())
+        {
+          break;
+        }
+      }
+    }
+  }
+}
+
+Void TEncSearch::xCalcPixelPred(TComDataCU* pcCU, Pel* pOrg [3], Pel *pPalette[3], Pel* pValue, Pel*paPixelValue[3], Pel * paRecoValue[3], UInt uiWidth, UInt uiHeight,  UInt uiStrideOrg, UInt uiIdx )
+{
+  Bool bLossless = pcCU->getCUTransquantBypass (0);
+  Int iQP[3];
+  Int iQPrem[3];
+  Int iQPper[3];
+  Int quantiserScale[3];
+  Int quantiserRightShift[3];
+  Int rightShiftOffset[3];
+  Int InvquantiserRightShift[3];
+  Int iAdd[3];
+  for (UInt ch = 0; ch < MAX_NUM_COMPONENT; ch++)
+  {
+    assert(!pcCU->getColourTransform(0));
+    QpParam cQP(*pcCU, ComponentID(ch), 0);
+    iQP[ch] = cQP.Qp;
+    iQPrem[ch] = iQP[ch] % 6;
+    iQPper[ch] = iQP[ch] / 6;
+    quantiserScale[ch] = g_quantScales[iQPrem[ch]];
+    quantiserRightShift[ch] = QUANT_SHIFT + iQPper[ch];
+    rightShiftOffset[ch] = 1 << (quantiserRightShift[ch] - 1);
+    InvquantiserRightShift[ch] = IQUANT_SHIFT;
+    iAdd[ch] = 1 << (InvquantiserRightShift[ch] - 1);
+  }
+
+  UInt uiY, uiX;
+  uiY = uiIdx / uiWidth;
+  uiX = uiIdx % uiWidth;
+  UInt uiScanIdx = uiY * uiStrideOrg + uiX;
+  UInt uiYIdxRaster = pcCU->getPaletteScanRotationModeFlag(0)? (uiX * uiStrideOrg + uiY) : (uiY * uiStrideOrg + uiX);
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+  UInt uiXC, uiYC, uiScanIdxC, uiYIdxRasterC;
+  if(!pcCU->getPaletteScanRotationModeFlag(0))
+  {
+    uiXC = (uiX>>uiScaleX);
+    uiYC = (uiY>>uiScaleY);
+    uiScanIdxC = uiYC * (uiStrideOrg>>uiScaleX) + uiXC;
+    uiYIdxRasterC = uiYC * (uiStrideOrg>>uiScaleX) + uiXC;
+  }
+  else
+  {
+    uiXC = (uiX>>uiScaleY);
+    uiYC = (uiY>>uiScaleX);
+    uiScanIdxC = uiYC * (uiStrideOrg>>uiScaleY) + uiXC;
+    uiYIdxRasterC = uiXC * (uiStrideOrg>>uiScaleX) + uiYC;
+  }
+
+  if (bLossless)
+  {
+    for (UInt ch = 0; ch < MAX_NUM_COMPONENT; ch ++)
+    {
+      if( ch == 0 )
+      {
+        paPixelValue[ch][uiScanIdx] =  pOrg[ch][uiYIdxRaster];
+        paRecoValue[ch][uiYIdxRaster] = pOrg[ch][uiYIdxRaster];
+      }
+      else
+      {
+        if(   pcCU->getPic()->getChromaFormat() == CHROMA_444 ||
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_420 && ((uiX&1) == 0) && ((uiY&1) == 0) ) ||
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_422 && ((!pcCU->getPaletteScanRotationModeFlag(0) && ((uiX&1) == 0)) || (pcCU->getPaletteScanRotationModeFlag(0) && ((uiY&1) == 0))) )
+          )
+        {
+          paPixelValue[ch][uiScanIdxC] =  pOrg[ch][uiYIdxRasterC];
+          paRecoValue[ch][uiYIdxRasterC] = pOrg[ch][uiYIdxRasterC];
+        }
+      }
+    }
+  }
+  else
+  {
+    BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
+    for (UInt ch = 0; ch < MAX_NUM_COMPONENT; ch ++)
+    {
+      if( ch == 0 )
+      {
+        paPixelValue[ch][uiScanIdx] = Pel(max<Int>( 0, ((pOrg[ch][uiYIdxRaster] * quantiserScale[ch] + rightShiftOffset[ch]) >> quantiserRightShift[ch]) ));
+
+        assert( paPixelValue[ch][uiScanIdx] < ( 1 << ( pcCU->getSlice()->getSPS()->getBitDepth( CHANNEL_TYPE_LUMA ) + 1 ) ) );
+        paRecoValue[ch][uiYIdxRaster] = (((paPixelValue[ch][uiScanIdx]*g_invQuantScales[iQPrem[ch]])<<iQPper[ch]) + iAdd[ch])>>InvquantiserRightShift[ch];
+        paRecoValue[ch][uiYIdxRaster] = Pel(ClipBD<Int>(paRecoValue[ch][uiYIdxRaster], bitDepths.recon[ch? 1:0]));
+      }
+      else
+      {
+        if(   pcCU->getPic()->getChromaFormat() == CHROMA_444 ||
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_420 && ((uiX&1) == 0) && ((uiY&1) == 0)) ||
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_422 && ((!pcCU->getPaletteScanRotationModeFlag(0) && ((uiX&1) == 0)) || (pcCU->getPaletteScanRotationModeFlag(0) && ((uiY&1) == 0))) )
+          )
+        {
+          paPixelValue[ch][uiScanIdxC] = Pel(max<Int>( 0, ((pOrg[ch][uiYIdxRasterC] * quantiserScale[ch] + rightShiftOffset[ch]) >> quantiserRightShift[ch]) ));
+
+          assert( paPixelValue[ch][uiScanIdxC] < ( 1 << ( pcCU->getSlice()->getSPS()->getBitDepth( CHANNEL_TYPE_CHROMA ) + 1 ) ) );
+          paRecoValue[ch][uiYIdxRasterC] = (((paPixelValue[ch][uiScanIdxC]*g_invQuantScales[iQPrem[ch]])<<iQPper[ch]) + iAdd[ch])>>InvquantiserRightShift[ch];
+          paRecoValue[ch][uiYIdxRasterC] = Pel(ClipBD<Int>(paRecoValue[ch][uiYIdxRasterC], bitDepths.recon[ch? 1:0]));
+        }
+      }
+    }
+  }
+}
+
+UInt TEncSearch::xGetTruncatedBinBits(UInt uiSymbol, UInt uiMaxSymbol)
+{
+  UInt uiIdxCodeBit = 0;
+  UInt uiThresh;
+  if (uiMaxSymbol > 256)
+  {
+    UInt uiThreshVal = 1 << 8;
+    uiThresh = 8;
+    while (uiThreshVal <= uiMaxSymbol)
+    {
+      uiThresh++;
+      uiThreshVal <<= 1;
+    }
+    uiThresh--;
+  }
+  else
+  {
+    uiThresh = g_uhPaletteTBC[uiMaxSymbol];
+  }
+
+  UInt uiVal = 1 << uiThresh;
+  assert(uiVal <= uiMaxSymbol);
+  assert((uiVal << 1) > uiMaxSymbol);
+  assert(uiSymbol < uiMaxSymbol);
+  UInt b = uiMaxSymbol - uiVal;
+  assert(b < uiVal);
+  if (uiSymbol < uiVal - b)
+  {
+    uiIdxCodeBit = uiThresh;
+  }
+  else
+  {
+    uiIdxCodeBit = uiThresh+1;
+  }
+  return uiIdxCodeBit;
+}
+
+UInt TEncSearch::xGetEpExGolombNumBins(UInt uiSymbol, UInt uiCount)
+{
+  //UInt bins = 0;
+  UInt numBins = 0;
+
+  while( uiSymbol >= (UInt)(1<<uiCount) )
+  {
+    //bins = 2 * bins + 1;
+    numBins++;
+    uiSymbol -= 1 << uiCount;
+    uiCount++;
+  }
+  //bins = 2 * bins + 0;
+  numBins++;
+
+  //bins = (bins << uiCount) | uiSymbol;
+  numBins += uiCount;
+
+  assert( numBins <= 32 );
+
+  return numBins;
+}
+
+Double TEncSearch::xCalcPixelPredRD(TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma)
+{
+  Pel paPixelValue[3], paRecoValue[3]; 
+  Int iQPcurr=Int(pcCU->getQP(0));
+
+  Double rdCost = 0;
+  UInt rdError = 0;
+  if (pcCU->getCUTransquantBypass(0))
+  {
+    for (UInt ch = 0; ch < MAX_NUM_COMPONENT; ch++)
+    {
+      Int bitDepth = pcCU->getSlice()->getSPS()->getBitDepth(ch > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA);
+      rdCost += bitDepth;
+    }
+  }
+  else
+  {
+    if (iQPcurr != m_prevQP)
+    {
+      m_prevQP = iQPcurr;
+      for (UInt ch = 0; ch < MAX_NUM_COMPONENT; ch++)
+      {
+        Int iQP[3];
+        Int iQPrem[3];
+        Int iQPper[3];
+        QpParam cQP(*pcCU, ComponentID(ch),0);
+        iQP[ch] = cQP.Qp;
+        iQPrem[ch] = iQP[ch] % 6;
+        iQPper[ch] = iQP[ch] / 6;
+        m_quantiserScale[ch] = g_quantScales[iQPrem[ch]];
+        m_quantiserRightShift[ch] = QUANT_SHIFT + iQPper[ch];
+        m_rightShiftOffset[ch] = 1 << (m_quantiserRightShift[ch] - 1);
+
+        m_invQuantScales[ch]=g_invQuantScales[iQPrem[ch]];
+        m_qpPer[ch]=iQPper[ch];
+
+        m_maxVal[ch] = pcCU->xCalcMaxVals(pcCU, ComponentID(ch));
+      }
+    }
+
+    BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
+    for (UInt ch = 0; ch < (discardChroma ? 1 : MAX_NUM_COMPONENT); ch ++)
+    {
+      paPixelValue[ch] = Pel(Clip3<Int>( 0, m_maxVal[ch], ((pOrg[ch] * m_quantiserScale[ch] + m_rightShiftOffset[ch]) >> m_quantiserRightShift[ch]) ));
+      paRecoValue[ch]= (((paPixelValue[ch]*m_invQuantScales[ch])<<m_qpPer[ch]) + 32)>>IQUANT_SHIFT;
+
+      ChannelType comp = ch ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA;
+      paRecoValue[ch] = Pel(ClipBD<Int>(paRecoValue[ch], bitDepths.recon[comp]));
+
+      Int iTemp = pOrg[ch] - paRecoValue[ch];
+      rdError += (iTemp * iTemp) >> (DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[comp] - 8) << 1);
+      rdCost += pcCost->getLambda() * xGetEscapeNumBins(paPixelValue[ch]);
+    }
+  }
+
+  *error = rdError;
+  rdCost += (*error);
+  return (rdCost);
+}
+
+Bool TEncSearch::xCalLeftRun(TComDataCU* pcCU, Pel* pValue, UChar* pSPoint, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag)
+{
+  UInt uiIdx = uiStartPos;
+  Pel *pcIndexBlock = m_indexBlock;
+  while (uiIdx < uiTotal)
+  {
+    UInt uiTraIdx = m_puiScanOrder[uiIdx];  //unified position variable (raster scan)
+    pValue[uiTraIdx] = pcIndexBlock[uiTraIdx] < 0 ? pcIndexBlock[uiTraIdx] + pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize() : pcIndexBlock[uiTraIdx];
+    Bool bMismatch = (pcIndexBlock[uiTraIdx] < 0);
+
+    pSPoint[uiTraIdx] = PALETTE_RUN_LEFT;
+    pEscapeFlag[uiTraIdx] = (pcIndexBlock[uiTraIdx] < 0)? 1: 0;
+    UInt leftTraIdx = uiIdx ? m_puiScanOrder[uiIdx - 1] : 0;
+    if( uiIdx > uiStartPos &&
+      ( ( pcIndexBlock[leftTraIdx] >= 0 && pValue[uiTraIdx] == pValue[leftTraIdx] && !bMismatch ) || ( bMismatch && pcIndexBlock[leftTraIdx] < 0 ) )
+      )
+    {
+      uiRun++;
+    }
+    else if (uiIdx > uiStartPos)
+    {
+      break;
+    }
+    uiIdx++;
+  }
+  return true;
+}
+
+Bool TEncSearch::xCalAboveRun(TComDataCU* pcCU, Pel* pValue, UChar* pSPoint, UInt uiWidth, UInt uiStartPos, UInt uiTotal, UInt &uiRun, UChar* pEscapeFlag)
+{
+  UInt uiIdx = uiStartPos;
+  UInt uiY = 0;
+  Bool valid = false;
+  Pel *pcIndexBlock = m_indexBlock;
+  UInt uiTraIdx = m_puiScanOrder[uiIdx];  //unified position variable (raster scan)
+
+  uiY = uiTraIdx / uiWidth;
+  if( uiY == 0 )
+  {
+    return false;
+  }
+
+  while (uiIdx < uiTotal)
+  {
+    UInt uiStride = uiWidth;
+    uiTraIdx = m_puiScanOrder[uiIdx];  //unified position variable (raster scan)
+
+    pValue[uiTraIdx] = pcIndexBlock[uiTraIdx] < 0 ? pcIndexBlock[uiTraIdx] + pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize() : pcIndexBlock[uiTraIdx];
+    Bool bMismatch = (pcIndexBlock[uiTraIdx] < 0);
+
+    pSPoint[uiTraIdx] = PALETTE_RUN_ABOVE;
+    pEscapeFlag[uiTraIdx] = (pcIndexBlock[uiTraIdx] < 0)? 1: 0;
+
+    if ( ( pcIndexBlock[uiTraIdx - uiStride] >= 0 && pValue[uiTraIdx] == pValue[uiTraIdx - uiStride] && !bMismatch ) ||
+         ( bMismatch && pcIndexBlock[uiTraIdx - uiStride] < 0 )
+       )
+    {
+      uiRun++;
+      valid = true;
+    }
+    else
+    {
+      break;
+    }
+    uiIdx++;
+  }
+  return valid;
+}
+
+Void TEncSearch::xRotationScan( Pel* pLevel, UInt uiWidth, UInt uiHeight, Bool isInverse )
+{
+  Pel tmpLevel;
+  UInt uiPos = 0;
+  UInt* puiScanOrder = g_scanOrder[SCAN_UNGROUPED][SCAN_VER][g_aucConvertToBit[uiWidth] + 2][g_aucConvertToBit[uiHeight] + 2];
+
+  for (UInt j = 1; j < uiHeight; j++)
+  {
+    uiPos += j;
+    for (UInt i = j; i < uiWidth; i++)
+    {
+      tmpLevel = pLevel[uiPos];
+      pLevel[uiPos] = pLevel[puiScanOrder[uiPos]];
+      pLevel[puiScanOrder[uiPos]] = tmpLevel;
+      uiPos++;
+    }
+  }
+}
+
+Void TEncSearch::xDerivePaletteLossyForcePrediction(TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt uiWidth, UInt uiHeight, UInt uiStride, UInt &paletteSize, TComRdCost *pcCost)
+{
+  const Int iErrorLimit = m_paletteErrLimit;
+  const UInt maxPaletteSizeSPS = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize();
+  const UInt uiTotalSize = uiHeight * uiWidth;
+  SortingElement *psList = new SortingElement[uiTotalSize];
+  SortingElement sElement;
+  SortingElement *pListSort = new SortingElement[maxPaletteSizeSPS + 1];
+
+  paletteSize = 0;
+  UInt uiIdx = 0, uiPos, uiBestIdx = 0;
+  Int last = -1;
+
+  UInt palettePredIndexUsed[MAX_PALETTE_PRED_SIZE];
+  memset( palettePredIndexUsed, 0, sizeof(palettePredIndexUsed) );
+
+  UChar paletteIndexUsed[MAX_PALETTE_PRED_SIZE];
+  memset( paletteIndexUsed, 0, sizeof(paletteIndexUsed) );
+
+  Pel *pPred[3] = { pcCU->getLastPaletteInLcuFinal(0), pcCU->getLastPaletteInLcuFinal(1), pcCU->getLastPaletteInLcuFinal(2) };
+
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+
+#if !FULL_NBIT
+  const BitDepths bitDepths = pcCU->getSlice()->getSPS()->getBitDepths();
+#endif
+  for( UInt uiY = 0; uiY < uiHeight; uiY++ )
+  {
+    for( UInt uiX = 0; uiX < uiWidth; uiX++ )
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+      UInt paletteIdx = 0;
+      UInt uiMinError = MAX_UINT;
+      while( paletteIdx < pcCU->getLastPaletteInLcuSizeFinal(0) )
+      {
+        UInt uiAbsError = (abs(pPred[0][paletteIdx] - pSrc[0][uiPos]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA] - 8))
+                        + (abs(pPred[1][paletteIdx] - pSrc[1][uiPosC]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8))
+                        + (abs(pPred[2][paletteIdx] - pSrc[2][uiPosC]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8));
+
+        if( uiAbsError < uiMinError )
+        {
+          uiBestIdx = paletteIdx;
+          uiMinError = uiAbsError;
+          if (uiMinError == 0)
+          {
+            break;
+          }
+        }
+        paletteIdx++;
+      }
+
+      if( uiMinError <= iErrorLimit )
+      {
+        palettePredIndexUsed[uiBestIdx]++;
+      }
+    }
+  }
+
+  while( uiIdx < maxPaletteSizeSPS )
+  {
+    UInt maxNoIndexUsed = 0, bestIndex = 0;
+    for( UInt i = 0; i < pcCU->getLastPaletteInLcuSizeFinal(0); i++ )
+    {
+      if( paletteIndexUsed[i] == 0 && palettePredIndexUsed[i] > maxNoIndexUsed )
+      {
+        maxNoIndexUsed = palettePredIndexUsed[i];
+        bestIndex = i;
+      }
+    }
+    if( maxNoIndexUsed > 0 )
+    {
+      paletteIndexUsed[bestIndex] = 1;
+
+      Palette[0][paletteSize] = pPred[0][bestIndex];
+      Palette[1][paletteSize] = pPred[1][bestIndex];
+      Palette[2][paletteSize] = pPred[2][bestIndex];
+      paletteSize++;
+    }
+    else
+    {
+      break;
+    }
+    uiIdx++;
+  }
+
+  uiIdx = 0;
+  for( UInt uiY = 0; uiY < uiHeight; uiY++ )
+  {
+    for( UInt uiX = 0; uiX < uiWidth; uiX++ )
+    {
+      uiPos = uiY * uiWidth + uiX;
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+
+      UInt paletteIdx = 0;
+      UInt uiMinError = MAX_UINT;
+      while( paletteIdx < paletteSize )
+      {
+        UInt uiAbsError = (abs(Palette[0][paletteIdx] - pSrc[0][uiPos]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA] - 8))
+                        + (abs(Palette[1][paletteIdx] - pSrc[1][uiPosC]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8))
+                        + (abs(Palette[2][paletteIdx] - pSrc[2][uiPosC]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8));
+
+        if (uiAbsError < uiMinError)
+        {
+          uiMinError = uiAbsError;
+          if (uiMinError == 0)
+          {
+            break;
+          }
+        }
+        paletteIdx++;
+      }
+
+      if( uiMinError > iErrorLimit )
+      {
+        sElement.setAll(pSrc[0][uiPos], pSrc[1][uiPosC], pSrc[2][uiPosC]);
+        Int besti = last, bestSAD = (last == -1) ? MAX_UINT : psList[last].getSAD(sElement, pcCU->getSlice()->getSPS()->getBitDepths());
+        if (bestSAD)
+        {
+          for (Int i = uiIdx - 1; i >= 0; i--)
+          {
+            UInt sad = psList[i].getSAD(sElement, pcCU->getSlice()->getSPS()->getBitDepths());
+            if (sad < bestSAD)
+            {
+              bestSAD = sad;
+              besti = i;
+              if (!sad)
+              {
+                break;
+              }
+            }
+          }
+        }
+
+        if( besti >= 0 && psList[besti].almostEqualData(sElement, iErrorLimit, pcCU->getSlice()->getSPS()->getBitDepths()) )
+        {
+          psList[besti].addElement(sElement);
+          last = besti;
+        }
+        else
+        {
+          psList[uiIdx].copyDataFrom(sElement);
+          psList[uiIdx].uiCnt = 1;
+          last = uiIdx;
+          uiIdx++;
+        }
+      }
+    }
+  }
+
+  for( Int i = 0; i < maxPaletteSizeSPS; i++ )
+  {
+    pListSort[i].uiCnt = 0;
+    pListSort[i].setAll(0, 0, 0);
+  }
+
+  //bubble sorting
+  UInt uiDictMaxSize = 1;
+  for( Int i = 0; i < uiIdx; i++ )
+  {
+    if( psList[i].uiCnt > pListSort[uiDictMaxSize - 1].uiCnt )
+    {
+      Int j;
+      for( j = uiDictMaxSize; j > 0; j-- )
+      {
+        if( psList[i].uiCnt > pListSort[j - 1].uiCnt )
+        {
+          pListSort[j].copyAllFrom(pListSort[j - 1]);
+          uiDictMaxSize = std::min(uiDictMaxSize + 1, maxPaletteSizeSPS);
+        }
+        else
+        {
+          break;
+        }
+      }
+      pListSort[j].copyAllFrom(psList[i]);
+    }
+  }
+
+  UInt uiNumTotalBits = pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA) + (pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_CHROMA)<<1);
+  Double bitCost = pcCost->getLambda() * uiNumTotalBits;
+
+  for( Int i = 0; i < maxPaletteSizeSPS && paletteSize < maxPaletteSizeSPS; i++ )
+  {
+    if( pListSort[i].uiCnt )
+    {
+      Int iHalf = pListSort[i].uiCnt >> 1;
+      Palette[0][paletteSize] = (pListSort[i].uiSumData[0] + iHalf) / pListSort[i].uiCnt;
+      Palette[1][paletteSize] = (pListSort[i].uiSumData[1] + iHalf) / pListSort[i].uiCnt;
+      Palette[2][paletteSize] = (pListSort[i].uiSumData[2] + iHalf) / pListSort[i].uiCnt;
+
+      Bool bDuplicate = false;
+      if( pListSort[i].uiCnt == 1 )
+      {
+        bDuplicate = true;
+      }
+      else
+      {
+        Int best = -1;
+        if( iErrorLimit )
+        {  
+          Double pal[3] = { pListSort[i].uiSumData[0] / (Double)pListSort[i].uiCnt,
+                            pListSort[i].uiSumData[1] / (Double)pListSort[i].uiCnt,
+                            pListSort[i].uiSumData[2] / (Double)pListSort[i].uiCnt };
+
+          Double err = pal[0] - Palette[0][paletteSize];
+          Double bestCost = (err*err) / (1 << (2 * DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA] - 8)));
+          err = pal[1] - Palette[1][paletteSize]; bestCost += (err*err) / (1 << (2 * DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8)));
+          err = pal[2] - Palette[2][paletteSize]; bestCost += (err*err) / (1 << (2 * DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8)));
+          bestCost = bestCost * pListSort[i].uiCnt + bitCost;
+
+          for( Int t = 0; t < paletteSize; t++ )
+          {
+            if( Palette[0][paletteSize] == Palette[0][t] && Palette[1][paletteSize] == Palette[1][t] && Palette[2][paletteSize] == Palette[2][t] )
+            {
+              bDuplicate = true;
+              break;
+            }
+
+            err = pal[0] - Palette[0][t];
+            Double cost = (err*err) / (1 << (2 * DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA] - 8)));
+            err = pal[1] - Palette[1][t]; cost += (err*err) / (1 << (2 * DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8)));
+            err = pal[2] - Palette[2][t]; cost += (err*err) / (1 << (2 * DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA] - 8)));
+            cost *= pListSort[i].uiCnt;
+            if( cost < bestCost )
+            {
+              best = t;
+              bestCost = cost;
+            }
+          }
+          if( best != -1 )
+          {
+            bDuplicate = true;
+          }
+        }
+      }
+
+      if( !bDuplicate )
+      {
+        paletteSize++;
+      }
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  UInt palettePredSamples[MAX_PALETTE_SIZE][5];
+  memset(palettePredSamples, 0, sizeof(palettePredSamples));
+  Int iErrorLimitSqr = 3 * m_paletteErrLimit * m_paletteErrLimit;
+
+  for (UInt uiY = 0; uiY < uiHeight; uiY++)
+  {
+    for (UInt uiX = 0; uiX < uiWidth; uiX++)
+    {
+      Bool discardChroma = uiY&uiScaleY || uiX&uiScaleX;
+      uiPos = uiY * uiWidth + uiX;
+
+      UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+
+      UInt paletteIdx = 0;
+      UInt uiMinError = MAX_UINT;
+      while (paletteIdx < paletteSize)
+      {
+        Int iTemp=Palette[0][paletteIdx] - pSrc[0][uiPos];
+        UInt uiAbsError = (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]-8) << 1));
+        iTemp=Palette[1][paletteIdx] - pSrc[1][uiPosC];
+        uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+        iTemp=Palette[2][paletteIdx] - pSrc[2][uiPosC];
+        uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+
+        if (uiAbsError < uiMinError)
+        {
+          uiBestIdx = paletteIdx;
+          uiMinError = uiAbsError;
+          if (uiMinError == 0)
+          {
+            break;
+          }
+        }
+        paletteIdx++;
+      }
+
+      UInt escape=0;
+      if (uiMinError > iErrorLimitSqr)
+      {
+
+        Pel pOrg[3]={ pSrc[0][uiPos],  pSrc[1][uiPosC],  pSrc[2][uiPosC]};
+        UInt errorTemp; 
+        Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp); 
+        if (rdCost<uiMinError) 
+        {
+          escape=1;
+        }
+      }
+
+      if (escape==0)
+      {
+        palettePredSamples[uiBestIdx][0]++;
+        palettePredSamples[uiBestIdx][1] += pSrc[0][uiPos];
+        if (!discardChroma)
+        {
+          palettePredSamples[uiBestIdx][2] += SCM_V0034_PALETTE_CHROMA_SETTINGS*pSrc[1][uiPosC];
+          palettePredSamples[uiBestIdx][3] += SCM_V0034_PALETTE_CHROMA_SETTINGS*pSrc[2][uiPosC];
+          palettePredSamples[uiBestIdx][4] += SCM_V0034_PALETTE_CHROMA_SETTINGS;
+        }
+        else
+        {
+          palettePredSamples[uiBestIdx][2] += pSrc[1][uiPosC];
+          palettePredSamples[uiBestIdx][3] += pSrc[2][uiPosC];
+          palettePredSamples[uiBestIdx][4]++;
+        }
+        m_indexBlock[uiPos] = uiBestIdx;
+      }
+      else
+      {
+        m_indexBlock[uiPos]=-1;
+      }
+    }
+  }
+
+  UInt paletteIndBest[MAX_PALETTE_PRED_SIZE];
+
+
+  UInt paletteSizeTemp=0;
+  for (Int i = 0; i < paletteSize; i++)
+  {
+    if(palettePredSamples[i][0] > 0)
+    {
+      Palette[0][paletteSizeTemp] = (palettePredSamples[i][1]+palettePredSamples[i][0]/2)/palettePredSamples[i][0];
+      Palette[1][paletteSizeTemp] = (palettePredSamples[i][2]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
+      Palette[2][paletteSizeTemp] = (palettePredSamples[i][3]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
+
+      Double uiMinError = pcCost->getLambda()*(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]+2*pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]), 
+        uiAbsError;
+
+      for (UInt uiY = 0; uiY < uiHeight; uiY++)
+      {
+        for (UInt uiX = 0; uiX < uiWidth; uiX++)
+        {
+          uiPos = uiY * uiWidth + uiX;
+          if (m_indexBlock[uiPos]==i)
+          {
+
+            UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+
+            Int iTemp=Palette[0][paletteSizeTemp] - pSrc[0][uiPos];
+            uiMinError += (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]-8) << 1));
+            iTemp=Palette[1][paletteSizeTemp] - pSrc[1][uiPosC];
+            uiMinError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+            iTemp=Palette[2][paletteSizeTemp] - pSrc[2][uiPosC];
+            uiMinError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+          }
+        }
+      }
+
+
+      UInt maxPredCheck=xFindCandidatePalettePredictors(paletteIndBest, pcCU, Palette, pPred, paletteSizeTemp, MAX_PRED_CHEK);
+      Int best=-1;
+      UInt testedPalettePred;
+
+      for(int t=0; t<maxPredCheck; t++)
+      {
+        testedPalettePred=paletteIndBest[t];
+
+        uiAbsError=0;
+        for (UInt uiY = 0; uiY < uiHeight; uiY++)
+        {
+          for (UInt uiX = 0; uiX < uiWidth; uiX++)
+          {
+            uiPos = uiY * uiWidth + uiX;
+            if (m_indexBlock[uiPos]==i)
+            {
+
+              UInt uiPosC = (uiY>>uiScaleY) * (uiWidth>>uiScaleX) + (uiX>>uiScaleX);
+
+              Int iTemp=pPred[0][testedPalettePred] - pSrc[0][uiPos];
+              uiAbsError += (( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]-8) << 1));
+              iTemp=pPred[1][testedPalettePred] - pSrc[1][uiPosC];
+              uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+              iTemp=pPred[2][testedPalettePred] - pSrc[2][uiPosC];
+              uiAbsError+=(( iTemp * iTemp ) >>  DISTORTION_PRECISION_ADJUSTMENT((pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]-8) << 1));
+            }
+          }
+          if (uiAbsError>uiMinError)
+          {
+            break;
+          }
+        }
+
+        if (uiAbsError < uiMinError || (uiAbsError == uiMinError && best>testedPalettePred))
+        {
+          best = testedPalettePred;
+          uiMinError = uiAbsError;
+        }
+      }
+
+      if( best != -1 )
+      {
+        Palette[0][paletteSizeTemp] = pPred[0][best];
+        Palette[1][paletteSizeTemp] = pPred[1][best];
+        Palette[2][paletteSizeTemp] = pPred[2][best];
+      }
+
+
+      Bool bDuplicate = false;
+      if( palettePredSamples[i][0] == 1 && best == -1 )
+      {
+        bDuplicate = true;
+      }
+      else
+      {
+        for( Int t=0; t<paletteSizeTemp; t++)
+        {
+          if( Palette[0][paletteSizeTemp] == Palette[0][t] && Palette[1][paletteSizeTemp] == Palette[1][t] && Palette[2][paletteSizeTemp] == Palette[2][t] )
+          {
+            bDuplicate = true;
+            break;
+          }
+        }
+      }
+      if( !bDuplicate ) paletteSizeTemp++;
+    }
+  }
+
+  paletteSize=paletteSizeTemp;
+
+  delete[] psList;
+  delete[] pListSort;
+}
+
+UShort TEncSearch::xGetTruncBinBits( const UInt index, const UInt maxSymbolP1 )
+{ 
+  if( maxSymbolP1 < PALETTE_MAX_SYMBOL_P1 )
+  {
+    return m_truncBinBits[maxSymbolP1][index];
+  }
+  else
+  {
+    return xGetTruncatedBinBits(index, maxSymbolP1);
+  }
+}
+
+UShort TEncSearch::xGetEscapeNumBins( const Pel val )
+{
+  if( val >= PALETTE_MAX_SYMBOL_P1 )
+  {
+    return xGetEpExGolombNumBins(val, 3);
+  }
+  else
+  {
+    return m_escapeNumBins[val]; 
+  }
+}
+
+Void TEncSearch::xInitTBCTable()
+{
+  assert( PALETTE_MAX_SYMBOL_P1 > 1 );
+
+  m_maxSymbolSize = PALETTE_MAX_SYMBOL_P1;
+  m_symbolSize = m_maxSymbolSize - 1;
+  
+  m_truncBinBits = new UShort*[m_maxSymbolSize];
+  m_truncBinBits[0] = NULL; // not used
+
+  for (UInt i = 1; i < m_maxSymbolSize; i++)
+  {
+    m_truncBinBits[i] = new UShort[i];
+    for (UInt j = 0; j < i; j++)
+    {
+      m_truncBinBits[i][j] = xGetTruncatedBinBits(j, i);
+    }
+  }
+
+  m_escapeNumBins = new UShort[m_symbolSize];
+
+  for( UInt i = 0; i < m_symbolSize; i++)
+  {
+    m_escapeNumBins[i] = xGetEpExGolombNumBins(i, 3);
   }
 }
 

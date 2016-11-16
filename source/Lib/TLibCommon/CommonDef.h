@@ -260,6 +260,7 @@ static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE = 4; ///< CABA
 static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1 =            1;
 static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2 =            3;
 static const UChar PALETTE_SIZE_INVALID =                        0xff;
+static const UInt PALETTE_MAX_SYMBOL_P1 =                         256;  ///< palette related pre-calculated array size, this value shall be greater than 1
 
 // ====================================================================================================================
 // Macro functions
