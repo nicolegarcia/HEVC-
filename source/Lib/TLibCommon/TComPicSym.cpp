@@ -72,12 +72,10 @@ TComPicSym::TComPicSym()
 #endif
 {}
 
-
 TComPicSym::~TComPicSym()
 {
   destroy();
 }
-
 
 #if REDUCED_ENCODER_MEMORY
 Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, const Bool bAllocateCtuArray )
@@ -137,6 +135,7 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
   {
     m_pictureCtuArray[i] = new TComDataCU;
     m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
+      , uiPaletteMaxSize, uiPaletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
       , m_pParentARLBuffer
 #endif
@@ -168,6 +167,8 @@ Void TComPicSym::prepareForReconstruction()
   const ChromaFormat chromaFormatIDC = m_sps.getChromaFormatIdc();
   const UInt uiMaxCuWidth  = m_sps.getMaxCUWidth();
   const UInt uiMaxCuHeight = m_sps.getMaxCUHeight();
+  const UInt paletteMaxSize     = m_sps.getSpsScreenExtension().getPaletteMaxSize();
+  const UInt paletteMaxPredSize = m_sps.getSpsScreenExtension().getPaletteMaxPredSize();
   if (m_pictureCtuArray == NULL)
   {
     m_pictureCtuArray = new TComDataCU*[m_numCtusInFrame];
@@ -175,7 +176,7 @@ Void TComPicSym::prepareForReconstruction()
     for (UInt i=0; i<m_numCtusInFrame ; i++ )
     {
       m_pictureCtuArray[i] = new TComDataCU;
-      m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
+      m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth, paletteMaxSize, paletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
         , m_pParentARLBuffer
 #endif
@@ -192,9 +193,9 @@ Void TComPicSym::prepareForReconstruction()
         m_dpbPerCtuData[i].m_CUMvField[j].create( m_numPartitionsInCtu );
       }
       m_dpbPerCtuData[i].m_pePredMode = new SChar[m_numPartitionsInCtu];
-      memset(m_dpbPerCtuData[i].m_pePredMode, NUMBER_OF_PREDICTION_MODES, m_numPartitionsInCtu);
+      memset(m_dpbPerCtuData[i].m_pePredMode, m_numPartitionsInCtu, NUMBER_OF_PREDICTION_MODES);
       m_dpbPerCtuData[i].m_pePartSize = new SChar[m_numPartitionsInCtu];
-      memset(m_dpbPerCtuData[i].m_pePartSize, NUMBER_OF_PART_SIZES, m_numPartitionsInCtu);
+      memset(m_dpbPerCtuData[i].m_pePartSize, m_numPartitionsInCtu, NUMBER_OF_PART_SIZES);
       m_dpbPerCtuData[i].m_pSlice=NULL;
     }
   }
