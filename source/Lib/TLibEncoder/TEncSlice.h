@@ -97,7 +97,10 @@ private:
   UInt                    m_uiSliceIdx;
   TEncSbac                m_lastSliceSegmentEndContextState;    ///< context storage for state at the end of the previous slice-segment (used for dependent slices only).
   TEncSbac                m_entropyCodingSyncContextState;      ///< context storate for state of contexts at the wavefront/WPP/entropy-coding-sync second CTU of tile-row
+  PaletteInfoBuffer       m_lastSliceSegmentEndPaletteState;
+  PaletteInfoBuffer       m_entropyCodingSyncPaletteState;
   SliceType               m_encCABACTableIdx;
+  Int                     m_numIDRs, m_numFrames;
 #if SHARP_LUMA_DELTA_QP
   Int                     m_gopID;
 #endif
@@ -141,9 +144,13 @@ public:
   Void    setSliceIdx(UInt i)   { m_uiSliceIdx = i;                       }
 
   SliceType getEncCABACTableIdx() const           { return m_encCABACTableIdx;        }
+  Void      setEncCABACTableIdx( SliceType idx )  { m_encCABACTableIdx = idx;         }
 
 private:
   Double  xGetQPValueAccordingToLambda ( Double lambda );
+  Void    xSetPredFromPPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
+  Void    xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
+  Void    xSetPredDefault(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
 };
 
 //! \}
