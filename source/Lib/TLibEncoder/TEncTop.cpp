@@ -191,19 +191,16 @@ Void TEncTop::init(Bool isFieldCoding)
   xInitSPS(sps0);
   xInitVPS(m_cVPS, sps0);
 
-#if U0132_TARGET_BITS_SATURATION
   if (m_RCCpbSaturationEnabled)
   {
     m_cRateCtrl.initHrdParam(sps0.getVuiParameters()->getHrdParameters(), m_iFrameRate, m_RCInitialCpbFullness);
   }
-#endif
+
   m_cRdCost.setCostMode(m_costMode);
 
   // initialize PPS
   xInitPPS(pps0, sps0);
   xInitRPS(sps0, isFieldCoding);
-
-#if ER_CHROMA_QP_WCG_PPS
   xInitScalingLists(sps0, pps0);
 
   if (m_wcgChromaQpControl.isEnabled())
@@ -212,15 +209,12 @@ Void TEncTop::init(Bool isFieldCoding)
     xInitPPS(pps1, sps0);
     xInitScalingLists(sps0, pps1);
   }
-#endif
 
   // initialize processing unit classes
   m_cGOPEncoder.  init( this );
   m_cSliceEncoder.init( this );
   m_cCuEncoder.   init( this );
-#if SHARP_LUMA_DELTA_QP
   m_cCuEncoder.setSliceEncoder(&m_cSliceEncoder);
-#endif
 
   // initialize transform & quantization class
   m_pcCavlcCoder = getCavlcCoder();
@@ -228,9 +222,7 @@ Void TEncTop::init(Bool isFieldCoding)
   m_cTrQuant.init( 1 << m_uiQuadtreeTULog2MaxSize,
                    m_useRDOQ,
                    m_useRDOQTS,
-#if T0196_SELECTIVE_RDOQ
                    m_useSelectiveRDOQ,
-#endif
                    true
                   ,m_useTransformSkipFast
 #if ADAPTIVE_QP_SELECTION
@@ -242,10 +234,6 @@ Void TEncTop::init(Bool isFieldCoding)
   m_cSearch.init( this, &m_cTrQuant, m_iSearchRange, m_bipredSearchRange, m_motionEstimationSearchMethod, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth, &m_cEntropyCoder, &m_cRdCost, getRDSbacCoder(), getRDGoOnSbacCoder() );
 
   m_iMaxRefPicNum = 0;
-#if !ER_CHROMA_QP_WCG_PPS
-
-  xInitScalingLists(sps0, pps0);
-#endif
 }
 
 Void TEncTop::xInitScalingLists(TComSPS &sps, TComPPS &pps)
@@ -348,16 +336,12 @@ Void TEncTop::encode( Bool flush, TComPicYuv* pcPicYuvOrg, TComPicYuv* pcPicYuvT
     // get original YUV
     TComPic* pcPicCurr = NULL;
 
-#if ER_CHROMA_QP_WCG_PPS
     Int ppsID=-1; // Use default PPS ID
     if (getWCGChromaQPControl().isEnabled())
     {
       ppsID=getdQPs()[ m_iPOCLast+1 ];
     }
     xGetNewPicBuffer( pcPicCurr, ppsID );
-#else
-    xGetNewPicBuffer( pcPicCurr, -1 ); // Uses default PPS ID. However, could be modified, for example, to use a PPS ID as a function of POC (m_iPOCLast+1)
-#endif
     pcPicYuvOrg->copyToPic( pcPicCurr->getPicYuvOrg() );
     pcPicYuvTrueOrg->copyToPic( pcPicCurr->getPicYuvTrueOrg() );
 
@@ -753,11 +737,7 @@ Void TEncTop::xInitSPS(TComSPS &sps)
     sps.setUsedByCurrPicLtSPSFlag(k, 0);
   }
 
-#if U0132_TARGET_BITS_SATURATION
   if( getPictureTimingSEIEnabled() || getDecodingUnitInfoSEIEnabled() || getCpbSaturationEnabled() )
-#else
-  if( getPictureTimingSEIEnabled() || getDecodingUnitInfoSEIEnabled() )
-#endif
   {
     xInitHrdParameters(sps);
   }
@@ -789,7 +769,6 @@ Void TEncTop::xInitSPS(TComSPS &sps)
   assert( m_uiPaletteMaxPredSize <= 128 );
 }
 
-#if U0132_TARGET_BITS_SATURATION
 // calculate scale value of bitrate and initial delay
 Int calcScale(Int x)
 {
@@ -808,19 +787,15 @@ Int calcScale(Int x)
 
   return ScaleValue;
 }
-#endif
+
 Void TEncTop::xInitHrdParameters(TComSPS &sps)
 {
   Bool useSubCpbParams = (getSliceMode() > 0) || (getSliceSegmentMode() > 0);
   Int  bitRate         = getTargetBitrate();
   Bool isRandomAccess  = getIntraPeriod() > 0;
-# if U0132_TARGET_BITS_SATURATION
   Int cpbSize          = getCpbSize();
   assert (cpbSize!=0);  // CPB size may not be equal to zero. ToDo: have a better default and check for level constraints
   if( !getVuiParametersPresentFlag() && !getCpbSaturationEnabled() )
-#else
-  if( !getVuiParametersPresentFlag() )
-#endif
   {
     return;
   }
@@ -882,7 +857,6 @@ Void TEncTop::xInitHrdParameters(TComSPS &sps)
     hrd->setSubPicCpbParamsInPicTimingSEIFlag( false );
   }
 
-#if U0132_TARGET_BITS_SATURATION
   if (calcScale(bitRate) <= 6)
   {
     hrd->setBitRateScale(0);
@@ -900,10 +874,6 @@ Void TEncTop::xInitHrdParameters(TComSPS &sps)
   {
     hrd->setCpbSizeScale(calcScale(cpbSize) - 4);
   }
-#else
-  hrd->setBitRateScale( 4 );                                       // in units of 2^( 6 + 4 ) = 1,024 bps
-  hrd->setCpbSizeScale( 6 );                                       // in units of 2^( 4 + 6 ) = 1,024 bit
-#endif
 
   hrd->setDuCpbSizeScale( 6 );                                     // in units of 2^( 4 + 6 ) = 1,024 bit
 
@@ -936,12 +906,7 @@ Void TEncTop::xInitHrdParameters(TComSPS &sps)
     // BitRate[ i ] = ( bit_rate_value_minus1[ i ] + 1 ) * 2^( 6 + bit_rate_scale )
     bitrateValue = bitRate / (1 << (6 + hrd->getBitRateScale()) );      // bitRate is in bits, so it needs to be scaled down
     // CpbSize[ i ] = ( cpb_size_value_minus1[ i ] + 1 ) * 2^( 4 + cpb_size_scale )
-#if U0132_TARGET_BITS_SATURATION
     cpbSizeValue = cpbSize / (1 << (4 + hrd->getCpbSizeScale()) );      // using bitRate results in 1 second CPB size
-#else
-    cpbSizeValue = bitRate / (1 << (4 + hrd->getCpbSizeScale()) );      // using bitRate results in 1 second CPB size
-#endif
-
 
     // DU CPB size could be smaller (i.e. bitrateValue / number of DUs), but we don't know 
     // in how many DUs the slice segment settings will result 
@@ -978,12 +943,10 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
     bUseDQP = true;
   }
 
-#if SHARP_LUMA_DELTA_QP
   if ( getLumaLevelToDeltaQPMapping().isEnabled() )
   {
     bUseDQP = true;
   }
-#endif
 
   if (m_costMode==COST_SEQUENCE_LEVEL_LOSSLESS || m_costMode==COST_LOSSLESS_CODING)
   {
@@ -1027,7 +990,6 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
   pps.getPpsScreenExtension().setActQpOffset(COMPONENT_Cb, m_actCbQpOffset );
   pps.getPpsScreenExtension().setActQpOffset(COMPONENT_Cr, m_actCrQpOffset );
 
-#if ER_CHROMA_QP_WCG_PPS
   if (getWCGChromaQPControl().isEnabled())
   {
     const Int baseQp=m_iQP+pps.getPPSId();
@@ -1041,13 +1003,9 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
   }
   else
   {
-#endif
-  pps.setQpOffset(COMPONENT_Cb, m_chromaCbQpOffset );
-  pps.setQpOffset(COMPONENT_Cr, m_chromaCrQpOffset );
-#if ER_CHROMA_QP_WCG_PPS
+    pps.setQpOffset(COMPONENT_Cb, m_chromaCbQpOffset );
+    pps.setQpOffset(COMPONENT_Cr, m_chromaCrQpOffset );
   }
-#endif
-#if W0038_CQP_ADJ
   Bool bChromaDeltaQPEnabled = false;
   {
     bChromaDeltaQPEnabled = ( m_sliceChromaQpOffsetIntraOrPeriodic[0] || m_sliceChromaQpOffsetIntraOrPeriodic[1] );
@@ -1064,7 +1022,6 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
     }
   }
   pps.setSliceChromaQpFlag(bChromaDeltaQPEnabled);
-#endif
 
   pps.setEntropyCodingSyncEnabledFlag( m_entropyCodingSyncEnabledFlag );
   pps.setTilesEnabledFlag( (m_iNumColumnsMinus1 > 0 || m_iNumRowsMinus1 > 0) );
@@ -1445,6 +1402,14 @@ Void  TEncCfg::xCheckGSParameters()
   }
 }
 
+#if JCTVC_Y0038_PARAMS
+Void TEncTop::setParamSetChanged(Int spsId, Int ppsId)
+{
+  m_ppsMap.setChangedFlag(ppsId);
+  m_spsMap.setChangedFlag(spsId);
+}
+#endif
+
 Bool TEncTop::PPSNeedsWriting(Int ppsId)
 {
   Bool bChanged=m_ppsMap.getChangedFlag(ppsId);
@@ -1490,13 +1455,8 @@ Int TEncCfg::getQPForPicture(const UInt gopIndex, const TComSlice *pSlice) const
     }
     else
     {
-#if SHARP_LUMA_DELTA_QP
       // Only adjust QP when not lossless
       if (!(( getMaxDeltaQP() == 0 ) && (!getLumaLevelToDeltaQPMapping().isEnabled()) && (qp == -lumaQpBDOffset ) && (pSlice->getPPS()->getTransquantBypassEnabledFlag())))
-#else
-      if (!(( getMaxDeltaQP() == 0 ) && (qp == -lumaQpBDOffset ) && (pSlice->getPPS()->getTransquantBypassEnabledFlag())))
-#endif
-
       {
         const GOPEntry &gopEntry=getGOPEntry(gopIndex);
         // adjust QP according to the QP offset for the GOP entry.

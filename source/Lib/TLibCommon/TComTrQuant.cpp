@@ -1180,23 +1180,19 @@ Void TComTrQuant::xQuant(       TComTU       &rTu,
   Bool useRDOQ = useTransformSkip ? m_useRDOQTS : m_useRDOQ;
   if ( useRDOQ && (isLuma(compID) || RDOQ_CHROMA) )
   {
-#if T0196_SELECTIVE_RDOQ
     if ( !m_useSelectiveRDOQ || xNeedRDOQ( rTu, piCoef, compID, cQP ) )
     {
-#endif
 #if ADAPTIVE_QP_SELECTION
       xRateDistOptQuant( rTu, piCoef, pDes, pArlDes, uiAbsSum, compID, cQP );
 #else
       xRateDistOptQuant( rTu, piCoef, pDes, uiAbsSum, compID, cQP );
 #endif
-#if T0196_SELECTIVE_RDOQ
     }
     else
     {
       memset( pDes, 0, sizeof( TCoeff ) * uiWidth *uiHeight );
       uiAbsSum = 0;
     }
-#endif
   }
   else
   {
@@ -1281,7 +1277,6 @@ Void TComTrQuant::xQuant(       TComTU       &rTu,
   //return;
 }
 
-#if T0196_SELECTIVE_RDOQ
 Bool TComTrQuant::xNeedRDOQ( TComTU &rTu, TCoeff * pSrc, const ComponentID compID, const QpParam &cQP )
 {
   const TComRectangle &rect = rTu.getRect(compID);
@@ -1337,7 +1332,6 @@ Bool TComTrQuant::xNeedRDOQ( TComTU &rTu, TCoeff * pSrc, const ComponentID compI
   } // for n
   return false;
 }
-#endif
 
 Void TComTrQuant::xDeQuant(       TComTU        &rTu,
                             const TCoeff       * pSrc,
@@ -1461,9 +1455,7 @@ Void TComTrQuant::xDeQuant(       TComTU        &rTu,
 Void TComTrQuant::init(   UInt  uiMaxTrSize,
                           Bool  bUseRDOQ,
                           Bool  bUseRDOQTS,
-#if T0196_SELECTIVE_RDOQ
                           Bool  useSelectiveRDOQ,
-#endif
                           Bool  bEnc,
                           Bool  useTransformSkipFast
 #if ADAPTIVE_QP_SELECTION
@@ -1475,9 +1467,7 @@ Void TComTrQuant::init(   UInt  uiMaxTrSize,
   m_bEnc         = bEnc;
   m_useRDOQ      = bUseRDOQ;
   m_useRDOQTS    = bUseRDOQTS;
-#if T0196_SELECTIVE_RDOQ
   m_useSelectiveRDOQ = useSelectiveRDOQ;
-#endif
 #if ADAPTIVE_QP_SELECTION
   m_bUseAdaptQpSelect = bUseAdaptQpSelect;
 #endif

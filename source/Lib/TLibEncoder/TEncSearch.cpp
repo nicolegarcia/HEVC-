@@ -1456,12 +1456,8 @@ Void TEncSearch::xIntraCodingTUBlock(       TComYuv*    pcOrgYuv,
   //--- init rate estimation arrays for RDOQ ---
   if( useTransformSkip ? m_pcEncCfg->getUseRDOQTS() : m_pcEncCfg->getUseRDOQ() )
   {
-#if FIX_RDOQ_BIT_ESTIMATE
     COEFF_SCAN_TYPE scanType = COEFF_SCAN_TYPE(pcCU->getCoefScanIdx(uiAbsPartIdx, uiWidth, uiHeight, compID));
     m_pcEntropyCoder->estimateBit( m_pcTrQuant->m_pcEstBitsSbac, uiWidth, uiHeight, chType, scanType );
-#else
-    m_pcEntropyCoder->estimateBit( m_pcTrQuant->m_pcEstBitsSbac, uiWidth, uiHeight, chType );
-#endif
   }
 
   //--- transform and quantization ---
@@ -1670,12 +1666,8 @@ TEncSearch::xIntraCodingTUBlockCSC(       TComYuv*    pcResiYuv,
   //--- transform and quantization ---
   if (useTransformSkip ? m_pcEncCfg->getUseRDOQTS() : m_pcEncCfg->getUseRDOQ())
   {
-#if FIX_RDOQ_BIT_ESTIMATE
     COEFF_SCAN_TYPE scanType = COEFF_SCAN_TYPE(pcCU->getCoefScanIdx(uiAbsPartIdx, uiWidth, uiHeight, compID));
     m_pcEntropyCoder->estimateBit(m_pcTrQuant->m_pcEstBitsSbac, uiWidth, uiHeight, chType, scanType);
-#else
-    m_pcEntropyCoder->estimateBit(m_pcTrQuant->m_pcEstBitsSbac, uiWidth, uiHeight, chType);
-#endif
   }
 
   //--- transform and quantization ---
@@ -10784,12 +10776,8 @@ Void TEncSearch::xEstimateInterResidualQTTUCSC( TComYuv        *pcResi,
 
               if ((compID != COMPONENT_Cr) && ((transformSkipModeId == 1) ? m_pcEncCfg->getUseRDOQTS() : m_pcEncCfg->getUseRDOQ()))
               {
-#if FIX_RDOQ_BIT_ESTIMATE
                 COEFF_SCAN_TYPE scanType = COEFF_SCAN_TYPE(pcCU->getCoefScanIdx(uiAbsPartIdx, tuCompRect.width, tuCompRect.height, compID));
                 m_pcEntropyCoder->estimateBit(m_pcTrQuant->m_pcEstBitsSbac, tuCompRect.width, tuCompRect.height, toChannelType(compID), scanType);
-#else
-                m_pcEntropyCoder->estimateBit(m_pcTrQuant->m_pcEstBitsSbac, tuCompRect.width, tuCompRect.height, toChannelType(compID));
-#endif
               }
 
 #if RDOQ_CHROMA_LAMBDA
@@ -11437,12 +11425,8 @@ Void TEncSearch::xEstimateInterResidualQT( TComYuv    *pcResi,
 
               if ((compID != COMPONENT_Cr) && ((transformSkipModeId == 1) ? m_pcEncCfg->getUseRDOQTS() : m_pcEncCfg->getUseRDOQ()))
               {
-#if FIX_RDOQ_BIT_ESTIMATE
                 COEFF_SCAN_TYPE scanType = COEFF_SCAN_TYPE(pcCU->getCoefScanIdx(uiAbsPartIdx, tuCompRect.width, tuCompRect.height, compID));
                 m_pcEntropyCoder->estimateBit(m_pcTrQuant->m_pcEstBitsSbac, tuCompRect.width, tuCompRect.height, toChannelType(compID), scanType);
-#else
-                m_pcEntropyCoder->estimateBit(m_pcTrQuant->m_pcEstBitsSbac, tuCompRect.width, tuCompRect.height, toChannelType(compID));
-#endif
               }
 
 #if RDOQ_CHROMA_LAMBDA
