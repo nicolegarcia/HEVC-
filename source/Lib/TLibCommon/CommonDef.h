@@ -49,6 +49,7 @@
 // disable Bool coercion "performance warning"
 #pragma warning( disable : 4800 )
 #endif // _MSC_VER > 1000
+
 #include "TypeDef.h"
 
 #ifdef _MSC_VER
@@ -64,7 +65,7 @@ inline Int64 abs (Int64 x) { return _abs64(x); };
 // Version information
 // ====================================================================================================================
 
-#define NV_VERSION        "16.14"                 ///< Current software version
+#define NV_VERSION        "16.14_SCM8.3"                 ///< Current software version
 
 // ====================================================================================================================
 // Platform information
@@ -114,7 +115,7 @@ inline Int64 abs (Int64 x) { return _abs64(x); };
 static const UInt   MAX_UINT =                            0xFFFFFFFFU; ///< max. value of unsigned 32-bit integer
 static const Int    MAX_INT =                              2147483647; ///< max. value of signed 32-bit integer
 static const Double MAX_DOUBLE =                             1.7e+308; ///< max. value of Double-type value
-
+static const Int64  MAX_INT64 =                  0x7FFFFFFFFFFFFFFFLL; ///< max. value of signed 64-bit integer
 // ====================================================================================================================
 // Coding tool configuration
 // ====================================================================================================================
@@ -244,6 +245,18 @@ static const Int LAST_SIGNIFICANT_GROUPS =                        10 ;
 static const Int MAX_ENCODER_DEBLOCKING_QUALITY_LAYERS =           8 ;
 
 static const UInt LUMA_LEVEL_TO_DQP_LUT_MAXSIZE =                1024; ///< max LUT size for QP offset based on luma
+
+static const Int SCM_S0067_NUM_CANDIDATES =                        64; ///< Maximum number of candidates to store/test
+static const Int SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU =              2; ///< Do full horizontal/vertical search for Nx2N
+static const Int SCM_S0067_MAX_CAND_SIZE =                         32; ///< 32 or 64, 16 by default
+static const Int SCM_T0048_PALETTE_PRED_IN_PPS_REFRESH =           16; ///< Periodicity of the palette refresh
+static const Int SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ =               5; ///< Chroma error weight as a right shift
+static const Int SCM_V0034_PALETTE_CHROMA_SETTINGS = ( 1 << SCM_V0034_PALETTE_CHROMA_SHIFT_ADJ ); // Weight for non-discarded pixels
+static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE = 4; ///< CABAC bypass threshold
+static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1 =            1;
+static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2 =            3;
+static const UChar PALETTE_SIZE_INVALID =                        0xff;
+static const UInt PALETTE_MAX_SYMBOL_P1 =                         256;  ///< palette related pre-calculated array size, this value shall be greater than 1
 
 // ====================================================================================================================
 // Macro functions
