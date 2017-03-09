@@ -108,6 +108,13 @@ public:
   {
     return std::list< C >::find( this->begin(), this->end(), rcT );
   }
+
+  TComIterator eraseElement( TComIterator iterPic )
+  {
+    TComIterator iterPicTemp;
+    iterPicTemp = this->erase( iterPic );
+    return iterPicTemp;
+  }
 };
 
 //! \}

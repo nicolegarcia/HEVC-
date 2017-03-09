@@ -90,11 +90,14 @@ Void TEncTop::create ()
 {
   // initialize global variables
   initROM();
+  TComHash::initBlockSizeToIndex();
 
   // create processing unit classes
   m_cGOPEncoder.        create( );
   m_cSliceEncoder.      create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth );
-  m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC );
+  m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC
+                         ,m_uiPaletteMaxSize, m_uiPaletteMaxPredSize
+     );
   if (m_bUseSAO)
   {
     m_cEncSAO.create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth, m_log2SaoOffsetScale[CHANNEL_TYPE_LUMA], m_log2SaoOffsetScale[CHANNEL_TYPE_CHROMA] );
@@ -520,6 +523,11 @@ Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic, Int ppsId )
     if (pps.getPPSId() == rpcPic->getPicSym()->getPPS().getPPSId())
     {
 #if REDUCED_ENCODER_MEMORY
+    if ( getMotionVectorResolutionControlIdc() == 2 )
+    {
+      // has not been released if getMotionVectorResolutionControlIdc() == 2
+      rpcPic->releaseEncoderSourceImageData();
+    }
       rpcPic->releaseAllReconstructionData();
       rpcPic->prepareForEncoderSourcePicYuv();
 #endif
@@ -539,7 +547,7 @@ Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic, Int ppsId )
     {
       TEncPic* pcEPic = new TEncPic;
 #if REDUCED_ENCODER_MEMORY
-      pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1);
+      pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1 );
 #else
       pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1, false);
 #endif
@@ -567,6 +575,14 @@ Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic, Int ppsId )
   // mark it should be extended
   rpcPic->getPicYuvRec()->setBorderExtension(false);
 #endif
+  rpcPic->getHashMap()->clearAll();
+  if( getRGBFormatFlag() && getUseColourTrans() )
+  {
+    if( rpcPic->getPicYuvCSC() == NULL )
+    {
+      rpcPic->allocateCSCBuffer( m_iSourceWidth, m_iSourceHeight, m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth );
+    }
+  }
 }
 
 Void TEncTop::xInitVPS(TComVPS &vps, const TComSPS &sps)
@@ -742,6 +758,15 @@ Void TEncTop::xInitSPS(TComSPS &sps)
   sps.getSpsRangeExtension().setHighPrecisionOffsetsEnabledFlag(m_highPrecisionOffsetsEnabledFlag);
   sps.getSpsRangeExtension().setPersistentRiceAdaptationEnabledFlag(m_persistentRiceAdaptationEnabledFlag);
   sps.getSpsRangeExtension().setCabacBypassAlignmentEnabledFlag(m_cabacBypassAlignmentEnabledFlag);
+
+  // Set up SPS screen extension settings
+  sps.getSpsScreenExtension().setDisableIntraBoundaryFilter( m_disableIntraBoundaryFilter );
+  sps.getSpsScreenExtension().setUseIntraBlockCopy( m_useIntraBlockCopy );
+  sps.getSpsScreenExtension().setUsePaletteMode( m_usePaletteMode );
+  sps.getSpsScreenExtension().setPaletteMaxSize( m_uiPaletteMaxSize );
+  sps.getSpsScreenExtension().setPaletteMaxPredSize( m_uiPaletteMaxPredSize );
+  sps.getSpsScreenExtension().setMotionVectorResolutionControlIdc( m_motionVectorResolutionControlIdc );
+  assert( m_uiPaletteMaxPredSize <= 128 );
 }
 
 // calculate scale value of bitrate and initial delay
@@ -961,6 +986,10 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
   pps.getPpsRangeExtension().setLog2SaoOffsetScale(CHANNEL_TYPE_LUMA,   m_log2SaoOffsetScale[CHANNEL_TYPE_LUMA  ]);
   pps.getPpsRangeExtension().setLog2SaoOffsetScale(CHANNEL_TYPE_CHROMA, m_log2SaoOffsetScale[CHANNEL_TYPE_CHROMA]);
 
+  pps.getPpsScreenExtension().setActQpOffset(COMPONENT_Y, m_actYQpOffset );
+  pps.getPpsScreenExtension().setActQpOffset(COMPONENT_Cb, m_actCbQpOffset );
+  pps.getPpsScreenExtension().setActQpOffset(COMPONENT_Cr, m_actCrQpOffset );
+
   if (getWCGChromaQPControl().isEnabled())
   {
     const Int baseQp=m_iQP+pps.getPPSId();
@@ -1063,11 +1092,17 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
   pps.setTransquantBypassEnabledFlag(getTransquantBypassEnabledFlag());
   pps.setUseTransformSkip( m_useTransformSkip );
   pps.getPpsRangeExtension().setLog2MaxTransformSkipBlockSize( m_log2MaxTransformSkipBlockSize  );
+  if ( sps.getSpsScreenExtension().getUseIntraBlockCopy() )
+  {
+    pps.setNumRefIdxL0DefaultActive( bestPos + 1 );
+  }
 
   if (m_sliceSegmentMode != NO_SLICES)
   {
     pps.setDependentSliceSegmentsEnabledFlag( true );
   }
+  pps.getPpsScreenExtension().setUseColourTrans( m_useColourTrans );
+  pps.getPpsScreenExtension().setUseIntraBlockCopy(sps.getSpsScreenExtension().getUseIntraBlockCopy());
 
   xInitPPSforTiles(pps);
 }
@@ -1387,6 +1422,15 @@ Bool TEncTop::SPSNeedsWriting(Int spsId)
   Bool bChanged=m_spsMap.getChangedFlag(spsId);
   m_spsMap.clearChangedFlag(spsId);
   return bChanged;
+}
+
+TComPPS* TEncTop::copyToNewPPS(Int ppsId, TComPPS* pps0)
+{
+  TComPPS* pps1= m_ppsMap.allocatePS(ppsId);
+  *pps1 = *pps0;
+  pps1->setPPSId(ppsId);
+  m_ppsMap.clearChangedFlag(ppsId);
+  return pps1;
 }
 
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
