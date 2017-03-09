@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,6 @@
 #include "TLibCommon/CommonDef.h"
 
 #include "TLibEncoder/TEncCfg.h"
-#if EXTENSION_360_VIDEO
-#include "TAppEncHelper360/TExt360AppEncCfg.h"
-#endif
 #include <sstream>
 #include <vector>
 //! \ingroup TAppEncoder
@@ -56,17 +53,6 @@
 /// encoder configuration class
 class TAppEncCfg
 {
-#if JVET_E0059_FLOATING_POINT_QP_FIX
-public:
-  template <class T>
-  struct OptionalValue
-  {
-    Bool bPresent;
-    T    value;
-    OptionalValue() : bPresent(false), value() { }
-  };
-#endif
-
 protected:
   // file I/O
   std::string m_inputFileName;                                ///< source file name
@@ -84,8 +70,6 @@ protected:
   UInt      m_temporalSubsampleRatio;                         ///< temporal subsample ratio, 2 means code every two frames
   Int       m_iSourceWidth;                                   ///< source width in pixel
   Int       m_iSourceHeight;                                  ///< source height in pixel (when interlaced = field height)
-  Int       m_inputFileWidth;                                 ///< width of image in input file  (this is equivalent to sourceWidth,  if sourceWidth  is not subsequently altered due to padding)
-  Int       m_inputFileHeight;                                ///< height of image in input file (this is equivalent to sourceHeight, if sourceHeight is not subsequently altered due to padding)
 
   Int       m_iSourceHeightOrg;                               ///< original source height in pixel (when interlaced = frame height)
 
@@ -110,6 +94,7 @@ protected:
   Bool      m_printMSEBasedSequencePSNR;
   Bool      m_printFrameMSE;
   Bool      m_printSequenceMSE;
+  Bool      m_printClippedPSNR;
   Bool      m_cabacZeroWordPaddingEnabled;
   Bool      m_bClipInputVideoToRec709Range;
   Bool      m_bClipOutputVideoToRec709Range;
@@ -127,6 +112,7 @@ protected:
   Bool m_interlacedSourceFlag;
   Bool m_nonPackedConstraintFlag;
   Bool m_frameOnlyConstraintFlag;
+  UInt m_sccHighThroughputFlag;
 
   // coding structure
   Int       m_iIntraPeriod;                                   ///< period of I-slice (random access period)
@@ -151,13 +137,18 @@ protected:
   Bool      m_enableAMP;
   Bool      m_persistentRiceAdaptationEnabledFlag;            ///< control flag for Golomb-Rice parameter adaptation over each slice
   Bool      m_cabacBypassAlignmentEnabledFlag;
+  Bool      m_bRGBformat;
+  Bool      m_useColourTrans;
+  Bool      m_useLL;
+  Bool      m_usePaletteMode;
+  UInt      m_uiPaletteMaxSize;
+  UInt      m_uiPaletteMaxPredSize;
+  Int       m_motionVectorResolutionControlIdc;
+  Bool      m_palettePredInSPSEnabled;
+  Bool      m_palettePredInPPSEnabled;
 
   // coding quality
-#if JVET_E0059_FLOATING_POINT_QP_FIX
-  OptionalValue<UInt> m_qpIncrementAtSourceFrame;             ///< Optional source frame number at which all subsequent frames are to use an increased internal QP.
-#else
   Double    m_fQP;                                            ///< QP value of key-picture (floating point)
-#endif
   Int       m_iQP;                                            ///< QP value of key-picture (integer)
 #if X0038_LAMBDA_FROM_QP_CAPABILITY
   Int       m_intraQPOffset;                                  ///< QP offset for intra slice (integer)
@@ -173,6 +164,9 @@ protected:
 
   Int       m_cbQpOffset;                                     ///< Chroma Cb QP Offset (0:default)
   Int       m_crQpOffset;                                     ///< Chroma Cr QP Offset (0:default)
+  Int       m_actYQpOffset;
+  Int       m_actCbQpOffset;
+  Int       m_actCrQpOffset;
   WCGChromaQPControl m_wcgChromaQpControl;                    ///< Wide-colour-gamut chroma QP control.
   UInt      m_sliceChromaQpOffsetPeriodicity;                 ///< Used in conjunction with Slice Cb/Cr QpOffsetIntraOrPeriodic. Use 0 (default) to disable periodic nature.
   Int       m_sliceChromaQpOffsetIntraOrPeriodic[2/*Cb,Cr*/]; ///< Chroma Cb QP Offset at slice level for I slice or for periodic inter slices as defined by SliceChromaQPOffsetPeriodicity. Replaces offset in the GOP table.
@@ -209,6 +203,7 @@ protected:
   Int       m_internalBitDepth[MAX_NUM_CHANNEL_TYPE];         ///< bit-depth codec operates at (input/output files will be converted)
   Bool      m_extendedPrecisionProcessingFlag;
   Bool      m_highPrecisionOffsetsEnabledFlag;
+  Bool      m_useIntraBlockCopy;
 
   //coding tools (chroma format)
   ChromaFormat m_chromaFormatIDC;
@@ -236,7 +231,7 @@ protected:
   UInt      m_uiPCMLog2MinSize;                               ///< log2 of minimum PCM block size
   Bool      m_bPCMFilterDisableFlag;                          ///< PCM filter disable flag
   Bool      m_enableIntraReferenceSmoothing;                  ///< flag for enabling(default)/disabling intra reference smoothing/filtering
-
+  Bool      m_disableIntraBoundaryFilter;                     ///  flag for enabling(default)/disabling intra boundary filtering
   // coding tools (encoder-only parameters)
   Bool      m_bUseASR;                                        ///< flag for using adaptive motion search range
   Bool      m_bUseHADME;                                      ///< flag for using HAD in sub-pel ME
@@ -247,10 +242,15 @@ protected:
   Bool      m_bDisableIntraPUsInInterSlices;                  ///< Flag for disabling intra predicted PUs in inter slices.
   MESearchMethod m_motionEstimationSearchMethod;
   Bool      m_bRestrictMESampling;                            ///< Restrict sampling for the Selective ME
+  Bool      m_useHashBasedIntraBlockCopySearch;               ///< Enable the use of hash based search for intra block copying on 8x8 blocks
+  Int       m_intraBlockCopySearchWidthInCTUs;                ///< Search range for IBC hash search method (-1: full frame search)
+  UInt      m_intraBlockCopyNonHashSearchWidthInCTUs;         ///< Search range for IBC non-hash search method (i.e., fast/full search)
+  Bool      m_useHashBasedME;                                 ///< flag for using hash based inter search
   Int       m_iSearchRange;                                   ///< ME search range
   Int       m_bipredSearchRange;                              ///< ME search range for bipred refinement
   Int       m_minSearchWindow;                                ///< ME minimum search window size for the Adaptive Window ME
   Bool      m_bClipForBiPredMeEnabled;                        ///< Enables clipping for Bi-Pred ME.
+  Bool      m_intraBlockCopyFastSearch;                       ///< Use a restricted search range for intra block-copy motion vectors to reduce the encoding time
   Bool      m_bFastMEAssumingSmootherMVEnabled;               ///< Enables fast ME assuming a smoother MV.
   FastInterSearchMode m_fastInterSearchMode;                  ///< Parameter that controls fast encoder settings
   Bool      m_bUseEarlyCU;                                    ///< flag for using Early CU setting
@@ -370,6 +370,9 @@ protected:
 
   Bool      m_TransquantBypassEnabledFlag;                    ///< transquant_bypass_enabled_flag setting in PPS.
   Bool      m_CUTransquantBypassFlagForce;                    ///< if transquant_bypass_enabled_flag, then, if true, all CU transquant bypass flags will be set to true.
+  Bool      m_bTransquantBypassInferTUSplit;                  ///< Infer TU splitting for transquant bypass CUs
+  Bool      m_bNoTUSplitIntraACTEnabled;
+
   CostMode  m_costMode;                                       ///< Cost mode to use
 
   Bool      m_recalculateQPAccordingToLambda;                 ///< recalculate QP value according to the lambda value
@@ -415,12 +418,6 @@ protected:
   std::string m_summaryOutFilename;                           ///< filename to use for producing summary output file.
   std::string m_summaryPicFilenameBase;                       ///< Base filename to use for producing summary picture output files. The actual filenames used will have I.txt, P.txt and B.txt appended.
   UInt        m_summaryVerboseness;                           ///< Specifies the level of the verboseness of the text output.
-
-#if EXTENSION_360_VIDEO
-  TExt360AppEncCfg m_ext360;
-  friend class TExt360AppEncCfg;
-  friend class TExt360AppEncTop;
-#endif
 
   // internal member functions
   Void  xCheckParameter ();                                   ///< check validity of configuration values

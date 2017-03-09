@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,11 @@ public:
   virtual     ~TComPicYuv         ();
 
   // ------------------------------------------------------------------------------------------------
+  //  Copy assignment operator
+  // ------------------------------------------------------------------------------------------------
+  TComPicYuv&        operator=  (const TComPicYuv& sComPicYuv);
+
+    // ------------------------------------------------------------------------------------------------
   //  Memory management
   // ------------------------------------------------------------------------------------------------
 
@@ -168,6 +173,7 @@ public:
 
   // Set border extension flag
   Void          setBorderExtension(Bool b) { m_bIsBorderExtended = b; }
+  Void          DefaultConvertPix(TComPicYuv* pcSrcPicYuv, const BitDepths& bitDepths);
 };// END CLASS DEFINITION TComPicYuv
 
 

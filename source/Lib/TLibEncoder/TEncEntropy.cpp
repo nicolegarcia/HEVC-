@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,34 @@ Void TEncEntropy::encodeSPS( const TComSPS* pcSPS )
 {
   m_pcEntropyCoderIf->codeSPS( pcSPS );
   return;
+}
+
+Void TEncEntropy::encodePaletteModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD, Bool* bCodeDQP, Bool* codeChromaQpAdj )
+{
+  if ( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() )
+  {
+    if ( bRD )
+    {
+      uiAbsPartIdx = 0;
+    }
+
+    UInt log2CbSize = g_aucConvertToBit[pcCU->getWidth(uiAbsPartIdx)] + 2;
+    if( !pcCU->isIntra( uiAbsPartIdx ) || log2CbSize > pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
+    {
+      return;
+    }
+
+    m_pcEntropyCoderIf->codePaletteModeFlag( pcCU, uiAbsPartIdx );
+    if ( pcCU->getPaletteModeFlag( uiAbsPartIdx ) )
+    {
+      m_pcEntropyCoderIf->codePaletteModeSyntax( pcCU, uiAbsPartIdx, 3, bCodeDQP, codeChromaQpAdj );
+
+      if (!bRD)
+      {
+        pcCU->saveLastPaletteInLcuFinal( pcCU, uiAbsPartIdx, MAX_NUM_COMPONENT );
+      }
+    }
+  }
 }
 
 Void TEncEntropy::encodeCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD )
@@ -172,7 +200,6 @@ Void TEncEntropy::encodePartSize( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
 
   m_pcEntropyCoderIf->codePartSize( pcCU, uiAbsPartIdx, uiDepth );
 }
-
 
 /** Encode I_PCM information.
  * \param pcCU          pointer to CU
@@ -323,6 +350,11 @@ Void TEncEntropy::xEncodeTransform( Bool& bCodeDQP, Bool& codeChromaQpAdj, TComT
 
     if ( bHaveACodedBlock )
     {
+      if ( pcCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans() && pcCU->hasAssociatedACTFlag(uiAbsPartIdx) )
+      {
+        m_pcEntropyCoderIf->codeColourTransformFlag( pcCU, uiAbsPartIdx );
+      }
+
       // dQP: only for CTU once
       if ( pcCU->getSlice()->getPPS()->getUseDQP() )
       {
@@ -422,7 +454,6 @@ Void TEncEntropy::encodeIntraDirModeChroma( TComDataCU* pcCU, UInt uiAbsPartIdx 
   }
 #endif
 }
-
 
 Void TEncEntropy::encodePredInfo( TComDataCU* pcCU, UInt uiAbsPartIdx )
 {

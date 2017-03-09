@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,7 +101,9 @@ private:
   UChar*        m_puhTrIdx;                             ///< array of transform indices
   UChar*        m_puhTransformSkip[MAX_NUM_COMPONENT];  ///< array of transform skipping flags
   UChar*        m_puhCbf[MAX_NUM_COMPONENT];            ///< array of coded block flags (CBF)
-  TComCUMvField m_acCUMvField[NUM_REF_PIC_LIST_01];     ///< array of motion vectors.
+  TComCUMvField m_acCUMvField[NUM_REF_PIC_LIST_CU_MV_FIELD];    ///< array of motion vectors, and includes intra block copying vector field.
+  TComMv        m_lastIntraBCMv[2];    ///< last 2 Intra Block Copy Mv used.
+
   TCoeff*       m_pcTrCoeff[MAX_NUM_COMPONENT];         ///< array of transform coefficient buffers (0->Y, 1->Cb, 2->Cr)
 #if ADAPTIVE_QP_SELECTION
   TCoeff*       m_pcArlCoeff[MAX_NUM_COMPONENT];        ///< ARL coefficient buffer (0->Y, 1->Cb, 2->Cr)
@@ -109,6 +111,7 @@ private:
 #endif
 
   Pel*          m_pcIPCMSample[MAX_NUM_COMPONENT];      ///< PCM sample buffer (0->Y, 1->Cb, 2->Cr)
+  Bool*          m_ColourTransform; 
 
   // -------------------------------------------------------------------------------------------------------------------
   // neighbour access variables
@@ -137,6 +140,17 @@ private:
   SChar*        m_apiMVPIdx[NUM_REF_PIC_LIST_01];       ///< array of motion vector predictor candidates
   SChar*        m_apiMVPNum[NUM_REF_PIC_LIST_01];       ///< array of number of possible motion vectors predictors
   Bool*         m_pbIPCMFlag;                           ///< array of intra_pcm flags
+  UChar*        m_piSPoint[MAX_NUM_COMPONENT];            ///< 0: left run mode; 1: above run mode
+  Pel*          m_piLevel[MAX_NUM_COMPONENT];           ///< in run mode, it is the sample index in palette; in PCM mode, it is the abs sample value;
+  Bool*         m_pbPaletteModeFlag;                          ///< array of intra_pcm flags
+  Pel*          m_piPalette[MAX_NUM_COMPONENT];               ///< Palette
+  UChar*        m_bPrevPaletteReusedFlag[MAX_NUM_COMPONENT];  ///< Palette
+  UChar *       m_puhPaletteEscape[MAX_NUM_COMPONENT];
+  Pel*          m_piLastPaletteInLcuFinal[MAX_NUM_COMPONENT]; ///< Palette
+  UChar         m_uhLastPaletteSizeFinal[MAX_NUM_COMPONENT];
+  UChar         m_uhLastPaletteUsedSizeFinal[MAX_NUM_COMPONENT];
+  Bool*         m_pbPaletteScanRotationModeFlag;
+  UChar*        m_piEscapeFlag[MAX_NUM_COMPONENT];
 
   // -------------------------------------------------------------------------------------------------------------------
   // misc. variables
@@ -149,6 +163,8 @@ private:
   UInt          m_uiTotalBins;                          ///< sum of partition bins
   SChar         m_codedQP;
   UChar*        m_explicitRdpcmMode[MAX_NUM_COMPONENT]; ///< Stores the explicit RDPCM mode for all TUs belonging to this CU
+  UInt          m_paletteMaxSize;         ///< maximum palette size
+  UInt          m_paletteMaxPredSize;     ///< maximum palette predictor size
 
 protected:
 
@@ -158,6 +174,7 @@ protected:
 
   Void          deriveRightBottomIdx          ( UInt uiPartIdx, UInt& ruiPartIdxRB ) const;
   Bool          xGetColMVP                    ( const RefPicList eRefPicList, const Int ctuRsAddr, const Int partUnitIdx, TComMv& rcMv, const Int refIdx ) const;
+  Bool          xGetColMVPIBC( Int ctuRsAddr, Int uiPartUnitIdx, TComMv& rcMv);
 
   /// compute scaling factor from POC difference
   static Int    xGetDistScaleFactor           ( Int iCurrPOC, Int iCurrRefPOC, Int iColPOC, Int iColRefPOC );
@@ -165,6 +182,10 @@ protected:
   Void          xDeriveCenterIdx              ( UInt uiPartIdx, UInt& ruiPartIdxCenter ) const;
 
 public:
+  Double        tmpIntraBCRDCost;
+  Double        tmpInterRDCost;
+  Bool          bIntraBCCSCEnabled;
+  Bool          bInterCSCEnabled; 
                 TComDataCU();
   virtual       ~TComDataCU();
 
@@ -172,7 +193,7 @@ public:
   // create / destroy / initialize / copy
   // -------------------------------------------------------------------------------------------------------------------
 
-  Void          create                        ( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt uiWidth, UInt uiHeight, Bool bDecSubCu, Int unitSize
+  Void          create                        ( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt uiWidth, UInt uiHeight, Bool bDecSubCu, Int unitSize, UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
                                                 , TCoeff *pParentARLBuffer = 0
 #endif
@@ -182,6 +203,7 @@ public:
   Void          initCtu                       ( TComPic* pcPic, UInt ctuRsAddr );
   Void          initEstData                   ( const UInt uiDepth, const Int qp, const Bool bTransquantBypass );
   Void          initSubCU                     ( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDepth, Int qp );
+  Void          initRQTData           ( const UInt uiDepth, TComDataCU* pSrcCU, Bool bCopySrc, Bool bResetIntraMode, Bool bResetTUSplit );
   Void          setOutsideCUPart              ( UInt uiAbsPartIdx, UInt uiDepth );
 
   Void          copySubCU                     ( TComDataCU* pcCU, UInt uiPartUnitIdx );
@@ -198,6 +220,7 @@ public:
   const TComPic*   getPic                     ( ) const                                                    { return m_pcPic;                            }
   TComSlice*       getSlice                   ( )                                                          { return m_pcSlice;                          }
   const TComSlice* getSlice                   ( ) const                                                    { return m_pcSlice;                          }
+  Void          setSlice              (TComSlice *pcSlice)      { m_pcSlice = pcSlice;      }
   UInt&         getCtuRsAddr                  ( )                                                          { return m_ctuRsAddr;                        }
   UInt          getCtuRsAddr                  ( ) const                                                    { return m_ctuRsAddr;                        }
   UInt          getZorderIdxInCtu             ( ) const                                                    { return m_absZIdxInCtu;                     }
@@ -214,6 +237,11 @@ public:
   // member functions for CU data
   // -------------------------------------------------------------------------------------------------------------------
 
+  Void          getStartPosition( UInt uiPartIdx, Int& xStartInCU, Int& yStartInCU );
+  Bool          isIntraBC(UInt uiAbsPartIdx) const;
+
+  Void          getIntraBCMVPsEncOnly(UInt uiAbsPartIdx, TComMv* MvPredEnc, Int& nbPred, Int iPartIdx);
+  Bool          getDerivedBV(UInt uiAbsPartIdx, const TComMv& currentMv, TComMv& derivedMv, UInt width, UInt height);
   SChar*        getPartitionSize              ( )                                                          { return m_pePartSize;                       }
   PartSize      getPartitionSize              ( UInt uiIdx ) const                                         { return static_cast<PartSize>( m_pePartSize[uiIdx] ); }
   Void          setPartitionSize              ( UInt uiIdx, PartSize uh )                                  { m_pePartSize[uiIdx] = uh;                  }
@@ -229,6 +257,9 @@ public:
   PredMode      getPredictionMode             ( UInt uiIdx ) const                                         { return static_cast<PredMode>( m_pePredMode[uiIdx] ); }
   Void          setPredictionMode             ( UInt uiIdx, PredMode uh )                                  { m_pePredMode[uiIdx] = uh;                  }
   Void          setPredModeSubParts           ( PredMode eMode, UInt uiAbsPartIdx, UInt uiDepth );
+  Bool*         getColourTransform( )                              { return m_ColourTransform;         }
+  Bool          getColourTransform( UInt uiIdx)                    { return m_ColourTransform[uiIdx];  }
+  Bool          getColourTransform( UInt uiIdx)              const { return m_ColourTransform[uiIdx];  }
 
   SChar*        getCrossComponentPredictionAlpha( ComponentID compID )                                     { return m_crossComponentPredictionAlpha[compID];        }
   SChar         getCrossComponentPredictionAlpha( UInt uiIdx, ComponentID compID )                         { return m_crossComponentPredictionAlpha[compID][uiIdx]; }
@@ -279,6 +310,7 @@ public:
   Void          setExplicitRdpcmModePartRange ( UInt rdpcmMode, ComponentID compID, UInt uiAbsPartIdx, UInt uiCoveredPartIdxes );
 
   Bool          isRDPCMEnabled                ( UInt uiAbsPartIdx ) const                                  { return getSlice()->getSPS()->getSpsRangeExtension().getRdpcmEnabledFlag(isIntra(uiAbsPartIdx) ? RDPCM_SIGNAL_IMPLICIT : RDPCM_SIGNAL_EXPLICIT); }
+  Void          setColourTransformSubParts ( Bool ColourTransform, UInt uiAbsPartIdx, UInt uiDepth);
 
   Void          setCrossComponentPredictionAlphaPartRange ( SChar alphaValue, ComponentID compID, UInt uiAbsPartIdx, UInt uiCoveredPartIdxes );
   Void          setTransformSkipPartRange     ( UInt useTransformSkip, ComponentID compID, UInt uiAbsPartIdx, UInt uiCoveredPartIdxes );
@@ -287,6 +319,9 @@ public:
 
         TComCUMvField* getCUMvField           ( RefPicList e )                                             { return &m_acCUMvField[e];                  }
   const TComCUMvField* getCUMvField           ( RefPicList e ) const                                       { return &m_acCUMvField[e];                  }
+  TComMv        getLastIntraBCMv(Int idx=0) {return m_lastIntraBCMv[idx]; }
+  Void          setLastIntraBCMv(TComMv mv, Int idx=0 ) { m_lastIntraBCMv[idx] = mv; }
+  UInt          getIntraBCSearchAreaWidth( UInt uiMaxSearchWidthToLeftInCTUs );
 
   TCoeff*       getCoeff                      ( ComponentID component )                                    { return m_pcTrCoeff[component];             }
 
@@ -346,6 +381,48 @@ public:
   Bool          getIPCMFlag                   ( UInt uiIdx ) const                                         { return m_pbIPCMFlag[uiIdx];                }
   Void          setIPCMFlag                   ( UInt uiIdx, Bool b )                                       { m_pbIPCMFlag[uiIdx] = b;                   }
   Void          setIPCMFlagSubParts           ( Bool bIpcmFlag, UInt uiAbsPartIdx, UInt uiDepth );
+  UChar*        getSPoint             (ComponentID component)   { return m_piSPoint[component];      }
+  Pel*          getLevel              (ComponentID component)   { return m_piLevel[component];       }
+  TCoeff*       getRun                (ComponentID component)   { return m_pcTrCoeff[component];     }
+  Bool*         getPaletteModeFlag        ()                        { return m_pbPaletteModeFlag;            }
+  Bool          getPaletteModeFlag        (UInt uiIdx) const        { return m_pbPaletteModeFlag[uiIdx];     }
+  Void          setRLModeFlag             (UInt uiIdx, Bool b)      { m_pbPaletteModeFlag[uiIdx] = b;        }
+  Void          setPaletteModeFlagSubParts(Bool bRLModeFlag, UInt uiAbsPartIdx, UInt uiDepth);
+  Pel*          getPalette                (UChar ucCh)                                           { return m_piPalette[ucCh]; }
+  Pel*          getPalette                (UChar ucCh, UInt uiIdx)                               { return m_piPalette[ucCh] + (uiIdx >> 2) * m_paletteMaxSize; }
+  Pel           getPalette                (UChar ucCh, UInt uiIdx, UInt paletteIdx)              { return m_piPalette[ucCh][(uiIdx >> 2) * m_paletteMaxSize + paletteIdx]; }
+  Void          setPalette                (UChar ucCh, UInt uiIdx, Pel uiValue, UInt paletteIdx) { m_piPalette[ucCh][(uiIdx >> 2) * m_paletteMaxSize + paletteIdx] = uiValue; }
+  Void          setPaletteSubParts        (UChar ucCh, Pel uiValue, UInt paletteIdx, UInt uiAbsPartIdx, UInt uiDepth);
+
+  UChar*        getPaletteSize            (UChar ucCh)                          { return m_puhTransformSkip[ucCh];               }
+  UChar         getPaletteSize            (UChar ucCh, UInt uiIdx )             { return m_puhTransformSkip[ucCh][uiIdx];        }
+  Void          setPaletteSize            (UChar ucCh, UInt uiIdx, Bool b )     { m_puhTransformSkip[ucCh][uiIdx] = b;           }
+  Void          setPaletteSizeSubParts    (UChar ucCh, UChar ucRLDictSize, UInt uiAbsPartIdx, UInt uiDepth);
+
+  UChar*        getPaletteEscape          (UChar ucCh)                          { return m_puhPaletteEscape[ucCh];        }
+  UChar         getPaletteEscape          (UChar ucCh, UInt uiIdx)              { return m_puhPaletteEscape[ucCh][uiIdx]; }
+  Void          setPaletteEscape          (UChar ucCh, UInt uiIdx, Bool b)      { m_puhPaletteEscape[ucCh][uiIdx] = b;    }
+  Void          setPaletteEscapeSubParts  (UChar ucCh, UChar ucUseEscape, UInt uiAbsPartIdx, UInt uiDepth);
+
+  UChar*        getPrevPaletteReusedFlag  (UChar ucCh)                                             { return m_bPrevPaletteReusedFlag[ucCh]; }
+  UChar*        getPrevPaletteReusedFlag  (UChar ucCh, UInt uiIdx )                                { return m_bPrevPaletteReusedFlag[ucCh]+ (uiIdx>> 2) * m_paletteMaxPredSize; }
+  UChar         getPrevPaletteReusedFlag  (UChar ucCh, UInt uiIdx, UInt paletteIdx)                { return m_bPrevPaletteReusedFlag[ucCh][(uiIdx >> 2) * m_paletteMaxPredSize + paletteIdx]; }
+  Void          setPrevPaletteReusedFlag  (UChar ucCh, UInt uiIdx, UChar uiValue, UInt paletteIdx) { m_bPrevPaletteReusedFlag[ucCh][(uiIdx >> 2) * m_paletteMaxPredSize + paletteIdx] = uiValue; }
+  Void          setPrevPaletteReusedFlagSubParts(UChar ucCh, UChar uiValue, UInt paletteIdx, UInt uiAbsPartIdx, UInt uiDepth);
+
+  Pel*          getPalettePred(TComDataCU* pcCU, UInt uiAbsPartIdx, UInt ch, UInt &uiPaletteSizePrev);
+  UChar         getLastPaletteInLcuSizeFinal     (UChar ucCh)           { return m_uhLastPaletteSizeFinal[ucCh]; }
+  Void          setLastPaletteInLcuSizeFinal     (UChar ucCh, UChar uh) { m_uhLastPaletteSizeFinal[ucCh] = uh;   }
+
+  Pel*          getLastPaletteInLcuFinal         (UChar ucCh)                               { return m_piLastPaletteInLcuFinal[ucCh];                }
+  Pel           getLastPaletteInLcuFinal         (UChar ucCh, UInt paletteIdx)              { return m_piLastPaletteInLcuFinal[ucCh][paletteIdx];    }
+  Void          setLastPaletteInLcuFinal         (UChar ucCh, Pel uiValue, UInt paletteIdx) { m_piLastPaletteInLcuFinal[ucCh][paletteIdx] = uiValue; }
+  Void          saveLastPaletteInLcuFinal( TComDataCU *pcSrc, UInt uiAbsPartIdx, UInt numValidComp );
+  Int           xCalcMaxVals(TComDataCU *pcCU, ComponentID compID);
+  Bool          getPaletteScanRotationModeFlag (UInt uiIdx )             { return m_pbPaletteScanRotationModeFlag[uiIdx]; }
+  Bool*         getPaletteScanRotationModeFlag ()                        { return m_pbPaletteScanRotationModeFlag;        }
+  Void          setPaletteScanRotationModeFlagSubParts (Bool bPaletteScanRotationModeFlag, UInt uiAbsPartIdx, UInt uiDepth);
+  UChar*        getEscapeFlag(ComponentID component)                 { return m_piEscapeFlag[component]; }
 
   // -------------------------------------------------------------------------------------------------------------------
   // member functions for accessing partition information
@@ -382,6 +459,9 @@ public:
   Void          getMvPredAboveRight           ( TComMv&     rcMvPred ) const                               { rcMvPred = m_cMvFieldC.getMv();            }
 
   Void          compressMV                    ();
+#if REDUCED_ENCODER_MEMORY
+  Void          storeMVForIBCEnc              ();
+#endif
 
   // -------------------------------------------------------------------------------------------------------------------
   // utility functions for neighbouring information
@@ -434,10 +514,15 @@ public:
   // member functions for modes
   // -------------------------------------------------------------------------------------------------------------------
 
+  Bool          isConstrainedIntra ( UInt uiPartIdx )  const { return m_pePredMode[ uiPartIdx ] == MODE_INTRA; }
+  Bool          isLoopFilterIntra  ( UInt uiPartIdx )  const { return m_pePredMode[ uiPartIdx ] == MODE_INTRA; }
   Bool          isIntra                       ( UInt uiPartIdx ) const                                     { return m_pePredMode[ uiPartIdx ] == MODE_INTRA; }
   Bool          isInter                       ( UInt uiPartIdx ) const                                     { return m_pePredMode[ uiPartIdx ] == MODE_INTER; }
   Bool          isSkipped                     ( UInt uiPartIdx ) const; ///< returns true, if the partiton is skipped
-  Bool          isBipredRestriction           ( UInt puIdx     ) const;
+  Bool          isBipredRestriction( UInt puIdx, Bool bCheckIBCRestricion =false ) const;
+  Bool          is8x8BipredRestriction(TComMv mvL0,TComMv mvL1, Int iRefIdxL0, Int iRefIdxL1 ) const;  
+  Void          xRestrictBipredMergeCand( UInt puIdx, TComMvField* mvFieldNeighbours, UChar* interDirNeighbours, Int numValidMergeCand );
+  Bool          hasAssociatedACTFlag ( UInt uiAbsPartIdx );
 
   // -------------------------------------------------------------------------------------------------------------------
   // member functions for symbol prediction (most probable / mode conversion)
@@ -454,7 +539,7 @@ public:
 
   UInt          getCtxSplitFlag               ( UInt   uiAbsPartIdx, UInt uiDepth     ) const;
   UInt          getCtxQtCbf                   ( TComTU &rTu, const ChannelType chType ) const;
-
+  UInt          getCtxEscapeFlag                ( UInt   uiAbsPartIdx, UInt uiIdx,  Pel *pEscapeFlag  );
   UInt          getCtxSkipFlag                ( UInt   uiAbsPartIdx ) const;
   UInt          getCtxInterDir                ( UInt   uiAbsPartIdx ) const;
 
@@ -469,7 +554,6 @@ public:
   UInt&         getTotalNumPart               ( )                                                          { return m_uiNumPartition;    }
 
   UInt          getCoefScanIdx                ( const UInt uiAbsPartIdx, const UInt uiWidth, const UInt uiHeight, const ComponentID compID ) const ;
-
 };
 
 namespace RasterAddress

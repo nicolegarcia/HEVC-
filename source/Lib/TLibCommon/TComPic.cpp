@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,11 +55,14 @@ TComPic::TComPic()
 , m_bNeededForOutput                      (false)
 , m_uiCurrSliceIdx                        (0)
 , m_bCheckLTMSB                           (false)
+, m_bCurPic                               (false)
+, m_bInDPB                                (false)
 {
   for(UInt i=0; i<NUM_PIC_YUV; i++)
   {
     m_apcPicYuv[i]      = NULL;
   }
+  m_apcPicYuvCSC = NULL;
 }
 
 TComPic::~TComPic()
@@ -67,10 +70,35 @@ TComPic::~TComPic()
   destroy();
 }
 
+Void TComPic::copyPicInfo( const TComPic& sComPic )
+{
+  UInt i = 0;
+
+  m_uiTLayer = sComPic.m_uiTLayer;
+
+  m_bNeededForOutput = sComPic.m_bNeededForOutput;
+  m_bReconstructed = sComPic.m_bReconstructed;
+
+  m_uiCurrSliceIdx = sComPic.m_uiCurrSliceIdx;
+  m_bCheckLTMSB = sComPic.m_bCheckLTMSB;
+
+  m_isTop = sComPic.m_isTop;
+  m_isField = sComPic.m_isField;
+
+  for ( i = 0; i < NUM_PIC_YUV; i++ )
+  {
+    if ( sComPic.m_apcPicYuv[i] != NULL )
+    {
+      *m_apcPicYuv[i] = *(sComPic.m_apcPicYuv[i]);
+    }
+  }
+}
+
+Void TComPic::create( const TComSPS &sps, const TComPPS &pps,
 #if REDUCED_ENCODER_MEMORY
-Void TComPic::create( const TComSPS &sps, const TComPPS &pps, const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction )
+                      const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction )
 #else
-Void TComPic::create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirtual)
+                      const Bool bIsVirtual )
 #endif
 {
   destroy();
@@ -108,6 +136,7 @@ Void TComPic::create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirt
     deleteSEIs (m_SEIs);
   }
   m_bUsedByCurr = false;
+  m_hashMap.clearAll();
 }
 
 #if REDUCED_ENCODER_MEMORY
@@ -200,6 +229,14 @@ Void TComPic::destroy()
     }
   }
 
+  m_hashMap.clearAll();
+  if (m_apcPicYuvCSC)
+  {
+    m_apcPicYuvCSC->destroy();
+    delete m_apcPicYuvCSC;
+    m_apcPicYuvCSC = NULL;
+  }
+
   deleteSEIs(m_SEIs);
 }
 
@@ -212,6 +249,18 @@ Void TComPic::compressMotion()
     pCtu->compressMV();
   }
 }
+
+#if REDUCED_ENCODER_MEMORY
+Void TComPic::storeMotionForIBCEnc()
+{
+  TComPicSym* pPicSym = getPicSym();
+  for ( UInt uiCUAddr = 0; uiCUAddr < pPicSym->getNumberOfCtusInFrame(); uiCUAddr++ )
+  {
+    TComDataCU* pCtu = pPicSym->getCtu(uiCUAddr);
+    pCtu->storeMVForIBCEnc();
+  }
+}
+#endif
 
 Bool  TComPic::getSAOMergeAvailability(Int currAddr, Int mergeAddr)
 {
@@ -257,5 +306,54 @@ UInt TComPic::getSubstreamForCtuAddr(const UInt ctuAddr, const Bool bAddressInRa
   return subStrm;
 }
 
+Void TComPic::addPictureToHashMapForInter()
+{
+  Int picWidth = getSlice( 0 )->getSPS()->getPicWidthInLumaSamples();
+  Int picHeight = getSlice( 0 )->getSPS()->getPicHeightInLumaSamples();
+  UInt* uiBlockHashValues[2][2];
+  Bool* bIsBlockSame[2][3];
+
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      uiBlockHashValues[i][j] = new UInt[picWidth*picHeight];
+    }
+
+    for (Int j = 0; j < 3; j++)
+    {
+      bIsBlockSame[i][j] = new Bool[picWidth*picHeight];
+    }
+  }
+
+  m_hashMap.create();
+  m_hashMap.generateBlock2x2HashValue(getPicYuvOrg(), picWidth, picHeight, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], bIsBlockSame[0]);//2x2
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 4, 4, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], uiBlockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//4x4
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 8, 8, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[1], uiBlockHashValues[0], bIsBlockSame[1], bIsBlockSame[0]);//8x8
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[0], bIsBlockSame[0][2], picWidth, picHeight, 8, 8, getSlice(0)->getSPS()->getBitDepths());
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 16, 16, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], uiBlockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//16x16
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[1], bIsBlockSame[1][2], picWidth, picHeight, 16, 16, getSlice(0)->getSPS()->getBitDepths());
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 32, 32, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[1], uiBlockHashValues[0], bIsBlockSame[1], bIsBlockSame[0]);//32x32
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[0], bIsBlockSame[0][2], picWidth, picHeight, 32, 32, getSlice(0)->getSPS()->getBitDepths());
+
+  m_hashMap.generateBlockHashValue(getPicYuvOrg(), picWidth, picHeight, 64, 64, getSlice(0)->getSPS()->getBitDepths(), uiBlockHashValues[0], uiBlockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//64x64
+  m_hashMap.addToHashMapByRowWithPrecalData(uiBlockHashValues[1], bIsBlockSame[1][2], picWidth, picHeight, 64, 64, getSlice(0)->getSPS()->getBitDepths());
+
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      delete[] uiBlockHashValues[i][j];
+    }
+
+    for (Int j = 0; j<3; j++)
+    {
+      delete[] bIsBlockSame[i][j];
+    }
+  }
+}
 
 //! \}

@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@
 #include <TLibCommon/CommonDef.h>
 
 #if DEBUG_STRING
-extern const TChar *debug_reorder_data_inter_token[MAX_NUM_COMPONENT+1];
+extern const TChar *debug_reorder_data_token[2/*Inter=0, Intra block copy=1*/][MAX_NUM_COMPONENT+1];
 extern const TChar *partSizeToString[NUMBER_OF_PART_SIZES];
 #endif
 

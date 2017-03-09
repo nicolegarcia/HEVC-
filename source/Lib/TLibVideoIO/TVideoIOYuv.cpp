@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -185,9 +185,9 @@ Bool TVideoIOYuv::isFail()
  * This function correctly handles cases where the input file is not
  * seekable, by consuming bytes.
  */
-Void TVideoIOYuv::skipFrames(Int numFrames, UInt width, UInt height, ChromaFormat format)
+Void TVideoIOYuv::skipFrames(UInt numFrames, UInt width, UInt height, ChromaFormat format)
 {
-  if (numFrames==0)
+  if (!numFrames)
   {
     return;
   }
@@ -710,7 +710,11 @@ Bool TVideoIOYuv::read ( TComPicYuv*  pPicYuvUser, TComPicYuv* pPicYuvTrueOrg, c
   for(UInt comp=0; comp<MAX_NUM_COMPONENT; comp++)
   {
     const ComponentID compID = ComponentID(comp);
-    const ChannelType chType=toChannelType(compID);
+    ChannelType chType = toChannelType(compID);
+    if ( ipcsc == IPCOLOURSPACE_RGBtoGBR )
+    {
+      chType = (comp == 1) ? CHANNEL_TYPE_LUMA : CHANNEL_TYPE_CHROMA;
+    }
 
     const Int desired_bitdepth = m_MSBExtendedBitDepth[chType] + m_bitdepthShift[chType];
 
@@ -731,10 +735,7 @@ Bool TVideoIOYuv::read ( TComPicYuv*  pPicYuvUser, TComPicYuv* pPicYuvTrueOrg, c
     }
   }
 
-  if(pPicYuvUser)
-  {
-    ColourSpaceConvert(*pPicYuvTrueOrg, *pPicYuvUser, ipcsc, true);
-  }
+  ColourSpaceConvert(*pPicYuvTrueOrg, *pPicYuvUser, ipcsc, true);
 
   return true;
 }
@@ -793,7 +794,11 @@ Bool TVideoIOYuv::write( TComPicYuv* pPicYuvUser, const InputColourSpaceConversi
     for(UInt comp=0; comp<dstPicYuv->getNumberValidComponents(); comp++)
     {
       const ComponentID compID=ComponentID(comp);
-      const ChannelType ch=toChannelType(compID);
+      ChannelType ch = toChannelType(compID);
+      if ( ipCSC == IPCOLOURSPACE_RGBtoGBR )
+      {
+        ch = (comp == 1) ? CHANNEL_TYPE_LUMA : CHANNEL_TYPE_CHROMA;
+      }
       const Bool b709Compliance = bClipToRec709 && (-m_bitdepthShift[ch] < 0 && m_MSBExtendedBitDepth[ch] >= 8);     /* ITU-R BT.709 compliant clipping for converting say 10b to 8b */
       const Pel minval = b709Compliance? ((   1 << (m_MSBExtendedBitDepth[ch] - 8))   ) : 0;
       const Pel maxval = b709Compliance? ((0xff << (m_MSBExtendedBitDepth[ch] - 8)) -1) : (1 << m_MSBExtendedBitDepth[ch]) - 1;
@@ -819,7 +824,11 @@ Bool TVideoIOYuv::write( TComPicYuv* pPicYuvUser, const InputColourSpaceConversi
   for(UInt comp=0; retval && comp<dstPicYuv->getNumberValidComponents(); comp++)
   {
     const ComponentID compID = ComponentID(comp);
-    const ChannelType ch=toChannelType(compID);
+    ChannelType ch = toChannelType(compID);
+    if ( ipCSC == IPCOLOURSPACE_RGBtoGBR )
+    {
+      ch = (comp == 1) ? CHANNEL_TYPE_LUMA : CHANNEL_TYPE_CHROMA;
+    }
     const UInt csx = dstPicYuv->getComponentScaleX(compID);
     const UInt csy = dstPicYuv->getComponentScaleY(compID);
     const Int planeOffset =  (confLeft>>csx) + (confTop>>csy) * dstPicYuv->getStride(compID);

@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,8 +95,25 @@ TDecSbac::TDecSbac()
 , m_cCrossComponentPredictionSCModel         ( 1,             1,                      NUM_CROSS_COMPONENT_PREDICTION_CTX   , m_contextModels + m_numContextModels, m_numContextModels)
 , m_ChromaQpAdjFlagSCModel                   ( 1,             1,                      NUM_CHROMA_QP_ADJ_FLAG_CTX           , m_contextModels + m_numContextModels, m_numContextModels)
 , m_ChromaQpAdjIdcSCModel                    ( 1,             1,                      NUM_CHROMA_QP_ADJ_IDC_CTX            , m_contextModels + m_numContextModels, m_numContextModels)
+, m_cCUColourTransformFlagSCModel            ( 1,             1,                      NUM_COLOUR_TRANS_CTX                 , m_contextModels + m_numContextModels, m_numContextModels)
+, m_paletteModeFlagSCModel                   ( 1,             1,                      NUM_PALETTE_MODE_FLAG_CTX            , m_contextModels + m_numContextModels, m_numContextModels)
+, m_SPointSCModel                            ( 1,             1,                      NUM_SPOINT_CTX                       , m_contextModels + m_numContextModels, m_numContextModels)
+, m_cCopyTopRunSCModel                       ( 1,             1,                      NUM_TOP_RUN_CTX                      , m_contextModels + m_numContextModels, m_numContextModels)
+, m_cRunSCModel                              ( 1,             1,                      NUM_LEFT_RUN_CTX                     , m_contextModels + m_numContextModels, m_numContextModels)
+, m_paletteScanRotationModeFlagSCModel       ( 1,             1,                      NUM_SCAN_ROTATION_FLAG_CTX           , m_contextModels + m_numContextModels, m_numContextModels)
 {
   assert( m_numContextModels <= MAX_NUM_CTX_MOD );
+  m_runTopLut[0] = 0;
+  m_runTopLut[1] = 1;
+  m_runTopLut[2] = 1;
+  m_runTopLut[3] = 2;
+  m_runTopLut[4] = 2;
+
+  m_runLeftLut[0] = 0;
+  m_runLeftLut[1] = 3;
+  m_runLeftLut[2] = 3;
+  m_runLeftLut[3] = 4;
+  m_runLeftLut[4] = 4;
 }
 
 TDecSbac::~TDecSbac()
@@ -159,7 +176,12 @@ Void TDecSbac::resetEntropy(TComSlice* pSlice)
   m_cCrossComponentPredictionSCModel.initBuffer   ( sliceType, qp, (UChar*)INIT_CROSS_COMPONENT_PREDICTION );
   m_ChromaQpAdjFlagSCModel.initBuffer             ( sliceType, qp, (UChar*)INIT_CHROMA_QP_ADJ_FLAG );
   m_ChromaQpAdjIdcSCModel.initBuffer              ( sliceType, qp, (UChar*)INIT_CHROMA_QP_ADJ_IDC );
-
+  m_cCUColourTransformFlagSCModel.initBuffer      ( sliceType, qp, (UChar*)INIT_COLOUR_TRANS);
+  m_paletteModeFlagSCModel.initBuffer             ( sliceType, qp, (UChar*)INIT_PALETTE_MODE_FLAG );
+  m_SPointSCModel.initBuffer                      ( sliceType, qp, (UChar*)INIT_SPOINT );
+  m_cCopyTopRunSCModel.initBuffer                 ( sliceType, qp, (UChar*)INIT_TOP_RUN);
+  m_cRunSCModel.initBuffer                        ( sliceType, qp, (UChar*)INIT_RUN);
+  m_paletteScanRotationModeFlagSCModel.initBuffer ( sliceType, qp, (UChar*)INIT_SCAN_ROTATION_FLAG );
   for (UInt statisticIndex = 0; statisticIndex < RExt__GOLOMB_RICE_ADAPTATION_STATISTICS_SETS ; statisticIndex++)
   {
     m_golombRiceAdaptationStatistics[statisticIndex] = 0;
@@ -410,6 +432,568 @@ Void TDecSbac::parseCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx,
   pcCU->setCUTransquantBypassSubParts(uiSymbol ? true : false, uiAbsPartIdx, uiDepth);
 }
 
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+Void TDecSbac::xReadTruncBinCode(UInt& ruiSymbol, UInt uiMaxSymbol, const class TComCodingStatisticsClassType &whichStat)
+#else
+Void TDecSbac::xReadTruncBinCode(UInt& ruiSymbol, UInt uiMaxSymbol)
+#endif
+{
+  UInt uiThresh;
+  if (uiMaxSymbol > 256)
+  {
+    UInt uiThreshVal = 1 << 8;
+    uiThresh = 8;
+    while (uiThreshVal <= uiMaxSymbol)
+    {
+      uiThresh++;
+      uiThreshVal <<= 1;
+    }
+    uiThresh--;
+  }
+  else
+  {
+    uiThresh = g_uhPaletteTBC[uiMaxSymbol];
+  }
+
+  UInt uiVal = 1 << uiThresh;
+  UInt b = uiMaxSymbol - uiVal;
+  m_pcTDecBinIf->decodeBinsEP(ruiSymbol, uiThresh RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat));
+  if (ruiSymbol >= uiVal - b)
+  {
+    UInt uiSymbol;
+    m_pcTDecBinIf->decodeBinEP(uiSymbol RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat));
+    ruiSymbol <<= 1;
+    ruiSymbol += uiSymbol;
+    ruiSymbol -= (uiVal - b);
+  }
+}
+
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+Void TDecSbac::xAdjustPaletteIndex(UInt siCurLevel, UInt uiIdx, Pel *pLevel, Int iMaxSymbol,
+                               const class TComCodingStatisticsClassType &whichStat, UChar *pSPoint, Int iWidth,
+                               UChar *pEscapeFlag)
+#else
+Void TDecSbac::xAdjustPaletteIndex(UInt siCurLevel, UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint, Int iWidth,
+                               UChar *pEscapeFlag)
+#endif
+{
+  UInt uiSymbol;
+  Int iRefLevel = MAX_INT;
+  UInt uiTraIdx = m_puiScanOrder[uiIdx];
+
+  if (uiIdx)
+  {
+    UInt uiTraIdxLeft = m_puiScanOrder[uiIdx - 1];
+    if (pSPoint[uiTraIdxLeft] == PALETTE_RUN_LEFT)
+    {
+      iRefLevel = pLevel[uiTraIdxLeft];
+      if (pEscapeFlag[uiTraIdxLeft])
+      {
+        iRefLevel = iMaxSymbol - 1;
+      }
+    }
+    else
+    {
+      assert(uiTraIdxLeft >= iWidth);
+      iRefLevel = pLevel[uiTraIdx - iWidth];
+      if (pEscapeFlag[uiTraIdx - iWidth])
+      {
+        iRefLevel = iMaxSymbol - 1;
+      }
+    }
+    iMaxSymbol--;
+  }
+
+  uiSymbol = siCurLevel;
+  if (siCurLevel >= iRefLevel)
+  {
+    uiSymbol++;
+  }
+  pLevel[uiTraIdx] = uiSymbol;
+}
+
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+Pel TDecSbac::xReadPaletteIndex(UInt uiIdx, Pel *pLevel, Int iMaxSymbol, const class TComCodingStatisticsClassType &whichStat, UChar *pSPoint, Int iWidth, UChar *pEscapeFlag)
+#else
+Pel TDecSbac::xReadPaletteIndex(UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint, Int iWidth, UChar *pEscapeFlag)
+#endif
+{
+  UInt uiSymbol;
+  Int iRefLevel = MAX_INT;
+  UInt uiTraIdx = m_puiScanOrder[uiIdx];
+
+  if (uiIdx)
+  {
+    UInt uiTraIdxLeft = m_puiScanOrder[uiIdx - 1];
+    if (pSPoint[uiTraIdxLeft] == PALETTE_RUN_LEFT)
+    {
+      iRefLevel = pLevel[uiTraIdxLeft];
+      if(pEscapeFlag[uiTraIdxLeft])
+      {
+        iRefLevel = iMaxSymbol - 1;
+      }
+    }
+    else
+    {
+      assert(uiTraIdxLeft >= iWidth);
+      iRefLevel = pLevel[uiTraIdx - iWidth];
+      if(pEscapeFlag[uiTraIdx - iWidth])
+      {
+        iRefLevel = iMaxSymbol - 1;
+      }
+    }
+    iMaxSymbol--;
+  }
+  if (iMaxSymbol > 1)
+  {
+    xReadTruncBinCode(uiSymbol, iMaxSymbol RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+  }
+  else
+  {
+    uiSymbol = 0;
+  }
+  Pel siCurLevel = uiSymbol;
+  if (uiSymbol >= iRefLevel)
+  {
+    uiSymbol++;
+  }
+  pLevel[uiTraIdx] = uiSymbol;
+  return siCurLevel;
+}
+
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+Void  TDecSbac::xDecodeRun(UInt & ruiSymbol, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun, const class TComCodingStatisticsClassType &whichStat)
+#else
+Void  TDecSbac::xDecodeRun(UInt & ruiSymbol, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun)
+#endif
+{
+  ContextModel *pcModel;
+  UChar *ucCtxLut;
+  if ( bCopyTopMode )
+  {
+    pcModel = m_cCopyTopRunSCModel.get(0);
+    ucCtxLut = m_runTopLut;
+  }
+  else
+  {
+    pcModel = m_cRunSCModel.get(0);
+    ucCtxLut = m_runLeftLut;
+    m_runLeftLut[0] = (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1 ? 0: (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2 ? 1 : 2));
+  }
+  ruiSymbol = xReadTruncMsbP1RefinementBits( pcModel, uiMaxRun, SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE, ucCtxLut RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat) );
+}
+
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+Void TDecSbac::xDecodePalettePredIndicator(UChar *bReusedPrev, UInt uiPaletteSizePrev, UInt maxPaletteSize, const class TComCodingStatisticsClassType &whichStat)
+#else
+Void TDecSbac::xDecodePalettePredIndicator(UChar *bReusedPrev, UInt uiPaletteSizePrev, UInt maxPaletteSize)
+#endif
+{
+  UInt uiSymbol, numPalettePredicted = 0, idx = 0;
+
+  xReadEpExGolomb( uiSymbol, 0 RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS) );
+
+  if( uiSymbol != 1 )
+  {
+    while (idx < uiPaletteSizePrev && numPalettePredicted < maxPaletteSize)
+    {
+      if( idx > 0 )
+      {
+        xReadEpExGolomb( uiSymbol, 0 RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS) );
+      }
+      if( uiSymbol == 1 )
+      {
+        break;
+      }
+
+      if( uiSymbol )
+      {
+        idx += uiSymbol - 1;
+      }
+
+      bReusedPrev[idx] = 1;
+
+      numPalettePredicted++;
+      idx++;
+    }
+  }
+}
+
+Void TDecSbac::parsePaletteModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+{
+  UInt uiSymbol;
+  m_pcTDecBinIf->decodeBin( uiSymbol, m_paletteModeFlagSCModel.get( 0, 0, 0 ) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS) );
+  pcCU->setPaletteModeFlagSubParts(uiSymbol ? true : false, uiAbsPartIdx, uiDepth);
+  if (pcCU->getPaletteModeFlag(uiAbsPartIdx) )
+  {
+    const TComSPS &sps=*(pcCU->getSlice()->getSPS());
+    pcCU->setSizeSubParts( sps.getMaxCUWidth()>>uiDepth, sps.getMaxCUHeight()>>uiDepth, uiAbsPartIdx, uiDepth );
+    pcCU->setPartSizeSubParts(SIZE_2Nx2N, uiAbsPartIdx, uiDepth );
+    pcCU->setPredModeSubParts(MODE_INTRA, uiAbsPartIdx, uiDepth );
+  }
+}
+
+Void TDecSbac::parsePaletteModeSyntax(TComDataCU *pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj)
+{
+  UInt uiWidth, uiHeight, uiTotal;
+  UInt uiIdx, uiDictMaxSize, uiDictIdxBits;
+  UInt uiSampleBits[3] = { 0 };
+  Pel  *pLevel = 0, *pPalette[3] = { 0 };
+  ComponentID compBegin = COMPONENT_Y;
+  const UInt minCoeffSizeY = pcCU->getPic()->getMinCUWidth() * pcCU->getPic()->getMinCUHeight();
+  const UInt offsetY = minCoeffSizeY * uiAbsPartIdx;
+  const UInt offset = offsetY >> (pcCU->getPic()->getComponentScaleX(compBegin) + pcCU->getPic()->getComponentScaleY(compBegin));
+  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+  const UInt offsetC = offsetY >> (uiScaleX + uiScaleY);
+
+  UInt uiSymbol = 0;
+  Pel *pPixelValue[3] = { 0 };
+
+  for (Int comp = compBegin; comp < compBegin + uiNumComp; comp++)
+  {
+    uiSampleBits[comp] = pcCU->getSlice()->getSPS()->getBitDepth(toChannelType(ComponentID(comp)));
+  }
+
+  uiWidth = pcCU->getWidth(uiAbsPartIdx) >> (pcCU->getPic()->getComponentScaleX(compBegin));
+  uiHeight = pcCU->getHeight(uiAbsPartIdx) >> (pcCU->getPic()->getComponentScaleY(compBegin));
+  uiDictMaxSize = 0;
+  uiTotal = uiWidth * uiHeight;
+  pLevel = pcCU->getLevel(compBegin) + offset;
+  UChar *pSPoint = pcCU->getSPoint(compBegin) + offset;
+  UChar *pEscapeFlag = pcCU->getEscapeFlag(compBegin) + offset;
+  UInt uiRun = 0;
+  UInt uiStride = uiWidth;
+
+  UInt uiPaletteSizePrev;
+  Pel *pPalettePrev[3];
+  Bool isLossless = pcCU->getCUTransquantBypass( uiAbsPartIdx );
+
+  for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+  {
+    ComponentID compID = (ComponentID)comp;
+    pPalettePrev[comp] = pcCU->getPalettePred(pcCU, uiAbsPartIdx, comp, uiPaletteSizePrev);
+
+    if ( comp == compBegin )
+    {
+      pPixelValue[comp] = pcCU->getLevel( compID ) + offset;
+    }
+    else
+    {
+      pPixelValue[comp] = pcCU->getLevel(compID) + offsetC;
+    }
+    pPalette[comp] = pcCU->getPalette(comp, uiAbsPartIdx);
+  }
+
+  Bool isScanTraverseMode = true;
+
+  {
+    UChar *bReusedPrev = pcCU->getPrevPaletteReusedFlag( compBegin, uiAbsPartIdx );
+    UInt numPaletteRceived = 0, numPalettePredicted = 0;
+    memset( bReusedPrev, 0, sizeof( UChar ) * uiPaletteSizePrev );
+    if ( uiPaletteSizePrev )
+    {
+      xDecodePalettePredIndicator(bReusedPrev, uiPaletteSizePrev, pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize() RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+
+      for ( UInt comp = 0; comp < MAX_NUM_COMPONENT; comp++ )
+      {
+        for ( UInt uiIdxPrev = 0; uiIdxPrev < pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize(); uiIdxPrev++ )
+        {
+          pcCU->setPrevPaletteReusedFlagSubParts( comp, bReusedPrev[uiIdxPrev], uiIdxPrev, uiAbsPartIdx, uiDepth );
+        }
+      }
+      for ( Int uiIdxPrev = 0; uiIdxPrev < uiPaletteSizePrev; uiIdxPrev++ )
+      {
+        if ( bReusedPrev[uiIdxPrev] )
+        {
+          for ( UInt comp = compBegin; comp < compBegin + uiNumComp; comp++ )
+          {
+            pPalette[comp][numPalettePredicted] = pPalettePrev[comp][uiIdxPrev];
+            pcCU->setPaletteSubParts( comp, pPalette[comp][numPalettePredicted], numPalettePredicted, uiAbsPartIdx, uiDepth );
+          }
+          numPalettePredicted++;
+        }
+      }
+    }
+
+    if ( numPalettePredicted < pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize())
+    {
+      xReadEpExGolomb(numPaletteRceived, 0 RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+    }
+
+    uiDictMaxSize = numPaletteRceived + numPalettePredicted;
+    for ( UInt comp = compBegin; comp < compBegin + uiNumComp; comp++ )
+    {
+      for ( UInt paletteIdx = numPalettePredicted; paletteIdx < uiDictMaxSize; paletteIdx++ )
+      {
+        m_pcTDecBinIf->decodeBinsEP( uiSymbol, uiSampleBits[comp] RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG( STATS__CABAC_DICTIONARY_BITS ) );
+        pPalette[comp][paletteIdx] = uiSymbol;
+        pcCU->setPaletteSubParts( comp, pPalette[comp][paletteIdx], paletteIdx, uiAbsPartIdx, uiDepth );
+      }
+    }
+  }
+
+  for ( UInt comp = compBegin; comp < compBegin + uiNumComp; comp++ )
+  {
+    pcCU->setPaletteSizeSubParts(comp, uiDictMaxSize, uiAbsPartIdx, uiDepth);
+  }
+  uiDictIdxBits = 0;
+  while ((1 << uiDictIdxBits) < uiDictMaxSize)
+  {
+    uiDictIdxBits++;
+  }
+  UInt uiIndexMaxSize = uiDictMaxSize;
+  Bool paletteEscapeValPresentFlag = false;
+  UInt uiSignalEscape = 1;
+  if (uiDictMaxSize > 0)
+  {
+    UInt uiCode = 0;
+    m_pcTDecBinIf->decodeBinEP(uiCode RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+    paletteEscapeValPresentFlag = (uiCode!=0);
+    if (paletteEscapeValPresentFlag)
+    {
+      uiSignalEscape = 1;
+    }
+    else
+    {
+      uiSignalEscape = 0;
+    }
+  }
+
+  UInt uiDictIdxBitsExteneded = uiDictIdxBits;
+  if ( uiSignalEscape )
+  {
+    while ( (1 << uiDictIdxBitsExteneded) <= uiDictMaxSize )
+    {
+      uiDictIdxBitsExteneded++;
+    }
+    uiIndexMaxSize++;
+  }
+  assert(uiDictMaxSize <= pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize());
+
+  m_puiScanOrder = g_scanOrder[SCAN_UNGROUPED][(isScanTraverseMode)?SCAN_TRAV:SCAN_HOR][g_aucConvertToBit[uiWidth]+2][g_aucConvertToBit[uiHeight]+2];
+  Int iNumCopyIndexRuns = -1;
+  UInt lastRunType = 0;
+  UInt uiNumIndices = 0;
+  UInt uiAdjust = 0;
+  std::list<Int> lParsedIdxList;
+  if (uiIndexMaxSize > 1)
+  {
+    UInt uiCurrParam = 3 + ((uiIndexMaxSize) >> 3);
+    xReadCoefRemainExGolomb(uiNumIndices, uiCurrParam, false, MAX_NUM_CHANNEL_TYPE RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+    uiNumIndices++;
+    iNumCopyIndexRuns = uiNumIndices;
+    while (uiNumIndices--)
+    {
+      xReadTruncBinCode(uiSymbol, uiIndexMaxSize - uiAdjust RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+      uiAdjust = 1;
+      lParsedIdxList.push_back(uiSymbol);
+    }
+    m_pcTDecBinIf->decodeBin(lastRunType, m_SPointSCModel.get(0, 0, 0) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+    parseScanRotationModeFlag(pcCU, uiAbsPartIdx, uiDepth);
+    uiAdjust = 0;
+  }
+  else
+  {
+    pcCU->setPaletteScanRotationModeFlagSubParts(false, uiAbsPartIdx, uiDepth);
+  }
+
+  if ( uiSignalEscape )
+  {
+    if( pcCU->getSlice()->getPPS()->getUseDQP() && bCodeDQP )
+    {
+      parseDeltaQP( pcCU, uiAbsPartIdx, pcCU->getDepth( uiAbsPartIdx ) );
+      bCodeDQP = false;
+    }
+
+    if( pcCU->getSlice()->getUseChromaQpAdj() && !pcCU->getCUTransquantBypass( uiAbsPartIdx ) && codeChromaQpAdj )
+    {
+      parseChromaQpAdjustment( pcCU, uiAbsPartIdx, pcCU->getDepth( uiAbsPartIdx ) );
+      codeChromaQpAdj = false;
+    }
+  }
+
+  uiIdx = 0;
+  while (uiIdx < uiTotal)
+  {
+    UInt uiTraIdx = m_puiScanOrder[uiIdx];
+    if (uiIndexMaxSize > 1)
+    {
+      if (uiTraIdx >= uiWidth && pSPoint[m_puiScanOrder[uiIdx - 1]] != PALETTE_RUN_ABOVE)
+      {
+        if (iNumCopyIndexRuns && uiIdx < uiTotal - 1)
+        {
+          m_pcTDecBinIf->decodeBin(uiSymbol, m_SPointSCModel.get(0, 0, 0)
+                                 RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+        }
+        else
+        {
+          if (uiIdx == uiTotal - 1 && iNumCopyIndexRuns)
+          {
+            uiSymbol = 0;
+          }
+          else
+          {
+            uiSymbol = 1;
+          }
+        }
+      }
+      else
+      {
+        uiSymbol = 0;
+      }
+    }
+    else
+    {
+      uiSymbol = 0;
+    }
+    pSPoint[uiTraIdx] = uiSymbol;
+    Pel siCurLevel = 0;
+    if (!uiSymbol)
+    {
+      if (!lParsedIdxList.empty())
+      {
+        siCurLevel = lParsedIdxList.front();
+        lParsedIdxList.pop_front();
+      }
+      else
+      {
+        siCurLevel = 0;
+      }
+      xAdjustPaletteIndex(siCurLevel, uiIdx, pLevel, uiIndexMaxSize
+                      RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS), pSPoint, uiWidth,
+                      pEscapeFlag);
+    }
+    UInt uiPreDecodeLevel = pLevel[uiTraIdx];
+    Bool isEscapePixel = (!uiSymbol && (uiPreDecodeLevel == uiDictMaxSize)) ? true : false;
+    pEscapeFlag[uiTraIdx] = (isEscapePixel)? 1: 0;
+    {
+      UInt uiPos = 0;
+      if (uiIndexMaxSize > 1)
+      {
+        iNumCopyIndexRuns -= (pSPoint[uiTraIdx] == PALETTE_RUN_LEFT);
+        Bool bLastRun = iNumCopyIndexRuns == 0 && pSPoint[uiTraIdx] == lastRunType;
+        if (!bLastRun)
+        {
+          xDecodeRun(uiRun, pSPoint[uiTraIdx], siCurLevel, (uiTotal - iNumCopyIndexRuns - uiIdx - 1 - lastRunType) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+        }
+        else
+        {
+          uiRun = uiTotal - uiIdx - 1;
+        }
+      }
+      else
+      {
+        uiRun = uiTotal - uiIdx - 1;
+      }
+
+      if (pSPoint[uiTraIdx] == PALETTE_RUN_LEFT)
+      {
+        uiSymbol = uiPreDecodeLevel;
+        pLevel[uiTraIdx] = uiSymbol;
+        UChar sEscapeColor = (pLevel[uiTraIdx] == uiDictMaxSize);
+        assert(pEscapeFlag[uiTraIdx] == sEscapeColor);
+        uiPos = 0;
+        while (uiPos < uiRun)
+        {
+          uiPos++;
+          uiIdx++;
+          uiTraIdx = m_puiScanOrder[uiIdx];
+          pLevel [uiTraIdx] = uiSymbol;
+          pSPoint[uiTraIdx] = PALETTE_RUN_LEFT;
+          pEscapeFlag[uiTraIdx] = sEscapeColor;
+        }
+        uiIdx++;
+      }
+      else  //pSPoint[uiTraIdx] == PALETTE_RUN_ABOVE
+      {
+        pLevel[uiTraIdx] = pLevel[uiTraIdx - uiStride];
+        pEscapeFlag[uiTraIdx] = pEscapeFlag[uiTraIdx - uiStride];
+        uiPos = 0;
+        while (uiPos < uiRun)
+        {
+          uiPos++;
+          uiIdx++;
+          uiTraIdx = m_puiScanOrder[uiIdx];
+          pLevel [uiTraIdx] =  pLevel [uiTraIdx - uiStride];
+          pSPoint[uiTraIdx] = PALETTE_RUN_ABOVE;
+          pEscapeFlag[uiTraIdx] = pEscapeFlag[uiTraIdx - uiStride];
+        }
+        uiIdx++;
+      }
+    }
+  }
+  assert (uiIdx == uiTotal);
+  for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+  {
+    for( uiIdx = 0; uiIdx < uiTotal; uiIdx++ )
+    {
+      UInt uiTraIdx = m_puiScanOrder[uiIdx];
+      if( pEscapeFlag[uiTraIdx] )
+      {
+        UInt uiY, uiX;
+        uiY = uiTraIdx/uiWidth;
+        uiX = uiTraIdx%uiWidth;
+        UInt uiXC, uiYC, uiTraIdxC;
+        if(!pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx))
+        {
+          uiXC = (uiX>>uiScaleX);
+          uiYC = (uiY>>uiScaleY);
+          uiTraIdxC = uiYC * (uiWidth>>uiScaleX) + uiXC;
+        }
+        else
+        {
+          uiXC = (uiX>>uiScaleY);
+          uiYC = (uiY>>uiScaleX);
+          uiTraIdxC = uiYC * (uiHeight>>uiScaleY) + uiXC;  
+        }
+
+        if(comp == compBegin)
+        {
+          if ( isLossless )
+          {
+            m_pcTDecBinIf->decodeBinsEP( uiSymbol, pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG( STATS__CABAC_DICTIONARY_BITS ) );
+          }
+          else
+          {
+            xReadEpExGolomb( uiSymbol, 3 RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG( STATS__CABAC_DICTIONARY_BITS ) );
+            assert( uiSymbol < ( 1 << ( pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) + 1 ) ) );
+          }
+          pPixelValue[comp][uiTraIdx] = uiSymbol;
+        }
+        else
+        {
+          if(   pcCU->getPic()->getChromaFormat() == CHROMA_444 ||
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_420 && ((uiX&1) == 0) && ((uiY&1) == 0)) ||
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_422 && ((!pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx) && ((uiX&1) == 0)) || (pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx) && ((uiY&1) == 0))) )
+            )
+          {
+            if ( isLossless )
+            {
+              m_pcTDecBinIf->decodeBinsEP( uiSymbol, pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG( STATS__CABAC_DICTIONARY_BITS ) );
+            }
+            else
+            {
+              xReadEpExGolomb( uiSymbol, 3 RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG( STATS__CABAC_DICTIONARY_BITS ) );
+              assert( uiSymbol < ( 1 << ( pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) + 1 ) ) );
+            }
+            pPixelValue[comp][uiTraIdxC] = uiSymbol;
+          }
+        }
+      }
+    }
+  }
+}
+
+Void TDecSbac::parseScanRotationModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+{
+  UInt uiSymbol;
+  UInt uiCtx = 0;
+  m_pcTDecBinIf->decodeBin( uiSymbol, m_paletteScanRotationModeFlagSCModel.get( 0, 0, uiCtx ) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS) );
+  pcCU->setPaletteScanRotationModeFlagSubParts(uiSymbol ? true : false, uiAbsPartIdx, uiDepth);
+}
+
+
 /** parse skip flag
  * \param pcCU
  * \param uiAbsPartIdx
@@ -443,7 +1027,6 @@ Void TDecSbac::parseSkipFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth 
     pcCU->setMergeFlagSubParts( true , uiAbsPartIdx, 0, uiDepth );
   }
 }
-
 
 /** parse merge flag
  * \param pcCU
@@ -611,7 +1194,6 @@ Void TDecSbac::parsePartSize( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth 
   pcCU->setPartSizeSubParts( eMode, uiAbsPartIdx, uiDepth );
   pcCU->setSizeSubParts( cuWidth, cuHeight, uiAbsPartIdx, uiDepth );
 }
-
 
 /** parse prediction mode
  * \param pcCU
@@ -912,6 +1494,15 @@ Void TDecSbac::parseTransformSubdivFlag( UInt& ruiSubdivFlag, UInt uiLog2Transfo
   DTRACE_CABAC_V( uiLog2TransformBlockSize )
   DTRACE_CABAC_T( "\n" )
 }
+
+Void TDecSbac::parseColourTransformFlag( UInt uiAbsPartIdx, Bool & uiFlag )
+{
+  UInt uiSymbol;
+  const UInt uiCtx = 0;
+  m_pcTDecBinIf->decodeBin( uiSymbol , m_cCUColourTransformFlagSCModel.get( 0, 0, uiCtx ) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_BITS__QT_ROOT_CBF) );
+  uiFlag = (uiSymbol? true: false);
+}
+
 
 Void TDecSbac::parseQtRootCbf( UInt uiAbsPartIdx, UInt& uiQtRootCbf )
 {
@@ -1894,5 +2485,60 @@ Void TDecSbac::parseExplicitRdpcmMode( TComTU &rTu, ComponentID compID )
   }
 }
 
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+UInt TDecSbac::xReadTruncUnarySymbol( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut, const class TComCodingStatisticsClassType &whichStat)
+#else
+UInt TDecSbac::xReadTruncUnarySymbol( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut)
+#endif
+{
+  if (uiMax == 0)
+    return 0;
+  UInt uiBin, uiIdx = 0;
+  do
+  {
+    if ( uiIdx > uiCtxT )
+      m_pcTDecBinIf->decodeBinEP(uiBin RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat) );
+    else
+      m_pcTDecBinIf->decodeBin(uiBin, uiIdx <= uiCtxT? pcSCModel[ucCtxLut[uiIdx]] : pcSCModel[ucCtxLut[uiCtxT]] RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat) );
+    uiIdx++;
+  }
+  while ( uiBin && uiIdx < uiMax );
+
+  return ( uiBin && uiIdx == uiMax ) ? uiMax : uiIdx-1;
+}
+
+#if RExt__DECODER_DEBUG_BIT_STATISTICS
+UInt TDecSbac::xReadTruncMsbP1RefinementBits( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut, const class TComCodingStatisticsClassType &whichStat)
+#else
+UInt TDecSbac::xReadTruncMsbP1RefinementBits( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut)
+#endif
+{
+  if (uiMax==0)
+  {
+    return 0;
+  }
+  UInt uiSymbol;
+  UInt uiMsbP1 = xReadTruncUnarySymbol( pcSCModel, g_getMsbP1Idx(uiMax), uiCtxT, ucCtxLut RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat));
+  if ( uiMsbP1 > 1)
+  {
+    UInt uiNumBins = g_getMsbP1Idx(uiMax);
+    if ( uiMsbP1 < uiNumBins)
+    {
+      UInt uiBits = uiMsbP1-1;
+      m_pcTDecBinIf->decodeBinsEP( uiSymbol, uiBits RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(whichStat));
+      uiSymbol |= (1 << uiBits);
+    }
+    else
+    {
+      UInt curValue = 1 << (uiNumBins-1);
+      xReadTruncBinCode(uiSymbol, (uiMax+1-curValue) RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_DICTIONARY_BITS));
+      uiSymbol += curValue;
+    }
+  }
+  else
+    uiSymbol = uiMsbP1;
+
+  return uiSymbol;
+}
 
 //! \}

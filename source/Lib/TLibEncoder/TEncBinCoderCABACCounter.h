@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,15 @@ public:
   Void  encodeBinEP       ( UInt  binValue                            );
   Void  encodeBinsEP      ( UInt  binValues, Int numBins              );
   Void  encodeBinTrm      ( UInt  binValue                            );
-
+  UInt64  getNumPartialBits()                    { return m_fracBits; }
+  Void storeNumPartialBits()
+  {
+    m_fracBitsStored = m_fracBits;
+  };
+  Void restoreNumPartialBits()
+  {
+    m_fracBits = m_fracBitsStored;
+  };
   Void  align             ();
 
 private:

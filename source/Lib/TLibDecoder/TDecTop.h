@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,6 @@
 #include "TDecSbac.h"
 #include "TDecCAVLC.h"
 #include "SEIread.h"
-#include "TDecConformance.h"
 
 class InputNALUnit;
 
@@ -91,7 +90,6 @@ private:
   SEIReader               m_seiReader;
   TComLoopFilter          m_cLoopFilter;
   TComSampleAdaptiveOffset m_cSAO;
-  TDecConformanceCheck    m_conformanceCheck;
 
   Bool isSkipPictureForBLA(Int& iPOCLastDisplay);
   Bool isRandomAccessSkipPicture(Int& iSkipFrame,  Int& iPOCLastDisplay);
@@ -115,6 +113,12 @@ private:
   Bool                    m_warningMessageSkipPicture;
 
   std::list<InputNALUnit*> m_prefixSEINALUs; /// Buffered up prefix SEI NAL Units.
+
+  TComPic*                m_pcPicBeforeILF;
+  TComPic*                m_pcPicAfterILF;
+  Bool                    m_pcTwoVersionsOfCurrDecPicFlag;
+  Bool                    m_bIBC;
+
 public:
   TDecTop();
   virtual ~TDecTop();
@@ -143,6 +147,12 @@ public:
   Void  setDecodedSEIMessageOutputStream(std::ostream *pOpStream) { m_pDecodedSEIOutputStream = pOpStream; }
   UInt  getNumberOfChecksumErrorsDetected() const { return m_cGopDecoder.getNumberOfChecksumErrorsDetected(); }
 
+  Bool  getTwoVersionsOfCurrDecPicFlag() { return m_pcTwoVersionsOfCurrDecPicFlag; }
+  Void  remCurPicBefILFFromDPBDecDPBFullnessByOne(TComList<TComPic*>* pcListPic);
+  Void  markCurrentPictureAfterILFforShortTermRef(TComList<TComPic*>* pcListPic);
+  Bool  isCurrPicAsRef() {return m_bIBC;}
+  Void  updateCurrentPictureFlag(TComList<TComPic*>* pcListPic);
+
 protected:
   Void  xGetNewPicBuffer  (const TComSPS &sps, const TComPPS &pps, TComPic*& rpcPic, const UInt temporalLayer);
   Void  xCreateLostPicture (Int iLostPOC);
@@ -156,6 +166,7 @@ protected:
   Void      xParsePrefixSEImessages();
   Void      xParsePrefixSEIsForUnknownVCLNal();
 
+  Void    xSwapPicPoiterExeptTComPicYuvRefType(TComPic** picA, TComPic** picB);
 };// END CLASS DEFINITION TDecTop
 
 

@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,6 +107,13 @@ public:
   TComIterator find( const C& rcT ) // leszek
   {
     return std::list< C >::find( this->begin(), this->end(), rcT );
+  }
+
+  TComIterator eraseElement( TComIterator iterPic )
+  {
+    TComIterator iterPicTemp;
+    iterPicTemp = this->erase( iterPic );
+    return iterPicTemp;
   }
 };
 

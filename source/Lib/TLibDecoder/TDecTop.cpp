@@ -3,7 +3,7 @@
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
  *
- * Copyright (c) 2010-2017, ITU/ISO/IEC
+ * Copyright (c) 2010-2016, ITU/ISO/IEC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 #include "NALread.h"
 #include "TDecTop.h"
-#include "TDecConformance.h"
 
 //! \ingroup TLibDecoder
 //! \{
@@ -80,6 +79,9 @@ TDecTop::TDecTop()
   , m_pDecodedSEIOutputStream(NULL)
   , m_warningMessageSkipPicture(false)
   , m_prefixSEINALUs()
+  , m_pcPicBeforeILF(NULL)
+  , m_pcPicAfterILF(NULL)
+  , m_pcTwoVersionsOfCurrDecPicFlag (false)
 {
 #if ENC_DEC_TRACE
   if (g_hTrace == NULL)
@@ -128,7 +130,7 @@ Void TDecTop::init()
   // initialize ROM
   initROM();
   m_cGopDecoder.init( &m_cEntropyDecoder, &m_cSbacDecoder, &m_cBinCABAC, &m_cCavlcDecoder, &m_cSliceDecoder, &m_cLoopFilter, &m_cSAO);
-  m_cSliceDecoder.init( &m_cEntropyDecoder, &m_cCuDecoder, &m_conformanceCheck );
+  m_cSliceDecoder.init( &m_cEntropyDecoder, &m_cCuDecoder );
   m_cEntropyDecoder.init(&m_cPrediction);
 }
 
@@ -217,7 +219,13 @@ Void TDecTop::executeLoopFilters(Int& poc, TComList<TComPic*>*& rpcListPic)
     return;
   }
 
-  TComPic*   pcPic         = m_pcPic;
+  if ( getTwoVersionsOfCurrDecPicFlag() )
+  {
+    m_pcPicAfterILF->copyPicInfo( *m_pcPicBeforeILF );
+    xSwapPicPoiterExeptTComPicYuvRefType( &m_pcPicAfterILF, &m_pcPicBeforeILF );
+
+  }
+  TComPic*   pcPic = m_pcPicAfterILF;
 
   // Execute Deblock + Cleanup
 
@@ -295,6 +303,120 @@ Void TDecTop::xCreateLostPicture(Int iLostPoc)
   }
 }
 
+Void TDecTop::remCurPicBefILFFromDPBDecDPBFullnessByOne( TComList<TComPic*>* pcListPic )
+{
+  TComList<TComPic*>::iterator iterPic = pcListPic->begin();
+
+  iterPic = pcListPic->begin();
+  TComPic* pcPic = *(iterPic);
+  //Currently only support frame based coding
+  if ( !pcPic->isField() ) //Frame decoding  
+  {
+    while ( iterPic != pcListPic->end() )
+    {
+      pcPic = *(iterPic);
+
+      if ( (pcPic->getCurrentPicFlag() == true) && (pcPic->getIsLongTerm() == false) )
+      {
+        pcPic->setReconMark( false );
+
+        // mark it should be extended later
+        pcPic->getPicYuvRec()->setBorderExtension( false );
+        pcPic->setOutputMark( false );
+        pcPic->getSlice( 0 )->setReferenced( false );
+
+
+        if ( pcPic != NULL )
+        {
+          pcPic->destroy();
+          delete pcPic;
+          pcPic = NULL;
+        }
+       
+        TComList<TComPic*>::iterator tempIterPic = pcListPic->eraseElement( iterPic );
+        break;
+      }
+
+      iterPic++;
+    }
+  }
+
+  iterPic = pcListPic->begin();
+  pcPic = *(iterPic);
+  //Currently only support frame based coding
+  if ( !pcPic->isField() ) //Frame decoding
+  {
+    while ( iterPic != pcListPic->end() )
+    {
+      pcPic = *(iterPic);
+
+      // mark current picture as short-term after decoding
+      if ( (pcPic->getCurrentPicFlag() == true) && (pcPic->getIsLongTerm() == true) )
+      {
+        pcPic->setIsLongTerm( false );
+        break;
+      }
+      iterPic++;
+    }
+  }
+}
+
+Void TDecTop::markCurrentPictureAfterILFforShortTermRef( TComList<TComPic*>* pcListPic )
+{
+  TComList<TComPic*>::iterator iterPic = pcListPic->begin();
+
+  iterPic = pcListPic->begin();
+  TComPic* pcPic = *(iterPic);
+  //Currently only support frame based coding
+  if ( !pcPic->isField() ) //Frame decoding
+  {
+    while ( iterPic != pcListPic->end() )
+    {
+      pcPic = *(iterPic);
+
+      if ( pcPic->getCurrentPicFlag() == true )
+      {
+        pcPic->setIsLongTerm( false );
+        pcPic->getSlice( 0 )->setReferenced( true );
+        pcPic->setCurrentPicFlag( false ); //last time to use the current picture flag
+        return;
+      }
+      iterPic++;
+    }
+  }
+}
+
+Void TDecTop::updateCurrentPictureFlag( TComList<TComPic*>* pcListPic )
+{
+  TComList<TComPic*>::iterator iterPic = pcListPic->begin();
+
+  iterPic = pcListPic->begin();
+  TComPic* pcPic = *(iterPic);
+  //Currently only support frame based coding
+  if ( !pcPic->isField() ) //Frame decoding
+  {
+    while ( iterPic != pcListPic->end() )
+    {
+      pcPic = *(iterPic);
+
+      if ( pcPic->getCurrentPicFlag() == true )
+      {
+        pcPic->setCurrentPicFlag( false ); //last time to use the current picture flag
+        return;
+      }
+      iterPic++;
+    }
+  }
+}
+
+Void TDecTop::xSwapPicPoiterExeptTComPicYuvRefType( TComPic** picA, TComPic** picB )
+{
+  //to avoid deep copy constructor
+  TComPic*    pcPicTemp = *picA;
+  *picA = *picB;
+  *picB = pcPicTemp;
+}
+
 
 Void TDecTop::xActivateParameterSets()
 {
@@ -326,14 +448,45 @@ Void TDecTop::xActivateParameterSets()
     }
 #endif
 
+    assert(sps->getSpsScreenExtension().getPaletteMaxSize() != 0 || pps->getPpsScreenExtension().getUsePalettePredictor() == false);
+    assert(sps->getSpsScreenExtension().getUsePaletteMode() != 0 || pps->getPpsScreenExtension().getUsePalettePredictor() == false);
+
     // NOTE: globals were set up here originally. You can now use:
     // g_uiMaxCUDepth = sps->getMaxTotalCUDepth();
     // g_uiAddCUDepth = sps->getMaxTotalCUDepth() - sps->getLog2DiffMaxMinCodingBlockSize()
 
     //  Get a new picture buffer. This will also set up m_pcPic, and therefore give us a SPS and PPS pointer that we can use.
-    xGetNewPicBuffer (*(sps), *(pps), m_pcPic, m_apcSlicePilot->getTLayer());
     m_apcSlicePilot->applyReferencePictureSet(m_cListPic, m_apcSlicePilot->getRPS());
 
+    m_pcTwoVersionsOfCurrDecPicFlag = pps->getPpsScreenExtension().getUseIntraBlockCopy() && 
+        (sps->getUseSAO() || !pps->getPPSDeblockingFilterDisabledFlag() || pps->getDeblockingFilterOverrideEnabledFlag());
+    m_bIBC = pps->getPpsScreenExtension().getUseIntraBlockCopy();
+
+    xGetNewPicBuffer (*(sps), *(pps), m_pcPicAfterILF, m_apcSlicePilot->getTLayer());
+    m_pcPicAfterILF->setIsLongTerm(false);
+    m_pcPicAfterILF->getSlice(0)->setReferenced(true);
+    m_pcPicAfterILF->setUsedByCurr(false);
+    m_pcPicAfterILF->setCurrentPicFlag(true);
+    if (m_pcTwoVersionsOfCurrDecPicFlag)
+    {
+      xGetNewPicBuffer (*(sps), *(pps), m_pcPicBeforeILF, m_apcSlicePilot->getTLayer());
+      m_pcPicAfterILF->getSlice(0)->setReferenced(false);
+      m_pcPicBeforeILF->setIsLongTerm(true);
+      m_pcPicBeforeILF->getSlice(0)->setReferenced(true);
+      m_pcPicBeforeILF->setUsedByCurr(true);
+      m_pcPicBeforeILF->setCurrentPicFlag(true);
+      m_pcPic = m_pcPicBeforeILF;
+    }
+    else if (pps->getPpsScreenExtension().getUseIntraBlockCopy())
+    {
+      m_pcPicAfterILF->setIsLongTerm(true);
+      m_pcPicAfterILF->setUsedByCurr(true);
+      m_pcPic = m_pcPicAfterILF;
+    }
+    else
+    {
+      m_pcPic = m_pcPicAfterILF;
+    }
     // make the slice-pilot a real slice, and set up the slice-pilot for the next slice
     assert(m_pcPic->getNumAllocatedSlice() == (m_uiSliceIdx + 1));
     m_apcSlicePilot = m_pcPic->getPicSym()->swapSliceObject(m_apcSlicePilot, m_uiSliceIdx);
@@ -375,7 +528,7 @@ Void TDecTop::xActivateParameterSets()
     m_SEIs.clear();
 
     // Recursive structure
-    m_cCuDecoder.create ( sps->getMaxTotalCUDepth(), sps->getMaxCUWidth(), sps->getMaxCUHeight(), sps->getChromaFormatIdc() );
+    m_cCuDecoder.create ( sps->getMaxTotalCUDepth(), sps->getMaxCUWidth(), sps->getMaxCUHeight(), sps->getChromaFormatIdc(), sps->getSpsScreenExtension().getPaletteMaxSize(), sps->getSpsScreenExtension().getPaletteMaxPredSize() );
     m_cCuDecoder.init   ( &m_cEntropyDecoder, &m_cTrQuant, &m_cPrediction );
     m_cTrQuant.init     ( sps->getMaxTrSize() );
 
@@ -600,16 +753,11 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   // actual decoding starts here
   xActivateParameterSets();
 
-
-  TComSlice* pcSlice = m_pcPic->getPicSym()->getSlice(m_uiSliceIdx);
-
-  if (TDecConformanceCheck::doChecking())
-  {
-    m_conformanceCheck.checkSliceActivation(*pcSlice, nalu, *m_pcPic, m_bFirstSliceInBitstream, m_bFirstSliceInSequence, m_bFirstSliceInPicture);
-  }
-
   m_bFirstSliceInSequence = false;
   m_bFirstSliceInBitstream  = false;
+
+
+  TComSlice* pcSlice = m_pcPic->getPicSym()->getSlice(m_uiSliceIdx);
 
   // When decoding the slice header, the stored start and end addresses were actually RS addresses, not TS addresses.
   // Now, having set up the maps, convert them to the correct form.
@@ -626,6 +774,13 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   if (!pcSlice->getDependentSliceSegmentFlag())
   {
     pcSlice->checkCRA(pcSlice->getRPS(), m_pocCRA, m_associatedIRAPType, m_cListPic );
+    pcSlice->setPic( m_pcPic );
+    if (pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy())
+    {
+      //it is set for the usage of getCurPicLongTerm in setRefPicList
+      pcSlice->setCurPicLongTerm( m_pcPic );
+    }
+
     // Set reference list
     pcSlice->setRefPicList( m_cListPic, true );
 
@@ -703,7 +858,7 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   }
 
   //  Decode a picture
-  m_cGopDecoder.decompressSlice(&(nalu.getBitstream()), m_pcPic);
+  m_cGopDecoder.decompressSlice(&(nalu.getBitstream()), m_pcPic, m_pcPicAfterILF);
 
   m_bFirstSliceInPicture = false;
   m_uiSliceIdx++;
