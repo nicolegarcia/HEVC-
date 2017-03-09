@@ -1258,10 +1258,6 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
 #if ADAPTIVE_QP_SELECTION
       pCtu->getSlice()->setSliceQpBase( estQP );
 #endif
-      if( pcSlice->getPPS()->getPpsScreenExtension().getUseColourTrans() && m_pcCfg->getRGBFormatFlag() && pcPic->getPicYuvCSC() )
-      {
-        pcPic->releaseCSCBuffer();
-      }
     }
 
     // run CTU trial encoder
@@ -1405,6 +1401,11 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
   if( m_pcCfg->getUseHashBasedIntraBCSearch() )
   {
     m_pcPredSearch->xClearIntraBCHashTable();
+  }
+
+  if( pcSlice->getPPS()->getPpsScreenExtension().getUseColourTrans() && m_pcCfg->getRGBFormatFlag() && pcPic->getPicYuvCSC() )
+  {
+    pcPic->releaseCSCBuffer();
   }
 
   // TODO: optimise cabac_init during compress slice to improve multi-slice operation
