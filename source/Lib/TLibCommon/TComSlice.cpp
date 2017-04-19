@@ -672,6 +672,11 @@ Void TComSlice::setRefPOCListSliceHeader()
       m_aiRefPOCList[REF_PIC_LIST_1][rIdx] = rpsPOCCurrList1[cIdx];
     }
   }
+  if (getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() &&
+    !m_RefPicListModification.getRefPicListModificationFlagL0() && numPicTotalCurr > m_aiNumRefIdx[REF_PIC_LIST_0])
+  {
+    m_aiRefPOCList[REF_PIC_LIST_0][m_aiNumRefIdx[REF_PIC_LIST_0] - 1] = getPOC();
+  }
 }
 
 Int TComSlice::getNumRpsCurrTempList() const
