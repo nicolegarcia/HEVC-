@@ -3351,7 +3351,7 @@ Bool TComDataCU::isBipredRestriction( UInt puIdx, Bool bCheckIBCRestricion) cons
   getPartIndexAndSize( puIdx, partAddr, width, height );
   if(bCheckIBCRestricion)
   {
-    if(getWidth(0) <= 8 && getHeight(0) <= 8)
+    if (width <= 8 && height <= 8)
     {
       return true;
     }
