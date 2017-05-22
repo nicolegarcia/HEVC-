@@ -1164,6 +1164,23 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
     if (ctuRsAddr == firstCtuRsAddrOfTile)
     {
       m_pppcRDSbacCoder[0][CI_CURR_BEST]->resetEntropy(pcSlice);
+
+      for (UChar comp = 0; comp < MAX_NUM_COMPONENT; comp++)
+      {
+        memset(lastPalette[comp], 0, sizeof(Pel) * pcSlice->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize());
+      }
+      if (m_pcCfg->getPalettePredInPPSEnabled())
+      {
+        xSetPredFromPPS(lastPalette, lastPaletteSize, pcSlice);
+      }
+      else if (m_pcCfg->getPalettePredInSPSEnabled())
+      {
+        xSetPredFromSPS(lastPalette, lastPaletteSize, pcSlice);
+      }
+      else
+      {
+        xSetPredDefault(lastPalette, lastPaletteSize, pcSlice);
+      }
     }
     else if ( ctuXPosInCtus == tileXPosInCtus && m_pcCfg->getEntropyCodingSyncEnabledFlag())
     {
@@ -1512,6 +1529,23 @@ Void TEncSlice::encodeSlice   ( TComPic* pcPic, TComOutputBitstream* pcSubstream
       if (ctuTsAddr != startCtuTsAddr) // if it is the first CTU, then the entropy coder has already been reset
       {
         m_pcEntropyCoder->resetEntropy(pcSlice);
+
+        for (UChar comp = 0; comp < MAX_NUM_COMPONENT; comp++)
+        {
+          memset(lastPalette[comp], 0, sizeof(Pel) * pcSlice->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize());
+        }
+        if (m_pcCfg->getPalettePredInPPSEnabled())
+        {
+          xSetPredFromPPS(lastPalette, lastPaletteSize, pcSlice);
+        }
+        else if (m_pcCfg->getPalettePredInSPSEnabled())
+        {
+          xSetPredFromSPS(lastPalette, lastPaletteSize, pcSlice);
+        }
+        else
+        {
+          xSetPredDefault(lastPalette, lastPaletteSize, pcSlice);
+        }
       }
     }
     else if (ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled)

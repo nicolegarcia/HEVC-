@@ -207,6 +207,23 @@ Void TDecSlice::decompressSlice(TComInputBitstream** ppcSubstreams, TComPic* pcP
       if (ctuTsAddr != startCtuTsAddr) // if it is the first CTU, then the entropy coder has already been reset
       {
         m_pcEntropyDecoder->resetEntropy(pcSlice);
+
+        for (UChar comp = 0; comp<MAX_NUM_COMPONENT; comp++)
+        {
+          memset(lastPalette[comp], 0, sizeof(Pel) * pcSlice->getSPS()->getSpsScreenExtension().getPaletteMaxPredSize());
+        }
+        if (pcSlice->getPPS()->getPpsScreenExtension().getUsePalettePredictor())
+        {
+          xSetPredFromPPS(lastPalette, lastPaletteSize, pcSlice->getPPS(), pcSlice->getSPS());
+        }
+        else if (pcSlice->getSPS()->getSpsScreenExtension().getUsePalettePredictor())
+        {
+          xSetPredFromSPS(lastPalette, lastPaletteSize, pcSlice->getPPS(), pcSlice->getSPS());
+        }
+        else
+        {
+          xSetPredDefault(lastPalette, lastPaletteSize, pcSlice->getSPS());
+        }
       }
     }
     else if (ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled)
