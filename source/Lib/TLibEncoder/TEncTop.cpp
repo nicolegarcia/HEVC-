@@ -96,7 +96,7 @@ Void TEncTop::create ()
   m_cGOPEncoder.        create( );
   m_cSliceEncoder.      create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth );
   m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC
-                         ,m_uiPaletteMaxSize, m_uiPaletteMaxPredSize
+                         ,m_paletteMaxSize, m_paletteMaxPredSize
      );
   if (m_bUseSAO)
   {
@@ -763,10 +763,10 @@ Void TEncTop::xInitSPS(TComSPS &sps)
   sps.getSpsScreenExtension().setDisableIntraBoundaryFilter( m_disableIntraBoundaryFilter );
   sps.getSpsScreenExtension().setUseIntraBlockCopy( m_useIntraBlockCopy );
   sps.getSpsScreenExtension().setUsePaletteMode( m_usePaletteMode );
-  sps.getSpsScreenExtension().setPaletteMaxSize( m_uiPaletteMaxSize );
-  sps.getSpsScreenExtension().setPaletteMaxPredSize( m_uiPaletteMaxPredSize );
+  sps.getSpsScreenExtension().setPaletteMaxSize( m_paletteMaxSize );
+  sps.getSpsScreenExtension().setPaletteMaxPredSize( m_paletteMaxPredSize );
   sps.getSpsScreenExtension().setMotionVectorResolutionControlIdc( m_motionVectorResolutionControlIdc );
-  assert( m_uiPaletteMaxPredSize <= 128 );
+  assert( m_paletteMaxPredSize <= 128 );
 }
 
 // calculate scale value of bitrate and initial delay

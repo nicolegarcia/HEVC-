@@ -71,7 +71,7 @@ Void TDecCu::init( TDecEntropy* pcEntropyDecoder, TComTrQuant* pcTrQuant, TComPr
  \param    chromaFormatIDC chroma format
  */
 Void TDecCu::create( UInt uiMaxDepth, UInt uiMaxWidth, UInt uiMaxHeight, ChromaFormat chromaFormatIDC
-                    ,UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
+                    ,UInt paletteMaxSize, UInt paletteMaxPredSize
   )
 {
   m_uiMaxDepth = uiMaxDepth+1;
@@ -97,7 +97,7 @@ Void TDecCu::create( UInt uiMaxDepth, UInt uiMaxWidth, UInt uiMaxHeight, ChromaF
     m_ppcYuvResi[ui] = new TComYuv;    m_ppcYuvResi[ui]->create( uiWidth, uiHeight, chromaFormatIDC );
     m_ppcYuvReco[ui] = new TComYuv;    m_ppcYuvReco[ui]->create( uiWidth, uiHeight, chromaFormatIDC );
     m_ppcCU     [ui] = new TComDataCU; m_ppcCU     [ui]->create( chromaFormatIDC, uiNumPartitions, uiWidth, uiHeight, true, uiMaxWidth >> (m_uiMaxDepth - 1)
-      , uiPaletteMaxSize, uiPaletteMaxPredSize
+      , paletteMaxSize, paletteMaxPredSize
     );
   }
 
@@ -969,103 +969,103 @@ Void TDecCu::xDecodeInterTexture ( TComDataCU* pcCU, UInt uiDepth )
   DEBUG_STRING_OUTPUT(std::cout, debug_reorder_data_token[pcCU->isIntraBC(0)?1:0][MAX_NUM_COMPONENT])
 }
 
-Void TDecCu::xDecodePaletteTexture( TComDataCU* pcCU, const UInt uiPartIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt uiStride, const UInt uiWidth, const UInt uiHeight, const ComponentID compID, UChar* pEscapeFlag )
+Void TDecCu::xDecodePaletteTexture( TComDataCU* pcCU, const UInt partIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt stride, const UInt width, const UInt height, const ComponentID compID, UChar* pEscapeFlag )
 {
-  Bool bLossless = pcCU->getCUTransquantBypass (uiPartIdx);
-  Pel* piPicReco         = pcCU->getPic()->getPicYuvRec()->getAddr(compID, pcCU->getCtuRsAddr(), pcCU->getZorderIdxInCtu()+uiPartIdx);
-  const UInt uiPicStride = pcCU->getPic()->getPicYuvRec()->getStride(compID);
-  UInt uiIdx = 0;
+  Bool bLossless = pcCU->getCUTransquantBypass (partIdx);
+  Pel* piPicReco         = pcCU->getPic()->getPicYuvRec()->getAddr(compID, pcCU->getCtuRsAddr(), pcCU->getZorderIdxInCtu()+partIdx);
+  const UInt picStride = pcCU->getPic()->getPicYuvRec()->getStride(compID);
+  UInt idx = 0;
   Pel iValue = 0;
-  Bool bRotation = pcCU->getPaletteScanRotationModeFlag(uiPartIdx);
+  Bool bRotation = pcCU->getPaletteScanRotationModeFlag(partIdx);
 
   if(!bRotation)
   {
-    for(UInt uiY = 0; uiY < uiHeight; uiY++ )
+    for(UInt y = 0; y < height; y++ )
     {
-      for(UInt uiX = 0; uiX < uiWidth; uiX++ )
+      for(UInt x = 0; x < width; x++ )
       {
-        uiIdx = (uiY<<pcCU->getPic()->getComponentScaleY(compID))*(uiWidth<<pcCU->getPic()->getComponentScaleX(compID))+(uiX<<pcCU->getPic()->getComponentScaleX(compID));
-        UInt uiIdxComp = uiY*uiWidth + uiX;
-        if( pEscapeFlag[uiIdx] )
+        idx = (y<<pcCU->getPic()->getComponentScaleY(compID))*(width<<pcCU->getPic()->getComponentScaleX(compID))+(x<<pcCU->getPic()->getComponentScaleX(compID));
+        UInt idxComp = y*width + x;
+        if( pEscapeFlag[idx] )
         {
           if ( bLossless )
           {
-            iValue = pPixelValue[uiIdxComp];
+            iValue = pPixelValue[idxComp];
           }
           else
           {
-            assert(!pcCU->getColourTransform(uiPartIdx));
-            QpParam cQP(*pcCU, compID, uiPartIdx);
+            assert(!pcCU->getColourTransform(partIdx));
+            QpParam cQP(*pcCU, compID, partIdx);
             Int iQP = cQP.Qp;
             Int iQPrem = iQP % 6;
             Int iQPper = iQP / 6;
             Int InvquantiserRightShift = IQUANT_SHIFT;
             Int iAdd = 1 << (InvquantiserRightShift - 1);
-            iValue = ((((pPixelValue[uiIdxComp]*g_invQuantScales[iQPrem])<<iQPper) + iAdd)>>InvquantiserRightShift);
+            iValue = ((((pPixelValue[idxComp]*g_invQuantScales[iQPrem])<<iQPper) + iAdd)>>InvquantiserRightShift);
             iValue = Pel(ClipBD<Int>(iValue, pcCU->getSlice()->getSPS()->getBitDepths().recon[compID?1:0]));
           }
         }
         else
         {
-          iValue = pPalette[pLevel[uiIdx]];
+          iValue = pPalette[pLevel[idx]];
         }
-        piReco[uiY*uiStride+uiX] = iValue;
-        piPicReco[uiY*uiPicStride+uiX] = iValue;
+        piReco[y*stride+x] = iValue;
+        piPicReco[y*picStride+x] = iValue;
       }
     }
   }
   else
   {
-    for(UInt uiY = 0; uiY < uiWidth; uiY++ )
+    for(UInt y = 0; y < width; y++ )
     {
-      for(UInt uiX = 0; uiX < uiHeight; uiX++ )
+      for(UInt x = 0; x < height; x++ )
       {
-        uiIdx = (uiY<<pcCU->getPic()->getComponentScaleX(compID))*(uiHeight<<pcCU->getPic()->getComponentScaleY(compID))+(uiX<<pcCU->getPic()->getComponentScaleY(compID));
-        UInt uiIdxComp = uiY*uiHeight + uiX;
-        if( pEscapeFlag[uiIdx] )
+        idx = (y<<pcCU->getPic()->getComponentScaleX(compID))*(height<<pcCU->getPic()->getComponentScaleY(compID))+(x<<pcCU->getPic()->getComponentScaleY(compID));
+        UInt idxComp = y*height + x;
+        if( pEscapeFlag[idx] )
         {
           if ( bLossless )
           {
-            iValue = pPixelValue[uiIdxComp];
+            iValue = pPixelValue[idxComp];
           }
           else
           {
-            assert(!pcCU->getColourTransform(uiPartIdx));
-            QpParam cQP(*pcCU, compID, uiPartIdx);
+            assert(!pcCU->getColourTransform(partIdx));
+            QpParam cQP(*pcCU, compID, partIdx);
             Int iQP = cQP.Qp;
             Int iQPrem = iQP % 6;
             Int iQPper = iQP / 6;
             Int InvquantiserRightShift = IQUANT_SHIFT;
             Int iAdd = 1 << (InvquantiserRightShift - 1);
-            iValue = ((((pPixelValue[uiIdxComp]*g_invQuantScales[iQPrem])<<iQPper) + iAdd)>>InvquantiserRightShift);
+            iValue = ((((pPixelValue[idxComp]*g_invQuantScales[iQPrem])<<iQPper) + iAdd)>>InvquantiserRightShift);
             iValue = Pel(ClipBD<Int>(iValue, pcCU->getSlice()->getSPS()->getBitDepths().recon[compID?1:0]));
           }
         }
         else
         {
-          iValue = pPalette[pLevel[uiIdx]];
+          iValue = pPalette[pLevel[idx]];
         }
 
-        piReco[uiX*uiStride+uiY] = iValue;
-        piPicReco[uiX*uiPicStride+uiY] = iValue;
+        piReco[x*stride+y] = iValue;
+        piPicReco[x*picStride+y] = iValue;
       }
     }
   }
 }
 
-Void TDecCu::xReconPaletteMode(TComDataCU *pcCU, UInt uiDepth)
+Void TDecCu::xReconPaletteMode(TComDataCU *pcCU, UInt depth)
 {
   Pel *pLevel, *pPalette, *pRecChannel;
   for (UInt ch = 0; ch < pcCU->getPic()->getNumberValidComponents(); ch++)
   {
     const ComponentID compID = ComponentID(ch);
-    const UInt uiWidth = (pcCU->getSlice()->getSPS()->getMaxCUWidth() >> (uiDepth + m_ppcYuvResi[uiDepth]->getComponentScaleX(compID)));
-    const UInt uiHeight = (pcCU->getSlice()->getSPS()->getMaxCUHeight() >> (uiDepth + m_ppcYuvResi[uiDepth]->getComponentScaleY(compID)));
-    const UInt uiStride = m_ppcYuvResi[uiDepth]->getStride(compID);
+    const UInt uiWidth = (pcCU->getSlice()->getSPS()->getMaxCUWidth() >> (depth + m_ppcYuvResi[depth]->getComponentScaleX(compID)));
+    const UInt uiHeight = (pcCU->getSlice()->getSPS()->getMaxCUHeight() >> (depth + m_ppcYuvResi[depth]->getComponentScaleY(compID)));
+    const UInt uiStride = m_ppcYuvResi[depth]->getStride(compID);
 
     pLevel = pcCU->getLevel(COMPONENT_Y);
     pPalette = pcCU->getPalette(compID, 0);
-    pRecChannel = m_ppcYuvReco[uiDepth]->getAddr(compID);
+    pRecChannel = m_ppcYuvReco[depth]->getAddr(compID);
 
     Pel *pPixelValue = pcCU->getLevel(compID);
     xDecodePaletteTexture(pcCU, 0, pPalette, pLevel, pcCU->getSPoint(COMPONENT_Y), pPixelValue, pRecChannel, uiStride, uiWidth, uiHeight, compID, pcCU->getEscapeFlag(COMPONENT_Y));

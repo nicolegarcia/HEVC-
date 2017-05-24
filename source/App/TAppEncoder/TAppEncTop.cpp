@@ -442,8 +442,8 @@ Void TAppEncTop::xInitLibCfg()
   m_cTEncTop.setUseColourTrans                                    ( m_useColourTrans );
   m_cTEncTop.setUseLossless                                       ( m_useLL );
   m_cTEncTop.setUsePaletteMode                                    ( m_usePaletteMode );
-  m_cTEncTop.setPaletteMaxSize                                    ( m_uiPaletteMaxSize );
-  m_cTEncTop.setPaletteMaxPredSize                                ( m_uiPaletteMaxPredSize );
+  m_cTEncTop.setPaletteMaxSize                                    ( m_paletteMaxSize );
+  m_cTEncTop.setPaletteMaxPredSize                                ( m_paletteMaxPredSize );
   m_cTEncTop.setMotionVectorResolutionControlIdc                  ( m_motionVectorResolutionControlIdc );
   m_cTEncTop.setPalettePredInSPSEnabled                           ( m_palettePredInSPSEnabled );
   m_cTEncTop.setPalettePredInPPSEnabled                           ( m_palettePredInPPSEnabled );

@@ -98,12 +98,12 @@ private:
   Void  xReadEpExGolomb     ( UInt& ruiSymbol, UInt uiCount, const class TComCodingStatisticsClassType &whichStat );
   Void  xReadCoefRemainExGolomb ( UInt &rSymbol, UInt &rParam, const Bool useLimitedPrefixLength, const Int maxLog2TrDynamicRange, const class TComCodingStatisticsClassType &whichStat );
   Void  xDecodeRun          (UInt & ruiSymbol, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun, const class TComCodingStatisticsClassType &whichStat);
-  Void  xDecodePalettePredIndicator (UChar *bReusedPrev, UInt uiPaletteSizePrev, UInt maxPaletteSize, const class TComCodingStatisticsClassType &whichStat);
+  Void  xDecodePalettePredIndicator (UChar *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize, const class TComCodingStatisticsClassType &whichStat);
   Void  xReadTruncBinCode   (UInt& ruiSymbol, UInt uiMaxSymbol, const class TComCodingStatisticsClassType &whichStat);
-  Void  xAdjustPaletteIndex(UInt siCurLevel, UInt uiIdx, Pel *pLevel, Int iMaxSymbol,
+  Void  xAdjustPaletteIndex(UInt siCurLevel, UInt idx, Pel *pLevel, Int iMaxSymbol,
                       const class TComCodingStatisticsClassType &whichStat, UChar *pSPoint = 0, Int iWidth = 0,
                       UChar *pEscapeFlag = 0);
-  Pel   xReadPaletteIndex       (UInt uiIdx, Pel *pLevel, Int iMaxSymbol, const class TComCodingStatisticsClassType &whichStat, UChar *pSPoint = 0, Int iWidth = 0, UChar *pEscapeFlag = 0);
+  Pel   xReadPaletteIndex       (UInt idx, Pel *pLevel, Int iMaxSymbol, const class TComCodingStatisticsClassType &whichStat, UChar *pSPoint = 0, Int iWidth = 0, UChar *pEscapeFlag = 0);
   UInt xReadTruncUnarySymbol( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut, const class TComCodingStatisticsClassType &whichStat);
   UInt xReadTruncMsbP1RefinementBits( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut, const class TComCodingStatisticsClassType &whichStat);
 
@@ -113,11 +113,11 @@ private:
   Void  xReadEpExGolomb     ( UInt& ruiSymbol, UInt uiCount );
   Void  xReadCoefRemainExGolomb ( UInt &rSymbol, UInt &rParam, const Bool useLimitedPrefixLength, const Int maxLog2TrDynamicRange );
   Void  xDecodeRun          (UInt & ruiSymbol, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun);
-  Void  xDecodePalettePredIndicator(UChar *bReusedPrev, UInt uiPaletteSizePrev, UInt maxPaletteSize);
+  Void  xDecodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize);
   Void  xReadTruncBinCode       (UInt& ruiSymbol, UInt uiMaxSymbol);
-  Void  xAdjustPaletteIndex(UInt siCurLevel, UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint = 0, Int iWidth = 0,
+  Void  xAdjustPaletteIndex(UInt siCurLevel, UInt idx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint = 0, Int iWidth = 0,
                        UChar *pEscapeFlag = 0);
-  Pel   xReadPaletteIndex           (UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint = 0, Int iWidth = 0, UChar *pEscapeFlag = 0);
+  Pel   xReadPaletteIndex           (UInt idx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint = 0, Int iWidth = 0, UChar *pEscapeFlag = 0);
   UInt xReadTruncUnarySymbol( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut);
   UInt xReadTruncMsbP1RefinementBits( ContextModel* pcSCModel, UInt uiMax, UInt uiCtxT, UChar *ucCtxLut);
 #endif
@@ -130,9 +130,9 @@ public:
 
   Void parseSkipFlag      ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth );
   Void parseCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth );
-  Void parsePaletteModeFlag      ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth );
-  Void parsePaletteModeSyntax    ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt unNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj );
-  Void parseScanRotationModeFlag ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth );
+  Void parsePaletteModeFlag      ( TComDataCU* pcCU, UInt absPartIdx, UInt depth );
+  Void parsePaletteModeSyntax    ( TComDataCU* pcCU, UInt absPartIdx, UInt depth, UInt numComp, Bool& bCodeDQP, Bool& codeChromaQpAdj );
+  Void parseScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx, UInt depth );
   Void parseSplitFlag     ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth );
   Void parseMergeFlag     ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiPUIdx );
   Void parseMergeIndex    ( TComDataCU* pcCU, UInt& ruiMergeIndex );
@@ -169,7 +169,7 @@ public:
   Void  parseExplicitRdpcmMode( TComTU &rTu, ComponentID compID );
 
 private:
-  UInt* m_puiScanOrder;
+  UInt* m_pScanOrder;
   UChar m_runTopLut[5];
   UChar m_runLeftLut[5];
   ContextModel         m_contextModels[MAX_NUM_CTX_MOD];

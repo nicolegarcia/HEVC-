@@ -946,91 +946,91 @@ enum PaletteScanMode
 class SortingElement
 {
 public:
-  UInt uiCnt;
-  Int uiData[3];
-  Int uiShift, uiLastCnt, uiSumData[3];
+  UInt cnt;
+  Int data[3];
+  Int shift, lastCnt, sumData[3];
 
   inline Bool operator<(const SortingElement &other) const
   {
-    return uiCnt > other.uiCnt;
+    return cnt > other.cnt;
   }
 
   SortingElement() {
-    uiCnt = uiShift = uiLastCnt = 0;
-    uiData[0] = uiData[1] = uiData[2] = 0;
-    uiSumData[0] = uiSumData[1] = uiSumData[2] = 0;
+    cnt = shift = lastCnt = 0;
+    data[0] = data[1] = data[2] = 0;
+    sumData[0] = sumData[1] = sumData[2] = 0;
   }
   Void setAll(UInt ui0, UInt ui1, UInt ui2) {
     if( !ui0 && !ui1 && !ui2 )
     {
-      uiShift = uiLastCnt = 0;
-      uiSumData[0] = uiSumData[1] = uiSumData[2] = 0;
+      shift = lastCnt = 0;
+      sumData[0] = sumData[1] = sumData[2] = 0;
     }
-    uiData[0] = ui0; uiData[1] = ui1; uiData[2] = ui2;
+    data[0] = ui0; data[1] = ui1; data[2] = ui2;
   }
 
   Bool EqualData(SortingElement sElement)
   {
-    return (uiData[0] == sElement.uiData[0]) && (uiData[1] == sElement.uiData[1]) && (uiData[2] == sElement.uiData[2]);
+    return (data[0] == sElement.data[0]) && (data[1] == sElement.data[1]) && (data[2] == sElement.data[2]);
   }
 
   Void ResetElement()
   {
-    uiCnt = uiShift = uiLastCnt = 0;
-    uiData[0] = uiData[1] = uiData[2] = 0;
-    uiSumData[0] = uiSumData[1] = uiSumData[2] = 0;
+    cnt = shift = lastCnt = 0;
+    data[0] = data[1] = data[2] = 0;
+    sumData[0] = sumData[1] = sumData[2] = 0;
   }
 
   Bool almostEqualData(SortingElement sElement, Int iErrorLimit, const BitDepths& bitDepths)
   {
-    return ( std::abs(uiData[0] - sElement.uiData[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) ) <= iErrorLimit
-        && ( std::abs(uiData[1] - sElement.uiData[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit
-        && ( std::abs(uiData[2] - sElement.uiData[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit;
+    return ( std::abs(data[0] - sElement.data[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) ) <= iErrorLimit
+        && ( std::abs(data[1] - sElement.data[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit
+        && ( std::abs(data[2] - sElement.data[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit;
   }
   UInt getSAD(SortingElement sElement, const BitDepths& bitDepths)
   {
-    return ( std::abs(uiData[0] - sElement.uiData[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) )
-         + ( std::abs(uiData[1] - sElement.uiData[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) )
-         + ( std::abs(uiData[2] - sElement.uiData[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) );
+    return ( std::abs(data[0] - sElement.data[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) )
+         + ( std::abs(data[1] - sElement.data[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) )
+         + ( std::abs(data[2] - sElement.data[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) );
   }
 
   Void copyDataFrom(SortingElement sElement) {
-    uiData[0] = sElement.uiData[0];
-    uiData[1] = sElement.uiData[1];
-    uiData[2] = sElement.uiData[2];
-    uiShift = 0; uiLastCnt = 1; uiSumData[0] = uiData[0]; uiSumData[1] = uiData[1]; uiSumData[2] = uiData[2];
+    data[0] = sElement.data[0];
+    data[1] = sElement.data[1];
+    data[2] = sElement.data[2];
+    shift = 0; lastCnt = 1; sumData[0] = data[0]; sumData[1] = data[1]; sumData[2] = data[2];
   }
   Void copyAllFrom(SortingElement sElement) {
-    copyDataFrom(sElement); uiCnt = sElement.uiCnt;
-    uiSumData[0] = sElement.uiSumData[0]; uiSumData[1] = sElement.uiSumData[1]; uiSumData[2] = sElement.uiSumData[2];
-    uiLastCnt = sElement.uiLastCnt; uiShift = sElement.uiShift;
+    copyDataFrom(sElement); cnt = sElement.cnt;
+    sumData[0] = sElement.sumData[0]; sumData[1] = sElement.sumData[1]; sumData[2] = sElement.sumData[2];
+    lastCnt = sElement.lastCnt; shift = sElement.shift;
   }
 
   Void addElement(const SortingElement& sElement)
   {
-    uiCnt++;
+    cnt++;
     for ( int i=0; i<3; i++ )
     {
-      uiSumData[i] += sElement.uiData[i];
+      sumData[i] += sElement.data[i];
     }
-    if( uiCnt>1 && uiCnt==2*uiLastCnt )
+    if( cnt>1 && cnt==2*lastCnt )
     {
-      UInt uiRnd;
-      if( uiCnt == 2 )
+      UInt rnd;
+      if( cnt == 2 )
       {
-        uiShift = 0;
-        uiRnd   = 1;
+        shift = 0;
+        rnd   = 1;
       }
       else
       {
-        uiRnd = 1<<uiShift;
+        rnd = 1<<shift;
       }
-      uiShift++;
+      shift++;
       for ( int i=0; i<3; i++ )
       {
-        uiData[i] = (uiSumData[i] + uiRnd) >> uiShift;
+        data[i] = (sumData[i] + rnd) >> shift;
       }
-      uiLastCnt = uiCnt;
+      lastCnt = cnt;
     }
   }
 };

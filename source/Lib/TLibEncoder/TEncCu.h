@@ -116,7 +116,7 @@ public:
 
   /// create internal buffers
   Void  create              ( UChar uhTotalDepth, UInt iMaxWidth, UInt iMaxHeight, ChromaFormat chromaFormat
-                             ,UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
+                             ,UInt paletteMaxSize, UInt paletteMaxPredSize
     );
 
   /// destroy internal buffers
@@ -191,7 +191,7 @@ protected:
   Void  xCheckRDCostHashInter( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, Bool& isPerfectMatch DEBUG_STRING_FN_DECLARE(sDebug) );
 
   Void  xCheckIntraPCM      ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU                      );
-  UInt  xCheckPaletteMode    ( TComDataCU *&rpcBestCU, TComDataCU*& rpcTempCU, Bool forcePalettePrediction, UInt uiIterNumber, UInt *paletteSize);
+  UInt  xCheckPaletteMode    ( TComDataCU *&rpcBestCU, TComDataCU*& rpcTempCU, Bool forcePalettePrediction, UInt iterNumber, UInt *paletteSize);
   Void  xCopyAMVPInfo       ( AMVPInfo* pSrc, AMVPInfo* pDst );
   Void  xCopyYuv2Pic        (TComPic* rpcPic, UInt uiCUAddr, UInt uiAbsPartIdx, UInt uiDepth, UInt uiSrcDepth, TComDataCU* pcCU );
   Void  xCopyYuv2Tmp        ( UInt uhPartUnitIdx, UInt uiDepth );
@@ -220,9 +220,9 @@ protected:
 
   Void  xFillPCMBuffer     ( TComDataCU* pCU, TComYuv* pOrgYuv );
 
-  Void setEnableIntraTUACT(UInt uiDepth, TComSlice* pcSlice);
-  Void setEnableIBCTUACT(UInt uiDepth, TComSlice* pcSlice);
-  Void setEnableInterTUACT(UInt uiDepth, TComSlice* pcSlice);
+  Void setEnableIntraTUACT(UInt depth, TComSlice* pcSlice);
+  Void setEnableIBCTUACT(UInt depth, TComSlice* pcSlice);
+  Void setEnableInterTUACT(UInt depth, TComSlice* pcSlice);
 
   Bool getEnableIntraTUACT()           { return m_bEnableIntraTUACTRD; }
   Bool getEnableIBCTUACT()             { return m_bEnableIBCTUACTRD; }

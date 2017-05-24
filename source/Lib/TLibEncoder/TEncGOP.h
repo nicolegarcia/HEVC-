@@ -149,7 +149,7 @@ private:
   Bool                    m_hasLosslessPSNR[MAX_NUM_COMPONENT];
   Double                  m_losslessPSNR[MAX_NUM_COMPONENT];
   Bool                    m_encodePPSPalette;
-  UInt                    m_uiNumPalettePred;
+  UInt                    m_numPalettePred;
   Pel                     m_aiPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
   Int                     m_palettePredictorBitDepth[MAX_NUM_CHANNEL_TYPE];
 
@@ -185,8 +185,8 @@ public:
   TEncAnalyze& getAnalyzePData()   { return m_gcAnalyzeP; }
   TEncAnalyze& getAnalyzeBData()   { return m_gcAnalyzeB; }
 
-  UInt  getNumPalettePred()                       const { return m_uiNumPalettePred; }
-  Void  setNumPalettePred( UInt num )                   { m_uiNumPalettePred = num; }
+  UInt  getNumPalettePred()                       const { return m_numPalettePred; }
+  Void  setNumPalettePred( UInt num )                   { m_numPalettePred = num; }
   Pel*  getPalettePred( UInt ch )                 const { return const_cast<Pel*>(m_aiPalette[ch]); }
   Int   getPalettePredictorBitDepth( ChannelType type ) const   { return m_palettePredictorBitDepth[type]; }
   Void  setPalettePredictorBitDepth( ChannelType type, Int u ) { m_palettePredictorBitDepth[type] = u;    }

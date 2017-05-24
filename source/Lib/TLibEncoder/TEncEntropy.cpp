@@ -88,29 +88,29 @@ Void TEncEntropy::encodeSPS( const TComSPS* pcSPS )
   return;
 }
 
-Void TEncEntropy::encodePaletteModeInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD, Bool* bCodeDQP, Bool* codeChromaQpAdj )
+Void TEncEntropy::encodePaletteModeInfo( TComDataCU* pcCU, UInt absPartIdx, Bool bRD, Bool* bCodeDQP, Bool* codeChromaQpAdj )
 {
   if ( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() )
   {
     if ( bRD )
     {
-      uiAbsPartIdx = 0;
+      absPartIdx = 0;
     }
 
-    UInt log2CbSize = g_aucConvertToBit[pcCU->getWidth(uiAbsPartIdx)] + 2;
-    if( !pcCU->isIntra( uiAbsPartIdx ) || log2CbSize > pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
+    UInt log2CbSize = g_aucConvertToBit[pcCU->getWidth(absPartIdx)] + 2;
+    if( !pcCU->isIntra( absPartIdx ) || log2CbSize > pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
     {
       return;
     }
 
-    m_pcEntropyCoderIf->codePaletteModeFlag( pcCU, uiAbsPartIdx );
-    if ( pcCU->getPaletteModeFlag( uiAbsPartIdx ) )
+    m_pcEntropyCoderIf->codePaletteModeFlag( pcCU, absPartIdx );
+    if ( pcCU->getPaletteModeFlag( absPartIdx ) )
     {
-      m_pcEntropyCoderIf->codePaletteModeSyntax( pcCU, uiAbsPartIdx, 3, bCodeDQP, codeChromaQpAdj );
+      m_pcEntropyCoderIf->codePaletteModeSyntax( pcCU, absPartIdx, 3, bCodeDQP, codeChromaQpAdj );
 
       if (!bRD)
       {
-        pcCU->saveLastPaletteInLcuFinal( pcCU, uiAbsPartIdx, MAX_NUM_COMPONENT );
+        pcCU->saveLastPaletteInLcuFinal( pcCU, absPartIdx, MAX_NUM_COMPONENT );
       }
     }
   }

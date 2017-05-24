@@ -1319,12 +1319,12 @@ Void TEncCavlc::codeCUTransquantBypassFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPa
   assert(0);
 }
 
-Void TEncCavlc:: codePaletteModeFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/ )
+Void TEncCavlc:: codePaletteModeFlag( TComDataCU* /*pcCU*/, UInt /*absPartIdx*/ )
 {
   assert(0);
 }
 
-Void TEncCavlc::codePaletteModeSyntax(TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiNumComp*/, Bool* /*bCodeDQP*/, Bool* /*codeChromaQpAdjFlag*/)
+Void TEncCavlc::codePaletteModeSyntax(TComDataCU* /*pcCU*/, UInt /*absPartIdx*/, UInt /*numComp*/, Bool* /*bCodeDQP*/, Bool* /*codeChromaQpAdjFlag*/)
 {
   assert(0);
 }

@@ -174,7 +174,7 @@ protected:
 
   Void          deriveRightBottomIdx          ( UInt uiPartIdx, UInt& ruiPartIdxRB ) const;
   Bool          xGetColMVP                    ( const RefPicList eRefPicList, const Int ctuRsAddr, const Int partUnitIdx, TComMv& rcMv, const Int refIdx ) const;
-  Bool          xGetColMVPIBC( Int ctuRsAddr, Int uiPartUnitIdx, TComMv& rcMv);
+  Bool          xGetColMVPIBC( Int ctuRsAddr, Int partUnitIdx, TComMv& rcMv);
 
   /// compute scaling factor from POC difference
   static Int    xGetDistScaleFactor           ( Int iCurrPOC, Int iCurrRefPOC, Int iColPOC, Int iColRefPOC );
@@ -193,7 +193,7 @@ public:
   // create / destroy / initialize / copy
   // -------------------------------------------------------------------------------------------------------------------
 
-  Void          create                        ( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt uiWidth, UInt uiHeight, Bool bDecSubCu, Int unitSize, UInt uiPaletteMaxSize, UInt uiPaletteMaxPredSize
+  Void          create                        ( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt uiWidth, UInt uiHeight, Bool bDecSubCu, Int unitSize, UInt paletteMaxSize, UInt paletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
                                                 , TCoeff *pParentARLBuffer = 0
 #endif
@@ -240,8 +240,8 @@ public:
   Void          getStartPosition( UInt uiPartIdx, Int& xStartInCU, Int& yStartInCU );
   Bool          isIntraBC(UInt uiAbsPartIdx) const;
 
-  Void          getIntraBCMVPsEncOnly(UInt uiAbsPartIdx, TComMv* MvPredEnc, Int& nbPred, Int iPartIdx);
-  Bool          getDerivedBV(UInt uiAbsPartIdx, const TComMv& currentMv, TComMv& derivedMv, UInt width, UInt height);
+  Void          getIntraBCMVPsEncOnly(UInt absPartIdx, TComMv* MvPredEnc, Int& nbPred, Int iPartIdx);
+  Bool          getDerivedBV(UInt absPartIdx, const TComMv& currentMv, TComMv& derivedMv, UInt width, UInt height);
   SChar*        getPartitionSize              ( )                                                          { return m_pePartSize;                       }
   PartSize      getPartitionSize              ( UInt uiIdx ) const                                         { return static_cast<PartSize>( m_pePartSize[uiIdx] ); }
   Void          setPartitionSize              ( UInt uiIdx, PartSize uh )                                  { m_pePartSize[uiIdx] = uh;                  }
@@ -385,43 +385,43 @@ public:
   Pel*          getLevel              (ComponentID component)   { return m_piLevel[component];       }
   TCoeff*       getRun                (ComponentID component)   { return m_pcTrCoeff[component];     }
   Bool*         getPaletteModeFlag        ()                        { return m_pbPaletteModeFlag;            }
-  Bool          getPaletteModeFlag        (UInt uiIdx) const        { return m_pbPaletteModeFlag[uiIdx];     }
-  Void          setRLModeFlag             (UInt uiIdx, Bool b)      { m_pbPaletteModeFlag[uiIdx] = b;        }
-  Void          setPaletteModeFlagSubParts(Bool bRLModeFlag, UInt uiAbsPartIdx, UInt uiDepth);
-  Pel*          getPalette                (UChar ucCh)                                           { return m_piPalette[ucCh]; }
-  Pel*          getPalette                (UChar ucCh, UInt uiIdx)                               { return m_piPalette[ucCh] + (uiIdx >> 2) * m_paletteMaxSize; }
-  Pel           getPalette                (UChar ucCh, UInt uiIdx, UInt paletteIdx)              { return m_piPalette[ucCh][(uiIdx >> 2) * m_paletteMaxSize + paletteIdx]; }
-  Void          setPalette                (UChar ucCh, UInt uiIdx, Pel uiValue, UInt paletteIdx) { m_piPalette[ucCh][(uiIdx >> 2) * m_paletteMaxSize + paletteIdx] = uiValue; }
-  Void          setPaletteSubParts        (UChar ucCh, Pel uiValue, UInt paletteIdx, UInt uiAbsPartIdx, UInt uiDepth);
+  Bool          getPaletteModeFlag        (UInt idx) const        { return m_pbPaletteModeFlag[idx];     }
+  Void          setRLModeFlag             (UInt idx, Bool b)      { m_pbPaletteModeFlag[idx] = b;        }
+  Void          setPaletteModeFlagSubParts(Bool bRLModeFlag, UInt absPartIdx, UInt uiDepth);
+  Pel*          getPalette                (UChar ucCh)                                         { return m_piPalette[ucCh]; }
+  Pel*          getPalette                (UChar ucCh, UInt idx)                               { return m_piPalette[ucCh] + (idx >> 2) * m_paletteMaxSize; }
+  Pel           getPalette                (UChar ucCh, UInt idx, UInt paletteIdx)              { return m_piPalette[ucCh][(idx >> 2) * m_paletteMaxSize + paletteIdx]; }
+  Void          setPalette                (UChar ucCh, UInt idx, Pel uiValue, UInt paletteIdx) { m_piPalette[ucCh][(idx >> 2) * m_paletteMaxSize + paletteIdx] = uiValue; }
+  Void          setPaletteSubParts        (UChar ucCh, Pel value, UInt paletteIdx, UInt absPartIdx, UInt depth);
 
-  UChar*        getPaletteSize            (UChar ucCh)                          { return m_puhTransformSkip[ucCh];               }
-  UChar         getPaletteSize            (UChar ucCh, UInt uiIdx )             { return m_puhTransformSkip[ucCh][uiIdx];        }
-  Void          setPaletteSize            (UChar ucCh, UInt uiIdx, Bool b )     { m_puhTransformSkip[ucCh][uiIdx] = b;           }
-  Void          setPaletteSizeSubParts    (UChar ucCh, UChar ucRLDictSize, UInt uiAbsPartIdx, UInt uiDepth);
+  UChar*        getPaletteSize            (UChar ucCh)                        { return m_puhTransformSkip[ucCh];             }
+  UChar         getPaletteSize            (UChar ucCh, UInt idx )             { return m_puhTransformSkip[ucCh][idx];        }
+  Void          setPaletteSize            (UChar ucCh, UInt idx, Bool b )     { m_puhTransformSkip[ucCh][idx] = b;           }
+  Void          setPaletteSizeSubParts    (UChar ucCh, UChar ucRLDictSize, UInt absPartIdx, UInt depth);
 
-  UChar*        getPaletteEscape          (UChar ucCh)                          { return m_puhPaletteEscape[ucCh];        }
-  UChar         getPaletteEscape          (UChar ucCh, UInt uiIdx)              { return m_puhPaletteEscape[ucCh][uiIdx]; }
-  Void          setPaletteEscape          (UChar ucCh, UInt uiIdx, Bool b)      { m_puhPaletteEscape[ucCh][uiIdx] = b;    }
-  Void          setPaletteEscapeSubParts  (UChar ucCh, UChar ucUseEscape, UInt uiAbsPartIdx, UInt uiDepth);
+  UChar*        getPaletteEscape          (UChar ucCh)                        { return m_puhPaletteEscape[ucCh];      }
+  UChar         getPaletteEscape          (UChar ucCh, UInt idx)              { return m_puhPaletteEscape[ucCh][idx]; }
+  Void          setPaletteEscape          (UChar ucCh, UInt idx, Bool b)      { m_puhPaletteEscape[ucCh][idx] = b;    }
+  Void          setPaletteEscapeSubParts  (UChar ucCh, UChar ucUseEscape, UInt absPartIdx, UInt depth);
 
-  UChar*        getPrevPaletteReusedFlag  (UChar ucCh)                                             { return m_bPrevPaletteReusedFlag[ucCh]; }
-  UChar*        getPrevPaletteReusedFlag  (UChar ucCh, UInt uiIdx )                                { return m_bPrevPaletteReusedFlag[ucCh]+ (uiIdx>> 2) * m_paletteMaxPredSize; }
-  UChar         getPrevPaletteReusedFlag  (UChar ucCh, UInt uiIdx, UInt paletteIdx)                { return m_bPrevPaletteReusedFlag[ucCh][(uiIdx >> 2) * m_paletteMaxPredSize + paletteIdx]; }
-  Void          setPrevPaletteReusedFlag  (UChar ucCh, UInt uiIdx, UChar uiValue, UInt paletteIdx) { m_bPrevPaletteReusedFlag[ucCh][(uiIdx >> 2) * m_paletteMaxPredSize + paletteIdx] = uiValue; }
-  Void          setPrevPaletteReusedFlagSubParts(UChar ucCh, UChar uiValue, UInt paletteIdx, UInt uiAbsPartIdx, UInt uiDepth);
+  UChar*        getPrevPaletteReusedFlag  (UChar ucCh)                                           { return m_bPrevPaletteReusedFlag[ucCh]; }
+  UChar*        getPrevPaletteReusedFlag  (UChar ucCh, UInt idx )                                { return m_bPrevPaletteReusedFlag[ucCh]+ (idx>> 2) * m_paletteMaxPredSize; }
+  UChar         getPrevPaletteReusedFlag  (UChar ucCh, UInt idx, UInt paletteIdx)                { return m_bPrevPaletteReusedFlag[ucCh][(idx >> 2) * m_paletteMaxPredSize + paletteIdx]; }
+  Void          setPrevPaletteReusedFlag  (UChar ucCh, UInt idx, UChar uiValue, UInt paletteIdx) { m_bPrevPaletteReusedFlag[ucCh][(idx >> 2) * m_paletteMaxPredSize + paletteIdx] = uiValue; }
+  Void          setPrevPaletteReusedFlagSubParts(UChar ucCh, UChar value, UInt paletteIdx, UInt absPartIdx, UInt depth);
 
-  Pel*          getPalettePred(TComDataCU* pcCU, UInt uiAbsPartIdx, UInt ch, UInt &uiPaletteSizePrev);
+  Pel*          getPalettePred(TComDataCU* pcCU, UInt absPartIdx, UInt ch, UInt& paletteSizePrev);
   UChar         getLastPaletteInLcuSizeFinal     (UChar ucCh)           { return m_uhLastPaletteSizeFinal[ucCh]; }
   Void          setLastPaletteInLcuSizeFinal     (UChar ucCh, UChar uh) { m_uhLastPaletteSizeFinal[ucCh] = uh;   }
 
   Pel*          getLastPaletteInLcuFinal         (UChar ucCh)                               { return m_piLastPaletteInLcuFinal[ucCh];                }
   Pel           getLastPaletteInLcuFinal         (UChar ucCh, UInt paletteIdx)              { return m_piLastPaletteInLcuFinal[ucCh][paletteIdx];    }
-  Void          setLastPaletteInLcuFinal         (UChar ucCh, Pel uiValue, UInt paletteIdx) { m_piLastPaletteInLcuFinal[ucCh][paletteIdx] = uiValue; }
-  Void          saveLastPaletteInLcuFinal( TComDataCU *pcSrc, UInt uiAbsPartIdx, UInt numValidComp );
+  Void          setLastPaletteInLcuFinal         (UChar ucCh, Pel value, UInt paletteIdx)   { m_piLastPaletteInLcuFinal[ucCh][paletteIdx] = value;   }
+  Void          saveLastPaletteInLcuFinal( TComDataCU *pcSrc, UInt absPartIdx, UInt numValidComp );
   Int           xCalcMaxVals(TComDataCU *pcCU, ComponentID compID);
-  Bool          getPaletteScanRotationModeFlag (UInt uiIdx )             { return m_pbPaletteScanRotationModeFlag[uiIdx]; }
+  Bool          getPaletteScanRotationModeFlag (UInt idx )               { return m_pbPaletteScanRotationModeFlag[idx];   }
   Bool*         getPaletteScanRotationModeFlag ()                        { return m_pbPaletteScanRotationModeFlag;        }
-  Void          setPaletteScanRotationModeFlagSubParts (Bool bPaletteScanRotationModeFlag, UInt uiAbsPartIdx, UInt uiDepth);
+  Void          setPaletteScanRotationModeFlagSubParts (Bool bPaletteScanRotationModeFlag, UInt absPartIdx, UInt depth);
   UChar*        getEscapeFlag(ComponentID component)                 { return m_piEscapeFlag[component]; }
 
   // -------------------------------------------------------------------------------------------------------------------
@@ -522,7 +522,7 @@ public:
   Bool          isBipredRestriction( UInt puIdx, Bool bCheckIBCRestricion =false ) const;
   Bool          is8x8BipredRestriction(TComMv mvL0,TComMv mvL1, Int iRefIdxL0, Int iRefIdxL1 ) const;  
   Void          xRestrictBipredMergeCand( UInt puIdx, TComMvField* mvFieldNeighbours, UChar* interDirNeighbours, Int numValidMergeCand );
-  Bool          hasAssociatedACTFlag ( UInt uiAbsPartIdx );
+  Bool          hasAssociatedACTFlag ( UInt absPartIdx );
 
   // -------------------------------------------------------------------------------------------------------------------
   // member functions for symbol prediction (most probable / mode conversion)
@@ -539,7 +539,7 @@ public:
 
   UInt          getCtxSplitFlag               ( UInt   uiAbsPartIdx, UInt uiDepth     ) const;
   UInt          getCtxQtCbf                   ( TComTU &rTu, const ChannelType chType ) const;
-  UInt          getCtxEscapeFlag                ( UInt   uiAbsPartIdx, UInt uiIdx,  Pel *pEscapeFlag  );
+  UInt          getCtxEscapeFlag              ( UInt   absPartIdx, UInt idx,  Pel *pEscapeFlag  );
   UInt          getCtxSkipFlag                ( UInt   uiAbsPartIdx ) const;
   UInt          getCtxInterDir                ( UInt   uiAbsPartIdx ) const;
 

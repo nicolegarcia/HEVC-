@@ -1147,8 +1147,8 @@ Bool TAppEncCfg::parseCfg( Int argc, TChar* argv[] )
   ("SEIXSDMetricType",                                m_xsdMetricType,                      0u, "Value for the xsd_metric_type indicates the type of the objective quality metric. PSNR is the only type currently supported")
   ("ColourTransform",                                 m_useColourTrans,                                   false, "Enable the colour transform (not valid in V1 profiles")
   ("PaletteMode",                                     m_usePaletteMode,                                  false, "Enable the palette mode (not valid in V1 profiles")
-  ("PaletteMaxSize",                                  m_uiPaletteMaxSize,                                  63u,  "Maximum palette size")
-  ("PaletteMaxPredSize",                              m_uiPaletteMaxPredSize,                             128u,  "Maximum palette predictor size")
+  ("PaletteMaxSize",                                  m_paletteMaxSize,                                    63u,  "Maximum palette size")
+  ("PaletteMaxPredSize",                              m_paletteMaxPredSize,                               128u,  "Maximum palette predictor size")
   ("MotionVectorResolutionControlIdc",                m_motionVectorResolutionControlIdc,                    0, "0 (default): use 1/4-pel mv; 1: use integer-pel mv; 2: adaptive mv resolution (not valid in V1 profiles)")
   ("PalettePredInSPSEnabled",                         m_palettePredInSPSEnabled,                          false, "Transmit palette predictor in SPS")
   ("PalettePredInPPSEnabled",                         m_palettePredInPPSEnabled,                          false, "Transmit palette predictor in PPS")
@@ -2885,8 +2885,8 @@ Void TAppEncCfg::xPrintParameter()
   printf("RecalQP:%d", m_recalculateQPAccordingToLambda ? 1 : 0 );
   if (m_usePaletteMode)
   {
-    printf(" MaxPaletteSize:%d", m_uiPaletteMaxSize);
-    printf(" MaxPalettePredictorSize:%d", m_uiPaletteMaxPredSize);
+    printf(" MaxPaletteSize:%d", m_paletteMaxSize);
+    printf(" MaxPalettePredictorSize:%d", m_paletteMaxPredSize);
   }
   printf( " MvResControl:%d", m_motionVectorResolutionControlIdc );
 

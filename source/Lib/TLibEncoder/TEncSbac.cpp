@@ -356,60 +356,60 @@ Void TEncSbac::xWriteEpExGolomb( UInt uiSymbol, UInt uiCount )
   m_pcBinIf->encodeBinsEP( bins, numBins );
 }
 
-Void TEncSbac::xWriteTruncBinCode(UInt uiSymbol, UInt uiMaxSymbol)
+Void TEncSbac::xWriteTruncBinCode(UInt symbol, UInt maxSymbol)
 {
-  UInt uiThresh;
-  if (uiMaxSymbol > 256)
+  UInt thresh;
+  if (maxSymbol > 256)
   {
-    UInt uiThreshVal = 1 << 8;
-    uiThresh = 8;
-    while (uiThreshVal <= uiMaxSymbol)
+    UInt threshVal = 1 << 8;
+    thresh = 8;
+    while (threshVal <= maxSymbol)
     {
-      uiThresh++;
-      uiThreshVal <<= 1;
+      thresh++;
+      threshVal <<= 1;
     }
-    uiThresh--;
+    thresh--;
   }
   else
   {
-    uiThresh = g_uhPaletteTBC[uiMaxSymbol];
+    thresh = g_uhPaletteTBC[maxSymbol];
   }
 
-  UInt uiVal = 1 << uiThresh;
-  assert(uiVal <= uiMaxSymbol);
-  assert((uiVal << 1) > uiMaxSymbol);
-  assert(uiSymbol < uiMaxSymbol);
-  UInt b = uiMaxSymbol - uiVal;
-  assert(b < uiVal);
-  if (uiSymbol < uiVal - b)
+  UInt val = 1 << thresh;
+  assert(val <= maxSymbol);
+  assert((val << 1) > maxSymbol);
+  assert(symbol < maxSymbol);
+  UInt b = maxSymbol - val;
+  assert(b < val);
+  if (symbol < val - b)
   {
-    m_pcBinIf->encodeBinsEP(uiSymbol, uiThresh);
+    m_pcBinIf->encodeBinsEP(symbol, thresh);
   }
   else
   {
-    uiSymbol += uiVal - b;
-    assert(uiSymbol < (uiVal << 1));
-    assert((uiSymbol >> 1) >= uiVal - b);
-    m_pcBinIf->encodeBinsEP(uiSymbol, uiThresh + 1);
+    symbol += val - b;
+    assert(symbol < (val << 1));
+    assert((symbol >> 1) >= val - b);
+    m_pcBinIf->encodeBinsEP(symbol, thresh + 1);
   }
 }
 
 Pel TEncSbac::writePaletteIndex(UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint, Int iWidth, UChar *pEscapeFlag)
 {
-  UInt uiTraIdx = m_puiScanOrder[uiIdx];  //unified position variable (raster scan)
-  Pel siCurLevel = pEscapeFlag[uiTraIdx] ? (iMaxSymbol - 1) : pLevel[uiTraIdx];
-  if( pEscapeFlag[uiTraIdx] )
+  UInt traIdx = m_pScanOrder[uiIdx];  //unified position variable (raster scan)
+  Pel siCurLevel = pEscapeFlag[traIdx] ? (iMaxSymbol - 1) : pLevel[traIdx];
+  if( pEscapeFlag[traIdx] )
   {
     assert(siCurLevel == (iMaxSymbol-1));
   }
 
   if( uiIdx )
   {
-    UInt uiTraIdxLeft = m_puiScanOrder[uiIdx - 1];
-    if (pSPoint[uiTraIdxLeft] == PALETTE_RUN_LEFT)  ///< copy left
+    UInt traIdxLeft = m_pScanOrder[uiIdx - 1];
+    if (pSPoint[traIdxLeft] == PALETTE_RUN_LEFT)  ///< copy left
     {
-      Pel siLeftLevel = pLevel[uiTraIdxLeft];
-      if( pEscapeFlag[uiTraIdxLeft] )
+      Pel siLeftLevel = pLevel[traIdxLeft];
+      if( pEscapeFlag[traIdxLeft] )
       {
         siLeftLevel = iMaxSymbol - 1;
       }
@@ -423,9 +423,9 @@ Pel TEncSbac::writePaletteIndex(UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *
     }
     else
     {
-      assert(uiTraIdxLeft >= iWidth);
-      Pel siAboveLevel = pLevel[uiTraIdx - iWidth];
-      if( pEscapeFlag[uiTraIdx - iWidth] )
+      assert(traIdxLeft >= iWidth);
+      Pel siAboveLevel = pLevel[traIdx - iWidth];
+      if( pEscapeFlag[traIdx - iWidth] )
       {
         siAboveLevel = iMaxSymbol - 1;
       }
@@ -449,13 +449,13 @@ Pel TEncSbac::writePaletteIndex(UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *
   return siCurLevel;
 }
 
-Void TEncSbac::xEncodePalettePredIndicator(UChar *bReusedPrev, UInt uiPaletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize)
+Void TEncSbac::xEncodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize)
 {
   Int lastPredIdx = -1;
   UInt run = 0;
   numPalettePredicted = 0;
 
-  for( UInt idx = 0; idx < uiPaletteSizePrev; idx++ )
+  for( UInt idx = 0; idx < paletteSizePrev; idx++ )
   {
     if( bReusedPrev[idx] )
     {
@@ -478,13 +478,13 @@ Void TEncSbac::xEncodePalettePredIndicator(UChar *bReusedPrev, UInt uiPaletteSiz
     }
     idx++;
   }
-  if ((numPalettePredicted < maxPaletteSize && lastPredIdx + 1 < uiPaletteSizePrev) || !numPalettePredicted)
+  if ((numPalettePredicted < maxPaletteSize && lastPredIdx + 1 < paletteSizePrev) || !numPalettePredicted)
   {
     xWriteEpExGolomb( 1, 0 );
   }
 }
 
-Void TEncSbac::encodeRun ( UInt uiRun, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun )
+Void TEncSbac::encodeRun ( UInt uiRun, Bool bCopyTopMode, const UInt paletteIdx, const UInt maxRun )
 {
   ContextModel *pcModel;
   UChar *ucCtxLut;
@@ -499,17 +499,17 @@ Void TEncSbac::encodeRun ( UInt uiRun, Bool bCopyTopMode, const UInt paletteIdx,
     ucCtxLut = m_runLeftLut;
     m_runLeftLut[0] = (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1 ? 0: (paletteIdx < SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2 ? 1 : 2));
   }
-  xWriteTruncMsbP1RefinementBits( uiRun, pcModel, uiMaxRun, SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE, ucCtxLut );
+  xWriteTruncMsbP1RefinementBits( uiRun, pcModel, maxRun, SCM__S0269_PALETTE_RUN_MSB_IDX_CABAC_BYPASS_THRE, ucCtxLut );
 }
 
-Void TEncSbac::encodeSPointRD(UInt uiIdx, UInt uiWidth, UChar *pSPoint, UInt mode, UInt *uiRefScanOrder)
+Void TEncSbac::encodeSPointRD(UInt uiIdx, UInt uiWidth, UChar *pSPoint, UInt mode, UInt *refScanOrder)
 {
-  if( uiRefScanOrder )
+  if( refScanOrder )
   {
-    m_puiScanOrder = uiRefScanOrder;
+    m_pScanOrder = refScanOrder;
   }
-  UInt uiTraIdx = m_puiScanOrder[uiIdx];
-  if( uiTraIdx >= uiWidth && pSPoint[m_puiScanOrder[uiIdx - 1]] != PALETTE_RUN_ABOVE )
+  UInt uiTraIdx = m_pScanOrder[uiIdx];
+  if( uiTraIdx >= uiWidth && pSPoint[m_pScanOrder[uiIdx - 1]] != PALETTE_RUN_ABOVE )
   {
     m_pcBinIf->encodeBin( mode, m_SPointSCModel.get( 0, 0, 0 ) );
   }
@@ -566,52 +566,52 @@ Void TEncSbac::encodeSPoint( TComDataCU *pcCU, UInt uiAbsPartIdx, UInt uiIdx, UI
 {
   if( uiRefScanOrder )
   {
-    m_puiScanOrder = uiRefScanOrder;
+    m_pScanOrder = uiRefScanOrder;
   }
 
-  UInt uiTraIdx = m_puiScanOrder[uiIdx];
+  UInt traIdx = m_pScanOrder[uiIdx];
 
-  if( uiTraIdx >= uiWidth && pSPoint[m_puiScanOrder[uiIdx - 1]] != PALETTE_RUN_ABOVE )
+  if( traIdx >= uiWidth && pSPoint[m_pScanOrder[uiIdx - 1]] != PALETTE_RUN_ABOVE )
   {
-    UInt mode = pSPoint[uiTraIdx];
+    UInt mode = pSPoint[traIdx];
     m_pcBinIf->encodeBin( mode, m_SPointSCModel.get( 0, 0, 0 ) );
   }
 }
 
-Void TEncSbac::codePaletteModeFlag(TComDataCU *pcCU, UInt uiAbsPartIdx)
+Void TEncSbac::codePaletteModeFlag(TComDataCU *pcCU, UInt absPartIdx)
 {
-  UInt uiSymbol = pcCU->getPaletteModeFlag(uiAbsPartIdx);
-  m_pcBinIf->encodeBin(uiSymbol, m_paletteModeFlagSCModel.get(0, 0, 0));
+  UInt symbol = pcCU->getPaletteModeFlag(absPartIdx);
+  m_pcBinIf->encodeBin(symbol, m_paletteModeFlagSCModel.get(0, 0, 0));
 }
 
-Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiNumComp, Bool* bCodeDQP, Bool* codeChromaQpAdj )
+Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt absPartIdx, UInt numComp, Bool* bCodeDQP, Bool* codeChromaQpAdj )
 {
-  UInt uiIdx, uiDictMaxSize, uiDictIdxBits;
-  UInt uiSampleBits[3];
+  UInt idx, dictMaxSize, dictIdxBits;
+  UInt sampleBits[3];
   Pel *pLevel, *pPalette;
   TCoeff *pRun;
   Pel *pPixelValue[3];
   ComponentID compBegin = COMPONENT_Y;
   const UInt minCoeffSizeY = pcCU->getPic()->getMinCUWidth() * pcCU->getPic()->getMinCUHeight();
-  const UInt offsetY = minCoeffSizeY * uiAbsPartIdx;
+  const UInt offsetY = minCoeffSizeY * absPartIdx;
   const UInt offset = offsetY >> (pcCU->getPic()->getComponentScaleX(compBegin) + pcCU->getPic()->getComponentScaleY(compBegin));
-  UInt width = pcCU->getWidth(uiAbsPartIdx) >> pcCU->getPic()->getComponentScaleX(compBegin);
-  UInt height = pcCU->getHeight(uiAbsPartIdx) >> pcCU->getPic()->getComponentScaleY(compBegin);
-  UInt uiTotal = width * height;
-  UInt uiScaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
-  UInt uiScaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
-  const UInt offsetC = offsetY >> (uiScaleX + uiScaleY);
+  UInt width = pcCU->getWidth(absPartIdx) >> pcCU->getPic()->getComponentScaleX(compBegin);
+  UInt height = pcCU->getHeight(absPartIdx) >> pcCU->getPic()->getComponentScaleY(compBegin);
+  UInt total = width * height;
+  UInt scaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
+  UInt scaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
+  const UInt offsetC = offsetY >> (scaleX + scaleY);
 
-  UInt uiRun = 0;
-  uiIdx = 0;
+  UInt run = 0;
+  idx = 0;
   pLevel = pcCU->getLevel(compBegin) + offset;
   pRun = pcCU->getRun(compBegin) + offset;
   UChar* pSPoint = pcCU->getSPoint(compBegin) + offset;
   UChar* pEscapeFlag = pcCU->getEscapeFlag(compBegin) + offset;
 
-  for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+  for (UInt comp = compBegin; comp < compBegin + numComp; comp++)
   {
-    uiSampleBits[comp] = pcCU->getSlice()->getSPS()->getBitDepth(toChannelType(ComponentID(comp)));
+    sampleBits[comp] = pcCU->getSlice()->getSPS()->getBitDepth(toChannelType(ComponentID(comp)));
     if ( comp == compBegin )
     {
       pPixelValue[comp] = pcCU->getLevel( ComponentID( comp ) ) + offset;
@@ -622,129 +622,129 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt 
     }
   }
 
-  uiDictMaxSize = pcCU->getPaletteSize(compBegin, uiAbsPartIdx);
+  dictMaxSize = pcCU->getPaletteSize(compBegin, absPartIdx);
   UInt maxPaletteSize = pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize();
-  assert(uiDictMaxSize <= maxPaletteSize);
-  uiDictIdxBits = 0;
-  while ((1 << uiDictIdxBits) < uiDictMaxSize)
+  assert(dictMaxSize <= maxPaletteSize);
+  dictIdxBits = 0;
+  while ((1 << dictIdxBits) < dictMaxSize)
   {
-    uiDictIdxBits++;
+    dictIdxBits++;
   }
-  UInt uiIndexMaxSize = uiDictMaxSize;
-  UInt uiSignalEscape = pcCU->getPaletteEscape(compBegin, uiAbsPartIdx);
-  UInt uiDictIdxBitsExteneded = uiDictIdxBits;
-  if (uiSignalEscape)
+  UInt indexMaxSize = dictMaxSize;
+  UInt signalEscape = pcCU->getPaletteEscape(compBegin, absPartIdx);
+  UInt dictIdxBitsExteneded = dictIdxBits;
+  if (signalEscape)
   {
-    while ((1 << uiDictIdxBitsExteneded) <= uiDictMaxSize)
+    while ((1 << dictIdxBitsExteneded) <= dictMaxSize)
     {
-      uiDictIdxBitsExteneded++;
+      dictIdxBitsExteneded++;
     }
-    uiIndexMaxSize++;
+    indexMaxSize++;
   }
 
-  UInt uiPaletteSizePrev;
-  Bool isLossless = pcCU->getCUTransquantBypass( uiAbsPartIdx );
+  UInt paletteSizePrev;
+  Bool isLossless = pcCU->getCUTransquantBypass( absPartIdx );
 
   {
-    pcCU->getPalettePred( pcCU, uiAbsPartIdx, compBegin, uiPaletteSizePrev );
+    pcCU->getPalettePred( pcCU, absPartIdx, compBegin, paletteSizePrev );
     UChar *bReusedPrev;
-    UInt numPaletteRceived = uiDictMaxSize, numPalettePredicted = 0;
+    UInt numPaletteRceived = dictMaxSize, numPalettePredicted = 0;
 
-    bReusedPrev = pcCU->getPrevPaletteReusedFlag( compBegin, uiAbsPartIdx );
+    bReusedPrev = pcCU->getPrevPaletteReusedFlag( compBegin, absPartIdx );
 
-    if ( uiPaletteSizePrev )
+    if ( paletteSizePrev )
     {
-      xEncodePalettePredIndicator( bReusedPrev, uiPaletteSizePrev, numPalettePredicted, maxPaletteSize);
+      xEncodePalettePredIndicator( bReusedPrev, paletteSizePrev, numPalettePredicted, maxPaletteSize);
     }
 
-    assert( uiDictMaxSize >= numPalettePredicted );
+    assert( dictMaxSize >= numPalettePredicted );
     if ( numPalettePredicted < maxPaletteSize)
     {
-      numPaletteRceived = uiDictMaxSize - numPalettePredicted;
+      numPaletteRceived = dictMaxSize - numPalettePredicted;
       xWriteEpExGolomb(numPaletteRceived, 0);
     }
-    for ( UInt comp = compBegin; comp < compBegin + uiNumComp; comp++ )
+    for ( UInt comp = compBegin; comp < compBegin + numComp; comp++ )
     {
-      pPalette = pcCU->getPalette( comp, uiAbsPartIdx );
-      for ( UInt paletteIdx = numPalettePredicted; paletteIdx < uiDictMaxSize; paletteIdx++ )
+      pPalette = pcCU->getPalette( comp, absPartIdx );
+      for ( UInt paletteIdx = numPalettePredicted; paletteIdx < dictMaxSize; paletteIdx++ )
       {
-        m_pcBinIf->encodeBinsEP( (UInt)pPalette[paletteIdx], uiSampleBits[comp] );
+        m_pcBinIf->encodeBinsEP( (UInt)pPalette[paletteIdx], sampleBits[comp] );
       }
     }
   }
 
-  m_puiScanOrder = g_scanOrder[SCAN_UNGROUPED][SCAN_TRAV][g_aucConvertToBit[width]+2][g_aucConvertToBit[height]+2];
-  if (uiDictMaxSize > 0)
+  m_pScanOrder = g_scanOrder[SCAN_UNGROUPED][SCAN_TRAV][g_aucConvertToBit[width]+2][g_aucConvertToBit[height]+2];
+  if (dictMaxSize > 0)
   {
-    m_pcBinIf->encodeBinEP(uiSignalEscape);
+    m_pcBinIf->encodeBinEP(signalEscape);
   }
   Int iLastRunPos = -1;
   UInt lastRunType = 0;
-  UInt uiNumIndices = 0;
+  UInt numIndices = 0;
   std::list<Int> lIdxPosList, lParsedIdxList;
-  if (uiIndexMaxSize > 1)
+  if (indexMaxSize > 1)
   {
-    uiIdx = 0;
-    while (uiIdx < uiTotal)
+    idx = 0;
+    while (idx < total)
     {
-      UInt uiTraIdx = m_puiScanOrder[uiIdx];
-      if (pSPoint[uiTraIdx] == PALETTE_RUN_LEFT)
+      UInt traIdx = m_pScanOrder[idx];
+      if (pSPoint[traIdx] == PALETTE_RUN_LEFT)
       {
-        lIdxPosList.push_back(uiIdx);
-        uiNumIndices++;
+        lIdxPosList.push_back(idx);
+        numIndices++;
       }
-      lastRunType = pSPoint[uiTraIdx];
-      iLastRunPos = uiIdx;
-      uiRun = pRun[uiTraIdx];
-      uiIdx += uiRun;
-      uiIdx++;
+      lastRunType = pSPoint[traIdx];
+      iLastRunPos = idx;
+      run = pRun[traIdx];
+      idx += run;
+      idx++;
     }
-    UInt uiCurrParam = 3 + ((uiIndexMaxSize) >> 3);
-    UInt uiMappedValue;
-    assert(uiNumIndices);
-    assert(uiNumIndices > 0);
-    uiMappedValue = uiNumIndices-1;
-    xWriteCoefRemainExGolomb(uiMappedValue, uiCurrParam, false, MAX_NUM_CHANNEL_TYPE);
+    UInt currParam = 3 + ((indexMaxSize) >> 3);
+    UInt mappedValue;
+    assert(numIndices);
+    assert(numIndices > 0);
+    mappedValue = numIndices-1;
+    xWriteCoefRemainExGolomb(mappedValue, currParam, false, MAX_NUM_CHANNEL_TYPE);
 
     while (!lIdxPosList.empty())
     {
-      uiIdx = lIdxPosList.front();
+      idx = lIdxPosList.front();
       lIdxPosList.pop_front();
-      lParsedIdxList.push_back(writePaletteIndex(uiIdx, pLevel, uiIndexMaxSize, pSPoint, width, pEscapeFlag));
+      lParsedIdxList.push_back(writePaletteIndex(idx, pLevel, indexMaxSize, pSPoint, width, pEscapeFlag));
     }
     m_pcBinIf->encodeBin(lastRunType, m_SPointSCModel.get(0, 0, 0));
-    codeScanRotationModeFlag(pcCU, uiAbsPartIdx);
+    codeScanRotationModeFlag(pcCU, absPartIdx);
   }
   else
   {
-    assert(!pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx));
+    assert(!pcCU->getPaletteScanRotationModeFlag(absPartIdx));
   }
 
-  if( uiSignalEscape )
+  if( signalEscape )
   {
     if( pcCU->getSlice()->getPPS()->getUseDQP() && bCodeDQP && *bCodeDQP )
     {
-      codeDeltaQP( pcCU, uiAbsPartIdx );
+      codeDeltaQP( pcCU, absPartIdx );
       *bCodeDQP = false;
     }
 
-    if( pcCU->getSlice()->getUseChromaQpAdj() && !pcCU->getCUTransquantBypass( uiAbsPartIdx ) && codeChromaQpAdj && *codeChromaQpAdj )
+    if( pcCU->getSlice()->getUseChromaQpAdj() && !pcCU->getCUTransquantBypass( absPartIdx ) && codeChromaQpAdj && *codeChromaQpAdj )
     {
-      codeChromaQpAdjustment( pcCU, uiAbsPartIdx );
+      codeChromaQpAdjustment( pcCU, absPartIdx );
       *codeChromaQpAdj = false;
     }
   }
 
-  uiIdx = 0;
-  while ( uiIdx < uiTotal )
+  idx = 0;
+  while ( idx < total )
   {
-    UInt uiTraIdx = m_puiScanOrder[uiIdx];  //unified position variable (raster scan)
-    if (uiIndexMaxSize > 1)
+    UInt traIdx = m_pScanOrder[idx];  //unified position variable (raster scan)
+    if (indexMaxSize > 1)
     {
-      if ( uiTraIdx >= width && pSPoint[m_puiScanOrder[uiIdx - 1]] != PALETTE_RUN_ABOVE )
+      if ( traIdx >= width && pSPoint[m_pScanOrder[idx - 1]] != PALETTE_RUN_ABOVE )
       {
-        UInt mode = pSPoint[uiTraIdx];
-        if ( uiNumIndices && uiIdx < uiTotal - 1 )
+        UInt mode = pSPoint[traIdx];
+        if ( numIndices && idx < total - 1 )
         {
           m_pcBinIf->encodeBin( mode, m_SPointSCModel.get( 0, 0, 0 ) );
         }
@@ -752,12 +752,12 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt 
     }
     Pel siCurLevel = 0;
     {
-      if ( pSPoint[uiTraIdx] == PALETTE_RUN_LEFT )
+      if ( pSPoint[traIdx] == PALETTE_RUN_LEFT )
       {
-        UInt uiRealLevel = pLevel[uiTraIdx];
-        if( pEscapeFlag[uiTraIdx] )
+        UInt uiRealLevel = pLevel[traIdx];
+        if( pEscapeFlag[traIdx] )
         {
-          pLevel[uiTraIdx] = uiIndexMaxSize - 1;
+          pLevel[traIdx] = indexMaxSize - 1;
         }
         if (!lParsedIdxList.empty())
         {
@@ -768,74 +768,74 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt 
         {
           siCurLevel = 0;
         }
-        if( pEscapeFlag[uiTraIdx] )
+        if( pEscapeFlag[traIdx] )
         {
-          pLevel[uiTraIdx] = uiRealLevel;
+          pLevel[traIdx] = uiRealLevel;
         }
       }
-      uiRun = (UInt)pRun[uiTraIdx];
-      if ( uiIndexMaxSize > 1 )
+      run = (UInt)pRun[traIdx];
+      if ( indexMaxSize > 1 )
       {
-        if (iLastRunPos != uiIdx)
+        if (iLastRunPos != idx)
         {
-          uiNumIndices -= (pSPoint[uiTraIdx] == PALETTE_RUN_LEFT);
-          encodeRun(uiRun, pSPoint[uiTraIdx], siCurLevel, uiTotal - uiNumIndices - uiIdx - 1 - lastRunType);
+          numIndices -= (pSPoint[traIdx] == PALETTE_RUN_LEFT);
+          encodeRun(run, pSPoint[traIdx], siCurLevel, total - numIndices - idx - 1 - lastRunType);
         }
       }
 
-      uiIdx += (uiRun + 1);
+      idx += (run + 1);
     }
   }
-  assert(uiIdx == uiTotal);
-  for (UInt comp = compBegin; comp < compBegin + uiNumComp; comp++)
+  assert(idx == total);
+  for (UInt comp = compBegin; comp < compBegin + numComp; comp++)
   {
-    for( uiIdx = 0; uiIdx < uiTotal; uiIdx ++ )
+    for( idx = 0; idx < total; idx ++ )
     {
-      UInt uiTraIdx = m_puiScanOrder[uiIdx];
-      if( pEscapeFlag[uiTraIdx] )
+      UInt traIdx = m_pScanOrder[idx];
+      if( pEscapeFlag[traIdx] )
       {
-        UInt uiY, uiX;
-        uiY = uiTraIdx/width;
-        uiX = uiTraIdx%width;
-        UInt uiXC, uiYC, uiTraIdxC;
-        if(!pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx))
+        UInt y, x;
+        y = traIdx/width;
+        x = traIdx%width;
+        UInt xC, yC, traIdxC;
+        if(!pcCU->getPaletteScanRotationModeFlag(absPartIdx))
         {
-          uiXC = (uiX>>uiScaleX);
-          uiYC = (uiY>>uiScaleY);
-          uiTraIdxC = uiYC * (width>>uiScaleX) + uiXC;
+          xC = (x>>scaleX);
+          yC = (y>>scaleY);
+          traIdxC = yC * (width>>scaleX) + xC;
         }
         else
         {
-          uiXC = (uiX>>uiScaleY);
-          uiYC = (uiY>>uiScaleX);
-          uiTraIdxC = uiYC * (height>>uiScaleY) + uiXC;
+          xC = (x>>scaleY);
+          yC = (y>>scaleX);
+          traIdxC = yC * (height>>scaleY) + xC;
         }
 
         if ( comp == compBegin )
         {
           if ( isLossless )
           {
-            m_pcBinIf->encodeBinsEP( (UInt)pPixelValue[comp][uiTraIdx], pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) );
+            m_pcBinIf->encodeBinsEP( (UInt)pPixelValue[comp][traIdx], pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) );
           }
           else
           {
-            xWriteEpExGolomb( (UInt)pPixelValue[comp][uiTraIdx], 3 );
+            xWriteEpExGolomb( (UInt)pPixelValue[comp][traIdx], 3 );
           }
         }
         else
         {
           if(   pcCU->getPic()->getChromaFormat() == CHROMA_444 ||
-            ( pcCU->getPic()->getChromaFormat() == CHROMA_420 && ((uiX&1) == 0) && ((uiY&1) == 0)) ||
-            ( pcCU->getPic()->getChromaFormat() == CHROMA_422 && ((!pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx) && ((uiX&1) == 0)) || (pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx) && ((uiY&1) == 0))) )
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_420 && ((x&1) == 0) && ((y&1) == 0)) ||
+            ( pcCU->getPic()->getChromaFormat() == CHROMA_422 && ((!pcCU->getPaletteScanRotationModeFlag(absPartIdx) && ((x&1) == 0)) || (pcCU->getPaletteScanRotationModeFlag(absPartIdx) && ((y&1) == 0))) )
             )
           {
             if ( isLossless )
             {
-              m_pcBinIf->encodeBinsEP( (UInt)pPixelValue[comp][uiTraIdxC], pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) );
+              m_pcBinIf->encodeBinsEP( (UInt)pPixelValue[comp][traIdxC], pcCU->getSlice()->getSPS()->getBitDepth( comp > 0 ? CHANNEL_TYPE_CHROMA : CHANNEL_TYPE_LUMA ) );
             }
             else
             {
-              xWriteEpExGolomb( (UInt)pPixelValue[comp][uiTraIdxC], 3 );
+              xWriteEpExGolomb( (UInt)pPixelValue[comp][traIdxC], 3 );
             }
           }
         }
@@ -844,11 +844,11 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt 
   }
 }
 
-Void TEncSbac::codeScanRotationModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx )
+Void TEncSbac::codeScanRotationModeFlag( TComDataCU* pcCU, UInt absPartIdx )
 {
-  UInt uiSymbol = pcCU->getPaletteScanRotationModeFlag(uiAbsPartIdx);
-  UInt uiCtx = 0;
-  m_pcBinIf->encodeBin( uiSymbol, m_paletteScanRotationModeFlagSCModel.get( 0, 0, uiCtx ) );
+  UInt symbol = pcCU->getPaletteScanRotationModeFlag(absPartIdx);
+  UInt ctx = 0;
+  m_pcBinIf->encodeBin( symbol, m_paletteScanRotationModeFlagSCModel.get( 0, 0, ctx ) );
 }
 
 

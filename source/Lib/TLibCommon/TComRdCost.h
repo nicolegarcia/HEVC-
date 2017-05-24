@@ -208,16 +208,16 @@ public:
   {
     if( !iVal ) return 1;
 
-    UInt uiLength = 1;
-    UInt uiTemp   = ( iVal <= 0) ? (-iVal<<1)+1: (iVal<<1);
+    UInt length = 1;
+    UInt temp   = ( iVal <= 0) ? (-iVal<<1)+1: (iVal<<1);
 
-    while ( 1 != uiTemp )
+    while ( 1 != temp )
     {
-      uiTemp >>= 1;
-      uiLength += 2;
+      temp >>= 1;
+      length += 2;
     }
 
-    return uiLength;
+    return length;
   }
 
 

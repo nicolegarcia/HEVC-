@@ -157,8 +157,8 @@ protected:
   Bool      m_useColourTrans;
   Bool      m_useLL;
   Bool      m_usePaletteMode;
-  UInt      m_uiPaletteMaxSize;
-  UInt      m_uiPaletteMaxPredSize;
+  UInt      m_paletteMaxSize;
+  UInt      m_paletteMaxPredSize;
   Int       m_motionVectorResolutionControlIdc;
   Bool      m_palettePredInSPSEnabled;
   Bool      m_palettePredInPPSEnabled;
