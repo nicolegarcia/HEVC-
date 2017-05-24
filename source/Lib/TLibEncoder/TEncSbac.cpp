@@ -449,7 +449,7 @@ Pel TEncSbac::writePaletteIndex(UInt uiIdx, Pel *pLevel, Int iMaxSymbol, UChar *
   return siCurLevel;
 }
 
-Void TEncSbac::xEncodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize)
+Void TEncSbac::xEncodePalettePredIndicator(Bool *bReusedPrev, UInt paletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize)
 {
   Int lastPredIdx = -1;
   UInt run = 0;
@@ -580,7 +580,7 @@ Void TEncSbac::encodeSPoint( TComDataCU *pcCU, UInt uiAbsPartIdx, UInt uiIdx, UI
 
 Void TEncSbac::codePaletteModeFlag(TComDataCU *pcCU, UInt absPartIdx)
 {
-  UInt symbol = pcCU->getPaletteModeFlag(absPartIdx);
+  UInt symbol = pcCU->getPaletteModeFlag(absPartIdx) ? 1 : 0;
   m_pcBinIf->encodeBin(symbol, m_paletteModeFlagSCModel.get(0, 0, 0));
 }
 
@@ -647,7 +647,7 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt absPartIdx, UInt nu
 
   {
     pcCU->getPalettePred( pcCU, absPartIdx, compBegin, paletteSizePrev );
-    UChar *bReusedPrev;
+    Bool *bReusedPrev;
     UInt numPaletteRceived = dictMaxSize, numPalettePredicted = 0;
 
     bReusedPrev = pcCU->getPrevPaletteReusedFlag( compBegin, absPartIdx );
@@ -846,7 +846,7 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt absPartIdx, UInt nu
 
 Void TEncSbac::codeScanRotationModeFlag( TComDataCU* pcCU, UInt absPartIdx )
 {
-  UInt symbol = pcCU->getPaletteScanRotationModeFlag(absPartIdx);
+  UInt symbol = pcCU->getPaletteScanRotationModeFlag(absPartIdx) ? 1 : 0;
   UInt ctx = 0;
   m_pcBinIf->encodeBin( symbol, m_paletteScanRotationModeFlagSCModel.get( 0, 0, ctx ) );
 }

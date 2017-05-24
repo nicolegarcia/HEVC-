@@ -207,7 +207,7 @@ Void TComDataCU::create( ChromaFormat chromaFormatIDC, UInt uiNumPartition, UInt
       m_piSPoint[compID]            = (UChar*)xMalloc(UChar, totalSize);
       m_piLevel[compID]                 = (Pel*  )xMalloc(Pel, totalSize);
       m_puhPaletteEscape[compID]        = (UChar*)xMalloc(Bool, uiNumPartition);
-      m_bPrevPaletteReusedFlag[comp]    = (UChar*)xMalloc(UChar, (uiNumPartition >> 2) * m_paletteMaxPredSize);
+      m_bPrevPaletteReusedFlag[comp]    = (Bool*)xMalloc(Bool, (uiNumPartition >> 2) * m_paletteMaxPredSize);
       m_piLastPaletteInLcuFinal[compID] = (Pel*  )xMalloc(Pel, m_paletteMaxPredSize);
       m_piEscapeFlag[comp]          = (UChar*)xMalloc(UChar, totalSize);
     }
@@ -649,7 +649,7 @@ Void TComDataCU::initEstData( const UInt uiDepth, const Int qp, const Bool bTran
       }
       for (UInt paletteIdx = 0; paletteIdx < m_paletteMaxPredSize; paletteIdx++)
       {
-        m_bPrevPaletteReusedFlag[comp][(ui >> 2) * m_paletteMaxPredSize + paletteIdx] = 0;
+        m_bPrevPaletteReusedFlag[comp][(ui >> 2) * m_paletteMaxPredSize + paletteIdx] = false;
       }
     }
   }
@@ -1045,7 +1045,7 @@ Void TComDataCU::copyPartFrom( TComDataCU* pcCU, UInt uiPartUnitIdx, UInt uiDept
     memcpy( m_puhCbf[comp]                        + uiOffset, pcCU->getCbf(ComponentID(comp))                          , iSizeInUchar );
     memcpy( m_explicitRdpcmMode[comp]             + uiOffset, pcCU->getExplicitRdpcmMode(ComponentID(comp))            , iSizeInUchar );
     memcpy( m_piPalette[comp] + (uiOffset >> 2) * m_paletteMaxSize, pcCU->getPalette(comp), sizeof(Pel) * (uiNumPartition >> 2) * m_paletteMaxSize );
-    memcpy( m_bPrevPaletteReusedFlag[comp] + (uiOffset >> 2) * m_paletteMaxPredSize, pcCU->getPrevPaletteReusedFlag(comp), sizeof(UChar) * (uiNumPartition >> 2) * m_paletteMaxPredSize );
+    memcpy( m_bPrevPaletteReusedFlag[comp] + (uiOffset >> 2) * m_paletteMaxPredSize, pcCU->getPrevPaletteReusedFlag(comp), sizeof(Bool) * (uiNumPartition >> 2) * m_paletteMaxPredSize );
     memcpy( m_puhPaletteEscape[comp]              + uiOffset, pcCU->getPaletteEscape(ComponentID(comp))                , iSizeInUchar );
   }
 
@@ -1136,7 +1136,7 @@ Void TComDataCU::copyToPic( UChar uhDepth )
     memcpy( pCtu->getCbf(ComponentID(comp))                           + m_absZIdxInCtu, m_puhCbf[comp],                        iSizeInUchar );
     memcpy( pCtu->getExplicitRdpcmMode(ComponentID(comp))             + m_absZIdxInCtu, m_explicitRdpcmMode[comp],             iSizeInUchar );
     memcpy( pCtu->getPalette(comp)               + (m_absZIdxInCtu >> 2) * m_paletteMaxSize,     m_piPalette[comp],              sizeof(Pel)  * m_paletteMaxSize     * (m_uiNumPartition >> 2));
-    memcpy( pCtu->getPrevPaletteReusedFlag(comp) + (m_absZIdxInCtu >> 2) * m_paletteMaxPredSize, m_bPrevPaletteReusedFlag[comp], sizeof(UChar)* m_paletteMaxPredSize * (m_uiNumPartition >> 2));
+    memcpy( pCtu->getPrevPaletteReusedFlag(comp) + (m_absZIdxInCtu >> 2) * m_paletteMaxPredSize, m_bPrevPaletteReusedFlag[comp], sizeof(Bool) * m_paletteMaxPredSize * (m_uiNumPartition >> 2));
     memcpy( pCtu->getPaletteEscape(comp)                              + m_absZIdxInCtu, m_puhPaletteEscape[comp],              iSizeInUchar  );
   }
 
@@ -3483,12 +3483,12 @@ Void TComDataCU::setPaletteModeFlagSubParts  (Bool bPaletteModeFlag, UInt absPar
   memset(m_pbPaletteModeFlag + absPartIdx, bPaletteModeFlag, sizeof(Bool) * uiCurrPartNumb );
 }
 
-Void TComDataCU::setPrevPaletteReusedFlagSubParts ( UChar ucCh,  UChar value, UInt paletteIdx, UInt absPartIdx, UInt depth  )
+Void TComDataCU::setPrevPaletteReusedFlagSubParts (UChar ucCh, Bool b, UInt paletteIdx, UInt absPartIdx, UInt depth)
 {
   UInt currPartNumb = m_pcPic->getNumPartitionsInCtu() >> (depth << 1);
   for (UInt idx = 0; idx < currPartNumb; idx ++)
   {
-    m_bPrevPaletteReusedFlag[ucCh][((absPartIdx+idx) >> 2 ) * m_paletteMaxPredSize + paletteIdx] = value;
+    m_bPrevPaletteReusedFlag[ucCh][((absPartIdx+idx) >> 2 ) * m_paletteMaxPredSize + paletteIdx] = b;
   }
 }
 

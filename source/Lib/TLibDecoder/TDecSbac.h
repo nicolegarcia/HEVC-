@@ -98,7 +98,7 @@ private:
   Void  xReadEpExGolomb     ( UInt& ruiSymbol, UInt uiCount, const class TComCodingStatisticsClassType &whichStat );
   Void  xReadCoefRemainExGolomb ( UInt &rSymbol, UInt &rParam, const Bool useLimitedPrefixLength, const Int maxLog2TrDynamicRange, const class TComCodingStatisticsClassType &whichStat );
   Void  xDecodeRun          (UInt & ruiSymbol, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun, const class TComCodingStatisticsClassType &whichStat);
-  Void  xDecodePalettePredIndicator (UChar *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize, const class TComCodingStatisticsClassType &whichStat);
+  Void  xDecodePalettePredIndicator (Bool *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize, const class TComCodingStatisticsClassType &whichStat);
   Void  xReadTruncBinCode   (UInt& ruiSymbol, UInt uiMaxSymbol, const class TComCodingStatisticsClassType &whichStat);
   Void  xAdjustPaletteIndex(UInt siCurLevel, UInt idx, Pel *pLevel, Int iMaxSymbol,
                       const class TComCodingStatisticsClassType &whichStat, UChar *pSPoint = 0, Int iWidth = 0,
@@ -113,7 +113,7 @@ private:
   Void  xReadEpExGolomb     ( UInt& ruiSymbol, UInt uiCount );
   Void  xReadCoefRemainExGolomb ( UInt &rSymbol, UInt &rParam, const Bool useLimitedPrefixLength, const Int maxLog2TrDynamicRange );
   Void  xDecodeRun          (UInt & ruiSymbol, Bool bCopyTopMode, const UInt paletteIdx, const UInt uiMaxRun);
-  Void  xDecodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize);
+  Void  xDecodePalettePredIndicator(Bool *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize);
   Void  xReadTruncBinCode       (UInt& ruiSymbol, UInt uiMaxSymbol);
   Void  xAdjustPaletteIndex(UInt siCurLevel, UInt idx, Pel *pLevel, Int iMaxSymbol, UChar *pSPoint = 0, Int iWidth = 0,
                        UChar *pEscapeFlag = 0);

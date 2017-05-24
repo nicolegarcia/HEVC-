@@ -795,7 +795,7 @@ Bool TAppEncCfg::parseCfg( Int argc, TChar* argv[] )
   ("IntraConstraintFlag",                             m_intraConstraintFlag,                            false, "Value of general_intra_constraint_flag to use for RExt profiles (not used if an explicit RExt sub-profile is specified)")
   ("OnePictureOnlyConstraintFlag",                    m_onePictureOnlyConstraintFlag,                   false, "Value of general_one_picture_only_constraint_flag to use for RExt profiles (not used if an explicit RExt sub-profile is specified)")
   ("LowerBitRateConstraintFlag",                      m_lowerBitRateConstraintFlag,                      true, "Value of general_lower_bit_rate_constraint_flag to use for RExt profiles")
-  ("SCCHighThroughputFlag",                           m_sccHighThroughputFlag,                             0u, "High throughput setting for SCC profile is enabled or not")
+  ("SCCHighThroughputFlag",                           m_sccHighThroughputFlag,                          false, "High throughput setting for SCC profile is enabled or not")
   ("ProgressiveSource",                               m_progressiveSourceFlag,                          false, "Indicate that source is progressive")
   ("InterlacedSource",                                m_interlacedSourceFlag,                           false, "Indicate that source is interlaced")
   ("NonPackedSource",                                 m_nonPackedConstraintFlag,                        false, "Indicate that source does not contain frame packing")
@@ -1806,13 +1806,13 @@ Void TAppEncCfg::xCheckParameter()
     }
     else if (m_profile == Profile::MAINSCC)
     {
-       xConfirmPara( m_intraConstraintFlag , "intra constraint flag must be 0 for SCC profiles");
-       xConfirmPara( m_onePictureOnlyConstraintFlag , "one-picture-only constraint flag shall be 0 for SCC profiles");       
+      xConfirmPara( m_intraConstraintFlag , "intra constraint flag must be 0 for SCC profiles");
+      xConfirmPara( m_onePictureOnlyConstraintFlag , "one-picture-only constraint flag shall be 0 for SCC profiles");
 
-      const UInt sccHighThroughputFlag = m_sccHighThroughputFlag ? 1:0;
+      const UInt sccHighThroughputIdx = m_sccHighThroughputFlag ? 1:0;
       const UInt bitDepthIdx = (m_bitDepthConstraint == 8 ? 0 : (m_bitDepthConstraint ==10 ? 1 : (m_bitDepthConstraint == 12 ? 2 : (m_bitDepthConstraint == 16 ? 3 : 4 ))));
       const UInt chromaFormatIdx = UInt(m_chromaFormatConstraint);
-      const Bool bValidProfile = (bitDepthIdx > 2 || chromaFormatIdx>3) ? false : (validSCCProfileNames[sccHighThroughputFlag][bitDepthIdx][chromaFormatIdx] != NONE);
+      const Bool bValidProfile = (bitDepthIdx > 2 || chromaFormatIdx>3) ? false : (validSCCProfileNames[sccHighThroughputIdx][bitDepthIdx][chromaFormatIdx] != NONE);
       xConfirmPara(!bValidProfile, "Invalid intra constraint flag, bit depth constraint flag and chroma format constraint flag combination for a RExt profile");
 
       const Bool bUsingChromaQPTool      = m_diffCuChromaQpOffsetDepth >= 0;

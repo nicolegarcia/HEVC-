@@ -144,8 +144,8 @@ private:
   Pel*          m_piLevel[MAX_NUM_COMPONENT];           ///< in run mode, it is the sample index in palette; in PCM mode, it is the abs sample value;
   Bool*         m_pbPaletteModeFlag;                          ///< array of intra_pcm flags
   Pel*          m_piPalette[MAX_NUM_COMPONENT];               ///< Palette
-  UChar*        m_bPrevPaletteReusedFlag[MAX_NUM_COMPONENT];  ///< Palette
-  UChar *       m_puhPaletteEscape[MAX_NUM_COMPONENT];
+  Bool*         m_bPrevPaletteReusedFlag[MAX_NUM_COMPONENT];  ///< Palette
+  UChar*        m_puhPaletteEscape[MAX_NUM_COMPONENT];
   Pel*          m_piLastPaletteInLcuFinal[MAX_NUM_COMPONENT]; ///< Palette
   UChar         m_uhLastPaletteSizeFinal[MAX_NUM_COMPONENT];
   UChar         m_uhLastPaletteUsedSizeFinal[MAX_NUM_COMPONENT];
@@ -404,11 +404,11 @@ public:
   Void          setPaletteEscape          (UChar ucCh, UInt idx, Bool b)      { m_puhPaletteEscape[ucCh][idx] = b;    }
   Void          setPaletteEscapeSubParts  (UChar ucCh, UChar ucUseEscape, UInt absPartIdx, UInt depth);
 
-  UChar*        getPrevPaletteReusedFlag  (UChar ucCh)                                           { return m_bPrevPaletteReusedFlag[ucCh]; }
-  UChar*        getPrevPaletteReusedFlag  (UChar ucCh, UInt idx )                                { return m_bPrevPaletteReusedFlag[ucCh]+ (idx>> 2) * m_paletteMaxPredSize; }
-  UChar         getPrevPaletteReusedFlag  (UChar ucCh, UInt idx, UInt paletteIdx)                { return m_bPrevPaletteReusedFlag[ucCh][(idx >> 2) * m_paletteMaxPredSize + paletteIdx]; }
-  Void          setPrevPaletteReusedFlag  (UChar ucCh, UInt idx, UChar uiValue, UInt paletteIdx) { m_bPrevPaletteReusedFlag[ucCh][(idx >> 2) * m_paletteMaxPredSize + paletteIdx] = uiValue; }
-  Void          setPrevPaletteReusedFlagSubParts(UChar ucCh, UChar value, UInt paletteIdx, UInt absPartIdx, UInt depth);
+  Bool*         getPrevPaletteReusedFlag  (UChar ucCh)                                           { return m_bPrevPaletteReusedFlag[ucCh]; }
+  Bool*         getPrevPaletteReusedFlag  (UChar ucCh, UInt idx )                                { return m_bPrevPaletteReusedFlag[ucCh]+ (idx>> 2) * m_paletteMaxPredSize; }
+  Bool          getPrevPaletteReusedFlag  (UChar ucCh, UInt idx, UInt paletteIdx)                { return m_bPrevPaletteReusedFlag[ucCh][(idx >> 2) * m_paletteMaxPredSize + paletteIdx]; }
+  Void          setPrevPaletteReusedFlag  (UChar ucCh, UInt idx, Bool b, UInt paletteIdx)        { m_bPrevPaletteReusedFlag[ucCh][(idx >> 2) * m_paletteMaxPredSize + paletteIdx] = b; }
+  Void          setPrevPaletteReusedFlagSubParts(UChar ucCh, Bool b, UInt paletteIdx, UInt absPartIdx, UInt depth);
 
   Pel*          getPalettePred(TComDataCU* pcCU, UInt absPartIdx, UInt ch, UInt& paletteSizePrev);
   UChar         getLastPaletteInLcuSizeFinal     (UChar ucCh)           { return m_uhLastPaletteSizeFinal[ucCh]; }

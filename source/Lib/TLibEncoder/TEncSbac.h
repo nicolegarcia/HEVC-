@@ -121,7 +121,7 @@ public:
 private:
   Void  xWriteUnarySymbol    ( UInt uiSymbol, ContextModel* pcSCModel, Int iOffset );
   Void  xWriteUnaryMaxSymbol ( UInt uiSymbol, ContextModel* pcSCModel, Int iOffset, UInt uiMaxSymbol );
-  Void  xEncodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize);
+  Void  xEncodePalettePredIndicator(Bool *bReusedPrev, UInt paletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize);
   Void  xWriteTruncBinCode      ( UInt symbol, UInt maxSymbol );
   Void  codeScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx );
   Void  xWriteEpExGolomb     ( UInt uiSymbol, UInt uiCount );

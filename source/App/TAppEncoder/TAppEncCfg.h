@@ -128,7 +128,7 @@ protected:
   Bool m_interlacedSourceFlag;
   Bool m_nonPackedConstraintFlag;
   Bool m_frameOnlyConstraintFlag;
-  UInt m_sccHighThroughputFlag;
+  Bool m_sccHighThroughputFlag;
 
   // coding structure
   Int       m_iIntraPeriod;                                   ///< period of I-slice (random access period)

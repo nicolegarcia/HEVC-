@@ -584,9 +584,9 @@ Void  TDecSbac::xDecodeRun(UInt & ruiSymbol, Bool bCopyTopMode, const UInt palet
 }
 
 #if RExt__DECODER_DEBUG_BIT_STATISTICS
-Void TDecSbac::xDecodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize, const class TComCodingStatisticsClassType &whichStat)
+Void TDecSbac::xDecodePalettePredIndicator(Bool *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize, const class TComCodingStatisticsClassType &whichStat)
 #else
-Void TDecSbac::xDecodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize)
+Void TDecSbac::xDecodePalettePredIndicator(Bool *bReusedPrev, UInt paletteSizePrev, UInt maxPaletteSize)
 #endif
 {
   UInt symbol, numPalettePredicted = 0, idx = 0;
@@ -611,7 +611,7 @@ Void TDecSbac::xDecodePalettePredIndicator(UChar *bReusedPrev, UInt paletteSizeP
         idx += symbol - 1;
       }
 
-      bReusedPrev[idx] = 1;
+      bReusedPrev[idx] = true;
 
       numPalettePredicted++;
       idx++;
@@ -688,7 +688,7 @@ Void TDecSbac::parsePaletteModeSyntax(TComDataCU *pcCU, UInt absPartIdx, UInt de
   Bool isScanTraverseMode = true;
 
   {
-    UChar *bReusedPrev = pcCU->getPrevPaletteReusedFlag( compBegin, absPartIdx );
+    Bool *bReusedPrev = pcCU->getPrevPaletteReusedFlag( compBegin, absPartIdx );
     UInt numPaletteRceived = 0, numPalettePredicted = 0;
     memset( bReusedPrev, 0, sizeof( UChar ) * paletteSizePrev );
     if ( paletteSizePrev )
