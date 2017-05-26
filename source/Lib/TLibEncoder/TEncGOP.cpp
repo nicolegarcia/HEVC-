@@ -830,142 +830,6 @@ Void TEncGOP::xUpdateDuInfoSEI(SEIMessages &duInfoSeiMessages, SEIPictureTiming 
   }
 }
 
-Bool TEncGOP::xGetUseIntegerMv( TComSlice* pcSlice )
-{
-  if ( !m_pcCfg->getUseHashBasedME() )
-  {
-    return false;
-  }
-
-  const Int blockSize = 8;
-  const Double thresholdCurrent = 0.8;
-  const Double thresholdAverage = 0.95;
-  const Int maxHistorySize = 32;
-  Int T = 0;  // total block
-  Int C = 0;  // match with collocated block
-  Int S = 0;  // smooth region but not match with collocated block
-  Int M = 0;  // match with other block
-  TComPic* pcPic = pcSlice->getPic();
-  const Int picWidth = pcPic->getPicYuvOrg()->getWidth( COMPONENT_Y );
-  const Int picHeight = pcPic->getPicYuvOrg()->getHeight( COMPONENT_Y );
-  for ( Int i=0; i+blockSize <= picHeight; i+=blockSize )
-  {
-    for ( Int j=0; j+blockSize <= picWidth; j+=blockSize )
-    {
-      T++;
-      Int xPos = j;
-      Int yPos = i;
-      UInt hashValue1;
-      UInt hashValue2;
-
-      // check whether collocated block match with current
-      Pel* pCur = pcPic->getPicYuvOrg()->getAddr( COMPONENT_Y );
-      Pel* pRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getAddr( COMPONENT_Y );
-      Int strideCur = pcPic->getPicYuvOrg()->getStride( COMPONENT_Y );
-      Int strideRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getStride( COMPONENT_Y );
-      pCur += ( yPos*strideCur + xPos );
-      pRef += ( yPos*strideRef + xPos );
-
-      Bool match = true;
-      for ( Int tmpY = 0; tmpY < blockSize && match; tmpY++ )
-      {
-        for ( Int tmpX = 0; tmpX < blockSize && match; tmpX++ )
-        {
-          if ( pCur[tmpX] != pRef[tmpX] )
-          {
-            match = false;
-          }
-        }
-        pCur += strideCur;
-        pRef += strideRef;
-      }
-
-      if ( match )
-      {
-        C++;
-        continue;
-      }
-
-      if ( TComHash::isHorizontalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) ||
-           TComHash::isVerticalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) )
-      {
-        S++;
-        continue;
-      }
-
-      TComHash::getBlockHashValue( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos, pcSlice->getSPS()->getBitDepths(), hashValue1, hashValue2 );
-      if ( pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getHashMap()->hasExactMatch( hashValue1, hashValue2 ) )
-      {
-        M++;
-      }
-    }
-  }
-
-  assert( T > 0 );
-  Double csmRate = static_cast<Double>(C+S+M) / static_cast<Double>(T);
-  Double mRate   = static_cast<Double>(M)     / static_cast<Double>(T);
-
-  if ( m_CSMRate.size() >= maxHistorySize )
-  {
-    m_CSMRate.pop_front();
-  }
-  m_CSMRate.push_back( csmRate );
-
-  if ( m_MRate.size() >= maxHistorySize )
-  {
-    m_MRate.pop_front();
-  }
-  m_MRate.push_back( mRate );
-  
-  if ( csmRate < thresholdCurrent )
-  {
-    return false;
-  }
-
-  if ( C == T )
-  {
-    return true;
-  }
-
-  Double CSMAverage = 0.0;
-  Double MAverage = 0.0;
-  list<Double>::iterator it;
-  for ( it = m_CSMRate.begin(); it != m_CSMRate.end(); it++ )
-  {
-    CSMAverage += (*it);
-  }
-  CSMAverage /= m_CSMRate.size();
-
-  for ( it = m_MRate.begin(); it != m_MRate.end(); it++ )
-  {
-    MAverage += (*it);
-  }
-  MAverage /= m_MRate.size();
-
-  if ( CSMAverage < thresholdAverage )
-  {
-    return false;
-  }
-  
-  if ( M > (T-C-S)/3 )
-  {
-    return true;
-  }
-
-  if ( csmRate > 0.99 && mRate > 0.01 )
-  {
-    return true;
-  }
-
-
-  if ( CSMAverage + MAverage > 1.01 )
-  {
-    return true;
-  }
-
-  return false;
-}
-
 static Void
 cabac_zero_word_padding(TComSlice *const pcSlice, TComPic *const pcPic, const std::size_t binCountsInNalUnits, const std::size_t numBytesInVclNalUnits, std::ostringstream &nalUnitData, const Bool cabacZeroWordPaddingEnabled)
 {
@@ -1342,7 +1206,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     {
       pcSlice->setSliceType(I_SLICE);
     }
-
+    
     if ( pcSlice->getSliceType() == I_SLICE && pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
     {
       pcSlice->setSliceType( P_SLICE );
@@ -3032,21 +2896,6 @@ Void TEncGOP::applyDeblockingFilterMetric( TComPic* pcPic, UInt uiNumSlices )
   }
 }
 
-TComPPS* TEncGOP::getPPS(Int id)
-{
-  return m_pcEncTop->getPPS(id);
-}
-
-TComPPS* TEncGOP::copyToNewPPS(Int ppsId, TComPPS* pps0)
-{
-  return m_pcEncTop->copyToNewPPS(ppsId, pps0);
-}
-
-TComSPS* TEncGOP::getSPS(Int id)
-{
-  return m_pcEncTop->getSPS(id);
-}
-
 Void TEncGOP::applyDeblockingFilterParameterSelection( TComPic* pcPic, const UInt numSlices, const Int gopID )
 {
   enum DBFltParam
@@ -3166,4 +3015,155 @@ Void TEncGOP::applyDeblockingFilterParameterSelection( TComPic* pcPic, const UIn
   }
 }
 
+// SCM new added functions
+Bool TEncGOP::xGetUseIntegerMv( TComSlice* pcSlice )
+{
+  if ( !m_pcCfg->getUseHashBasedME() )
+  {
+    return false;
+  }
+
+  const Int blockSize = 8;
+  const Double thresholdCurrent = 0.8;
+  const Double thresholdAverage = 0.95;
+  const Int maxHistorySize = 32;
+  Int T = 0;  // total block
+  Int C = 0;  // match with collocated block
+  Int S = 0;  // smooth region but not match with collocated block
+  Int M = 0;  // match with other block
+  TComPic* pcPic = pcSlice->getPic();
+  const Int picWidth = pcPic->getPicYuvOrg()->getWidth( COMPONENT_Y );
+  const Int picHeight = pcPic->getPicYuvOrg()->getHeight( COMPONENT_Y );
+  for ( Int i=0; i+blockSize <= picHeight; i+=blockSize )
+  {
+    for ( Int j=0; j+blockSize <= picWidth; j+=blockSize )
+    {
+      T++;
+      Int xPos = j;
+      Int yPos = i;
+      UInt hashValue1;
+      UInt hashValue2;
+
+      // check whether collocated block match with current
+      Pel* pCur = pcPic->getPicYuvOrg()->getAddr( COMPONENT_Y );
+      Pel* pRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getAddr( COMPONENT_Y );
+      Int strideCur = pcPic->getPicYuvOrg()->getStride( COMPONENT_Y );
+      Int strideRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getStride( COMPONENT_Y );
+      pCur += ( yPos*strideCur + xPos );
+      pRef += ( yPos*strideRef + xPos );
+
+      Bool match = true;
+      for ( Int tmpY = 0; tmpY < blockSize && match; tmpY++ )
+      {
+        for ( Int tmpX = 0; tmpX < blockSize && match; tmpX++ )
+        {
+          if ( pCur[tmpX] != pRef[tmpX] )
+          {
+            match = false;
+          }
+        }
+        pCur += strideCur;
+        pRef += strideRef;
+      }
+
+      if ( match )
+      {
+        C++;
+        continue;
+      }
+
+      if ( TComHash::isHorizontalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) ||
+        TComHash::isVerticalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) )
+      {
+        S++;
+        continue;
+      }
+
+      TComHash::getBlockHashValue( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos, pcSlice->getSPS()->getBitDepths(), hashValue1, hashValue2 );
+      if ( pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getHashMap()->hasExactMatch( hashValue1, hashValue2 ) )
+      {
+        M++;
+      }
+    }
+  }
+
+  assert( T > 0 );
+  Double csmRate = static_cast<Double>(C+S+M) / static_cast<Double>(T);
+  Double mRate   = static_cast<Double>(M)     / static_cast<Double>(T);
+
+  if ( m_CSMRate.size() >= maxHistorySize )
+  {
+    m_CSMRate.pop_front();
+  }
+  m_CSMRate.push_back( csmRate );
+
+  if ( m_MRate.size() >= maxHistorySize )
+  {
+    m_MRate.pop_front();
+  }
+  m_MRate.push_back( mRate );
+
+  if ( csmRate < thresholdCurrent )
+  {
+    return false;
+  }
+
+  if ( C == T )
+  {
+    return true;
+  }
+
+  Double CSMAverage = 0.0;
+  Double MAverage = 0.0;
+  list<Double>::iterator it;
+  for ( it = m_CSMRate.begin(); it != m_CSMRate.end(); it++ )
+  {
+    CSMAverage += (*it);
+  }
+  CSMAverage /= m_CSMRate.size();
+
+  for ( it = m_MRate.begin(); it != m_MRate.end(); it++ )
+  {
+    MAverage += (*it);
+  }
+  MAverage /= m_MRate.size();
+
+  if ( CSMAverage < thresholdAverage )
+  {
+    return false;
+  }
+
+  if ( M > (T-C-S)/3 )
+  {
+    return true;
+  }
+
+  if ( csmRate > 0.99 && mRate > 0.01 )
+  {
+    return true;
+  }
+
+
+  if ( CSMAverage + MAverage > 1.01 )
+  {
+    return true;
+  }
+
+  return false;
+}
+
+TComPPS* TEncGOP::getPPS(Int id)
+{
+  return m_pcEncTop->getPPS(id);
+}
+
+TComPPS* TEncGOP::copyToNewPPS(Int ppsId, TComPPS* pps0)
+{
+  return m_pcEncTop->copyToNewPPS(ppsId, pps0);
+}
+
+TComSPS* TEncGOP::getSPS(Int id)
+{
+  return m_pcEncTop->getSPS(id);
+}
 //! \}

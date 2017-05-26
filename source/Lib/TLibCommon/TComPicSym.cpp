@@ -72,10 +72,12 @@ TComPicSym::TComPicSym()
 #endif
 {}
 
+
 TComPicSym::~TComPicSym()
 {
   destroy();
 }
+
 
 #if REDUCED_ENCODER_MEMORY
 Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDepth, const Bool bAllocateCtuArray )
@@ -176,7 +178,8 @@ Void TComPicSym::prepareForReconstruction()
     for (UInt i=0; i<m_numCtusInFrame ; i++ )
     {
       m_pictureCtuArray[i] = new TComDataCU;
-      m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth, paletteMaxSize, paletteMaxPredSize
+      m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
+        , paletteMaxSize, paletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
         , m_pParentARLBuffer
 #endif

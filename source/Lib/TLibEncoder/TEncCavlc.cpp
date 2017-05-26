@@ -1072,7 +1072,6 @@ Void TEncCavlc::codeSliceHeader         ( TComSlice* pcSlice )
         WRITE_UVLC( pcSlice->getColRefIdx(), "collocated_ref_idx" );
       }
     }
-
     if ( (pcSlice->getPPS()->getUseWP() && pcSlice->getSliceType()==P_SLICE) || (pcSlice->getPPS()->getWPBiPred() && pcSlice->getSliceType()==B_SLICE) )
     {
       xCodePredWeightTable( pcSlice );
@@ -1319,17 +1318,6 @@ Void TEncCavlc::codeCUTransquantBypassFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPa
   assert(0);
 }
 
-Void TEncCavlc:: codePaletteModeFlag( TComDataCU* /*pcCU*/, UInt /*absPartIdx*/ )
-{
-  assert(0);
-}
-
-Void TEncCavlc::codePaletteModeSyntax(TComDataCU* /*pcCU*/, UInt /*absPartIdx*/, UInt /*numComp*/, Bool* /*bCodeDQP*/, Bool* /*codeChromaQpAdjFlag*/)
-{
-  assert(0);
-}
-
-
 Void TEncCavlc::codeSkipFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/ )
 {
   assert(0);
@@ -1385,11 +1373,6 @@ Void TEncCavlc::codeIntraDirLumaAng( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/
 }
 
 Void TEncCavlc::codeIntraDirChroma( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/ )
-{
-  assert(0);
-}
-
-Void TEncCavlc::codeColourTransformFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/ )
 {
   assert(0);
 }
@@ -1636,4 +1619,18 @@ Void TEncCavlc:: codeScanRotationModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx )
 }
 
 
+Void TEncCavlc:: codePaletteModeFlag( TComDataCU* /*pcCU*/, UInt /*absPartIdx*/ )
+{
+  assert(0);
+}
+
+Void TEncCavlc::codePaletteModeSyntax(TComDataCU* /*pcCU*/, UInt /*absPartIdx*/, UInt /*numComp*/, Bool* /*bCodeDQP*/, Bool* /*codeChromaQpAdjFlag*/)
+{
+  assert(0);
+}
+
+Void TEncCavlc::codeColourTransformFlag( TComDataCU* /*pcCU*/, UInt /*absPartIdx*/ )
+{
+  assert(0);
+}
 //! \}

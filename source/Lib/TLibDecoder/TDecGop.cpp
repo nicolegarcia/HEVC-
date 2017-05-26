@@ -99,6 +99,7 @@ Void TDecGop::init( TDecEntropy*            pcEntropyDecoder,
 // ====================================================================================================================
 // Public member functions
 // ====================================================================================================================
+
 Void TDecGop::decompressSlice(TComInputBitstream* pcBitstream, TComPic* pcPic, TComPic* pcPicAfterILF)
 {
   TComSlice*  pcSlice = pcPic->getSlice(pcPic->getCurrSliceIdx());
@@ -152,7 +153,6 @@ Void TDecGop::filterPicture(TComPic* pcPic)
 
   pcPic->compressMotion();
   TChar c = (pcSlice->isIntra() ? 'I' : pcSlice->isInterP() ? 'P' : 'B');
-
   if (!pcSlice->isReferenced())
   {
     c += 32;

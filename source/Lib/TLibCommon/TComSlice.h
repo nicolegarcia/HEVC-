@@ -1031,7 +1031,6 @@ public:
   TComSPSRExt&           getSpsRangeExtension()                                                          { return m_spsRangeExtension;                                          }
   const TComSPSSCC&      getSpsScreenExtension() const                                                   { return m_spsScreenExtension;                                         }
   TComSPSSCC&            getSpsScreenExtension()                                                         { return m_spsScreenExtension;                                         }
-
 };
 
 
@@ -1218,7 +1217,7 @@ private:
   Bool             m_listsModificationPresentFlag;
   UInt             m_log2ParallelMergeLevelMinus2;
   Int              m_numExtraSliceHeaderBits;
- 
+
   TComPPSRExt      m_ppsRangeExtension;
   TComPPSSCC       m_ppsScreenExtension;
 
@@ -1335,8 +1334,6 @@ public:
   TComPPSRExt&           getPpsRangeExtension()                                           { return m_ppsRangeExtension;                   }
   const TComPPSSCC&      getPpsScreenExtension() const                                    { return m_ppsScreenExtension;                  }
   TComPPSSCC&            getPpsScreenExtension()                                          { return m_ppsScreenExtension;                  }
-
-
 };
 
 struct WPScalingParam
@@ -1399,7 +1396,6 @@ private:
   //  Data
   Int                        m_iSliceQpDelta;
   Int                        m_iSliceChromaQpDelta[MAX_NUM_COMPONENT];
-  Int                        m_iSliceACTQpDelta[MAX_NUM_COMPONENT];
   TComPic*                   m_apcRefPicList [NUM_REF_PIC_LIST_01][MAX_NUM_REF+1];
   Int                        m_aiRefPOCList  [NUM_REF_PIC_LIST_01][MAX_NUM_REF+1];
   Bool                       m_bIsUsedAsLongTerm[NUM_REF_PIC_LIST_01][MAX_NUM_REF+1];
@@ -1457,14 +1453,14 @@ private:
   Bool                       m_LFCrossSliceBoundaryFlag;
 
   Bool                       m_enableTMVPFlag;
-  Bool                       m_useIntegerMv;
-
-  TComPic*                   m_pcLastEncPic;
 
   SliceType                  m_encCABACTableIdx;           // Used to transmit table selection across slices.
 
+  Bool                       m_useIntegerMv;
+  TComPic*                   m_pcLastEncPic;
   TComPic*                   m_pcCurPicLongTerm;
   Bool                       m_pcTwoVersionsOfCurrDecPicFlag;
+  Int                        m_iSliceACTQpDelta[MAX_NUM_COMPONENT];
 
 public:
                               TComSlice();
@@ -1509,7 +1505,6 @@ public:
 #endif
   Int                         getSliceQpDelta() const                                { return m_iSliceQpDelta;                                       }
   Int                         getSliceChromaQpDelta(ComponentID compID) const        { return isLuma(compID) ? 0 : m_iSliceChromaQpDelta[compID];    }
-  Int                         getSliceActQpDelta(ComponentID compID)    const        { return  m_iSliceACTQpDelta[compID];                           }
   Bool                        getUseChromaQpAdj() const                              { return m_ChromaQpAdjEnabled;                                  }
   Bool                        getDeblockingFilterDisable() const                     { return m_deblockingFilterDisable;                             }
   Bool                        getDeblockingFilterOverrideFlag() const                { return m_deblockingFilterOverrideFlag;                        }
@@ -1549,7 +1544,6 @@ public:
   Void                        setSliceQpBase( Int i )                                { m_iSliceQpBase      = i;                                      }
 #endif
   Void                        setSliceQpDelta( Int i )                               { m_iSliceQpDelta     = i;                                      }
-  Void                        setSliceActQpDelta( ComponentID compID, Int i )        { m_iSliceACTQpDelta[compID] = i;                               }
   Void                        setSliceChromaQpDelta( ComponentID compID, Int i )     { m_iSliceChromaQpDelta[compID] = isLuma(compID) ? 0 : i;       }
   Void                        setUseChromaQpAdj( Bool b )                            { m_ChromaQpAdjEnabled = b;                                     }
   Void                        setDeblockingFilterDisable( Bool b )                   { m_deblockingFilterDisable= b;                                 }
@@ -1565,7 +1559,6 @@ public:
 
   Void                        setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTotalCurr = false );
   Void                        setRefPOCList();
-  Void                        setRefPOCListSliceHeader();
   Void                        setColFromL0Flag( Bool colFromL0 )                     { m_colFromL0Flag = colFromL0;                                  }
   Void                        setColRefIdx( UInt refIdx)                             { m_colRefIdx = refIdx;                                         }
   Void                        setCheckLDC( Bool b )                                  { m_bCheckLDC = b;                                              }
@@ -1686,17 +1679,17 @@ public:
   Void                        setEnableTMVPFlag( Bool   b )                          { m_enableTMVPFlag = b;                                         }
   Bool                        getEnableTMVPFlag() const                              { return m_enableTMVPFlag;                                      }
 
-  Void                        setUseIntegerMv( Bool b    )                           { m_useIntegerMv = b;                                           }
-  Bool                        getUseIntegerMv() const                                { return m_useIntegerMv;                                        }
-
-  TComPic*                    getLastEncPic()                                        { return m_pcLastEncPic;                                        }
-  Void                        setLastEncPic(TComPic *pcPic)                          { m_pcLastEncPic=pcPic;                                         }
-
   Void                        setEncCABACTableIdx( SliceType idx )                   { m_encCABACTableIdx = idx;                                     }
   SliceType                   getEncCABACTableIdx() const                            { return m_encCABACTableIdx;                                    }
 
+  Int                         getSliceActQpDelta(ComponentID compID)    const        { return  m_iSliceACTQpDelta[compID];                           }
+  Void                        setSliceActQpDelta( ComponentID compID, Int i )        { m_iSliceACTQpDelta[compID] = i;                               }
   Bool                        isOnlyCurrentPictureAsReference();
-
+  Void                        setRefPOCListSliceHeader();
+  Void                        setUseIntegerMv( Bool b    )                           { m_useIntegerMv = b;                                           }
+  Bool                        getUseIntegerMv() const                                { return m_useIntegerMv;                                        }
+  TComPic*                    getLastEncPic()                                        { return m_pcLastEncPic;                                        }
+  Void                        setLastEncPic(TComPic *pcPic)                          { m_pcLastEncPic=pcPic;                                         }
   TComPic*                    getCurPicLongTerm()                                    { return m_pcCurPicLongTerm;                                    }
   Void                        setCurPicLongTerm( TComPic* p )                        { m_pcCurPicLongTerm = p;                                       }
   Bool                        getTwoVersionsOfCurrDecPicFlag()                       { return m_pcTwoVersionsOfCurrDecPicFlag;                       }

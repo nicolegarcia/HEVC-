@@ -99,10 +99,10 @@ QpParam::QpParam(const Int           qpy,
   rem=baseQp%6;
 }
 
-QpParam::QpParam(const TComDataCU &cu, const ComponentID compID, UInt uiAbsPartIdx)
+QpParam::QpParam(const TComDataCU &cu, const ComponentID compID, UInt absPartIdx)
 {
   Int chromaQpOffset = 0;
-  Bool cuACTFlag = cu.getColourTransform(uiAbsPartIdx);
+  Bool cuACTFlag = cu.getColourTransform(absPartIdx);
 
   if( !cuACTFlag )
   {
@@ -1769,27 +1769,27 @@ Void TComTrQuant::invRecurTransformACTNxN( TComYuv *pResidual, TComTU &rTu )
 {
   TComDataCU* pcCU  = rTu.getCU();
   UInt absPartIdxTU = rTu.GetAbsPartIdxTU();
-  UInt uiTrMode     = rTu.GetTransformDepthRel();
+  UInt trMode       = rTu.GetTransformDepthRel();
   const TComRectangle& rect = rTu.getRect(COMPONENT_Y);
   const Bool extendedPrecision = rTu.getCU()->getSlice()->getSPS()->getSpsRangeExtension().getExtendedPrecisionProcessingFlag();
 
-  if( uiTrMode == pcCU->getTransformIdx( absPartIdxTU ) )
+  if( trMode == pcCU->getTransformIdx( absPartIdxTU ) )
   {
     for( UInt ch = 0; ch < pcCU->getPic()->getNumberValidComponents(); ch++ )
     {
       ComponentID compID               = ComponentID(ch);
       const TComRectangle &tuRect      = rTu.getRect(compID);
-      const Int            uiStride    = pResidual->getStride( compID );
+      const Int            stride      = pResidual->getStride( compID );
       Pel                 *rpcResidual = pResidual->getAddr( compID );
-      UInt                 uiAddr      = (tuRect.x0 + uiStride*tuRect.y0);
-      Pel                 *pResi       = rpcResidual + uiAddr;
+      UInt                 addr        = (tuRect.x0 + stride*tuRect.y0);
+      Pel                 *pResi       = rpcResidual + addr;
       TCoeff              *rpcCoeff    = pcCU->getCoeff(compID) + rTu.getCoefficientOffset(compID);
 
       QpParam cQP(*pcCU, compID, absPartIdxTU);
 
-      if ( pcCU->getCbf( absPartIdxTU, compID, uiTrMode ) != 0 )
+      if ( pcCU->getCbf( absPartIdxTU, compID, trMode ) != 0 )
       {
-        invTransformNxN( rTu, compID, pResi, uiStride, rpcCoeff, cQP DEBUG_STRING_PASS_INTO( psDebug ) );
+        invTransformNxN( rTu, compID, pResi, stride, rpcCoeff, cQP DEBUG_STRING_PASS_INTO( psDebug ) );
       }
 
       if (isChroma(compID) && (pcCU->getCrossComponentPredictionAlpha(absPartIdxTU, compID) != 0))
@@ -1799,17 +1799,17 @@ Void TComTrQuant::invRecurTransformACTNxN( TComYuv *pResidual, TComTU &rTu )
         const Int  tuWidth    = rTu.getRect( compID ).width;
         const Int  tuHeight   = rTu.getRect( compID ).height;
 
-        if(pcCU->getCbf(absPartIdxTU, COMPONENT_Y, uiTrMode) != 0)
+        if(pcCU->getCbf(absPartIdxTU, COMPONENT_Y, trMode) != 0)
         {
-          pResi = rpcResidual + uiAddr;
-          const Pel *pResiLuma = piResiLuma + uiAddr;
+          pResi = rpcResidual + addr;
+          const Pel *pResiLuma = piResiLuma + addr;
 
-          crossComponentPrediction( rTu, compID, pResiLuma, pResi, pResi, tuWidth, tuHeight, strideLuma, uiStride, uiStride, true );
+          crossComponentPrediction( rTu, compID, pResiLuma, pResi, pResi, tuWidth, tuHeight, strideLuma, stride, stride, true );
         }
       }
     }
 
-    if( pcCU->getColourTransform(absPartIdxTU) && ( pcCU->getCbf(absPartIdxTU,COMPONENT_Y, uiTrMode) || pcCU->getCbf(absPartIdxTU,COMPONENT_Cb, uiTrMode) || pcCU->getCbf(absPartIdxTU,COMPONENT_Cr, uiTrMode) ) )
+    if( pcCU->getColourTransform(absPartIdxTU) && ( pcCU->getCbf(absPartIdxTU,COMPONENT_Y, trMode) || pcCU->getCbf(absPartIdxTU,COMPONENT_Cb, trMode) || pcCU->getCbf(absPartIdxTU,COMPONENT_Cr, trMode) ) )
     {
       pResidual->convert(extendedPrecision, rect.x0, rect.y0, rect.width, false, pcCU->getSlice()->getSPS()->getBitDepths(), pcCU->isLosslessCoded(absPartIdxTU));
     }
@@ -1823,6 +1823,17 @@ Void TComTrQuant::invRecurTransformACTNxN( TComYuv *pResidual, TComTU &rTu )
     }
     while (tuRecurseChild.nextSection(rTu));
   }
+}
+
+Void TComTrQuant::adjustBitDepthandLambdaForColourTrans(Int delta_QP)
+{
+  Double lamdbaAdjustRate = pow(2.0, delta_QP / 3.0);
+
+  for (UInt component = 0; component < MAX_NUM_COMPONENT; component++) 
+  {
+    m_lambdas[component] = m_lambdas[component] * lamdbaAdjustRate;
+  }
+  m_dLambda = m_dLambda * lamdbaAdjustRate;
 }
 
 Void TComTrQuant::applyForwardRDPCM( TComTU& rTu, const ComponentID compID, Pel* pcResidual, const UInt uiStride, const QpParam& cQP, TCoeff* pcCoeff, TCoeff &uiAbsSum, const RDPCMMode mode )
@@ -3617,18 +3628,5 @@ Void TComTrQuant::crossComponentPrediction(       TComTU      & rTu,
     pResiT += strideT;
   }
 }
-
-Void TComTrQuant::adjustBitDepthandLambdaForColourTrans(Int delta_QP)
-{
-  Double lamdbaAdjustRate = pow(2.0, delta_QP / 3.0);
-
-  for (UInt component = 0; component < MAX_NUM_COMPONENT; component++) 
-  {
-    m_lambdas[component] = m_lambdas[component] * lamdbaAdjustRate;
-  }
-  m_dLambda = m_dLambda * lamdbaAdjustRate;
-}
-
-
 
 //! \}

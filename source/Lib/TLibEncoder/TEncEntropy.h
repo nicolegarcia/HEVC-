@@ -77,17 +77,12 @@ public:
 
 public:
   virtual Void codeCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
-  virtual Void codePaletteModeFlag          ( TComDataCU* pcCU, UInt absPartIdx ) = 0;
-  virtual Void codePaletteModeSyntax        (TComDataCU* pcCU, UInt absPartIdx, UInt numComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag) = 0;
-
-  virtual Void codeScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx ) = 0;
   virtual Void codeSkipFlag      ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
   virtual Void codeMergeFlag     ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
   virtual Void codeMergeIndex    ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
   virtual Void codeSplitFlag     ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth ) = 0;
 
   virtual Void codePartSize      ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth ) = 0;
-  virtual Void codeColourTransformFlag( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
   virtual Void codePredMode      ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
 
   virtual Void codeIPCMInfo      ( TComDataCU* pcCU, UInt uiAbsPartIdx ) = 0;
@@ -113,6 +108,11 @@ public:
   virtual Void codeSAOBlkParam   (SAOBlkParam& saoBlkParam, const BitDepths &bitDepths, Bool* sliceEnabled, Bool leftMergeAvail, Bool aboveMergeAvail, Bool onlyEstMergeInfo = false)    =0;
   virtual Void estBit               (estBitsSbacStruct* pcEstBitsSbac, Int width, Int height, ChannelType chType, COEFF_SCAN_TYPE scanType) = 0;
   virtual Void codeExplicitRdpcmMode ( TComTU &rTu, const ComponentID compID ) = 0;
+
+  virtual Void codePaletteModeFlag          ( TComDataCU* pcCU, UInt absPartIdx ) = 0;
+  virtual Void codePaletteModeSyntax        (TComDataCU* pcCU, UInt absPartIdx, UInt numComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag) = 0;
+  virtual Void codeScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx ) = 0;
+  virtual Void codeColourTransformFlag( TComDataCU* pcCU, UInt absPartIdx ) = 0;
 
   virtual ~TEncEntropyIf() {}
 };
@@ -166,6 +166,7 @@ public:
   Void encodeQtRootCbf         ( TComDataCU* pcCU, UInt uiAbsPartIdx );
   Void encodeQP                ( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false );
   Void encodeChromaQpAdjustment ( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false );
+
   Void encodeCrossComponentPrediction( TComTU &rTu, ComponentID compID );
 
 private:

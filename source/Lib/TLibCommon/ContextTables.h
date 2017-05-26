@@ -74,7 +74,6 @@
 #define NUM_SIG_CG_FLAG_CTX           2       ///< number of context models for MULTI_LEVEL_SIGNIFICANCE
 #define NUM_EXPLICIT_RDPCM_FLAG_CTX   1       ///< number of context models for the flag which specifies whether to use RDPCM on inter coded residues
 #define NUM_EXPLICIT_RDPCM_DIR_CTX    1       ///< number of context models for the flag which specifies which RDPCM direction is used on inter coded residues
-#define NUM_COLOUR_TRANS_CTX          1
 
 //--------------------------------------------------------------------------------------------------
 
@@ -164,6 +163,7 @@ static const UInt notFirstGroupNeighbourhoodContextOffset[MAX_NUM_CHANNEL_TYPE] 
 
 #define CNU                          154      ///< dummy initialization value for unused context models 'Context model Not Used'
 
+#define NUM_COLOUR_TRANS_CTX          1
 #define NUM_PALETTE_MODE_FLAG_CTX     1
 #define NUM_SPOINT_CTX                1
 #define NUM_TOP_RUN_CTX               3
@@ -182,45 +182,6 @@ struct PaletteInfoBuffer
 // ====================================================================================================================
 // Tables
 // ====================================================================================================================
-static const UChar
-INIT_PALETTE_MODE_FLAG[NUMBER_OF_SLICE_TYPES][NUM_PALETTE_MODE_FLAG_CTX] =
-{
-  { 154 },
-  { 154 },
-  { 154 },
-};
-
-static const UChar
-INIT_SPOINT[NUMBER_OF_SLICE_TYPES][NUM_SPOINT_CTX] =
-{
-  { 154 },
-  { 154 },
-  { 154 },
-};
-
-static const UChar
-INIT_TOP_RUN[NUMBER_OF_SLICE_TYPES][NUM_TOP_RUN_CTX] =
-{
-  { 154, 154, 154 },
-  { 154, 154, 154 },
-  { 154, 154, 154 },
-};
-
-static const UChar
-INIT_RUN[NUMBER_OF_SLICE_TYPES][NUM_LEFT_RUN_CTX] =
-{
-  { 154, 154, 154, 154, 154 }, 
-  { 154, 154, 154, 154, 154 }, 
-  { 154, 154, 154, 154, 154 }, 
-};
-
-static const UChar
-INIT_SCAN_ROTATION_FLAG[NUMBER_OF_SLICE_TYPES][NUM_SCAN_ROTATION_FLAG_CTX] =
-{
-  { 154 },
-  { 154 },
-  { 154 },
-};
 
 // initial probability for cu_transquant_bypass flag
 static const UChar
@@ -377,13 +338,6 @@ INIT_QT_ROOT_CBF[NUMBER_OF_SLICE_TYPES][NUM_QT_ROOT_CBF_CTX] =
   { CNU, },
 };
 
-static const UChar
-INIT_COLOUR_TRANS[NUMBER_OF_SLICE_TYPES][NUM_COLOUR_TRANS_CTX] =
-{
-  { 154, },
-  { 154, },
-  { 154, },
-};
 
 //--------------------------------------------------------------------------------------------------
 
@@ -557,6 +511,55 @@ INIT_CROSS_COMPONENT_PREDICTION[NUMBER_OF_SLICE_TYPES][NUM_CROSS_COMPONENT_PREDI
   { 154, 154, 154, 154, 154, 154, 154, 154, 154, 154 },
   { 154, 154, 154, 154, 154, 154, 154, 154, 154, 154 },
   { 154, 154, 154, 154, 154, 154, 154, 154, 154, 154 },
+};
+
+// SCM new added contexts
+static const UChar
+INIT_COLOUR_TRANS[NUMBER_OF_SLICE_TYPES][NUM_COLOUR_TRANS_CTX] =
+{
+  { 154, },
+  { 154, },
+  { 154, },
+};
+
+static const UChar
+INIT_PALETTE_MODE_FLAG[NUMBER_OF_SLICE_TYPES][NUM_PALETTE_MODE_FLAG_CTX] =
+{
+  { 154 },
+  { 154 },
+  { 154 },
+};
+
+static const UChar
+INIT_SPOINT[NUMBER_OF_SLICE_TYPES][NUM_SPOINT_CTX] =
+{
+  { 154 },
+  { 154 },
+  { 154 },
+};
+
+static const UChar
+INIT_TOP_RUN[NUMBER_OF_SLICE_TYPES][NUM_TOP_RUN_CTX] =
+{
+  { 154, 154, 154 },
+  { 154, 154, 154 },
+  { 154, 154, 154 },
+};
+
+static const UChar
+INIT_RUN[NUMBER_OF_SLICE_TYPES][NUM_LEFT_RUN_CTX] =
+{
+  { 154, 154, 154, 154, 154 }, 
+  { 154, 154, 154, 154, 154 }, 
+  { 154, 154, 154, 154, 154 }, 
+};
+
+static const UChar
+INIT_SCAN_ROTATION_FLAG[NUMBER_OF_SLICE_TYPES][NUM_SCAN_ROTATION_FLAG_CTX] =
+{
+  { 154 },
+  { 154 },
+  { 154 },
 };
 
 //! \}

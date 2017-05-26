@@ -44,7 +44,6 @@
 
 #include <vector>
 #include <utility>
-#include <cstdlib>
 
 //! \ingroup TLibCommon
 //! \{
@@ -177,6 +176,7 @@
   #define DEBUG_STRING_SWAP(srt1, str2)
   #define DEBUG_STRING_CHANNEL_CONDITION(compID)
 #endif
+
 // ====================================================================================================================
 // Error checks
 // ====================================================================================================================
@@ -184,22 +184,6 @@
 #if ((RExt__HIGH_PRECISION_FORWARD_TRANSFORM != 0) && (RExt__HIGH_BIT_DEPTH_SUPPORT == 0))
 #error ERROR: cannot enable RExt__HIGH_PRECISION_FORWARD_TRANSFORM without RExt__HIGH_BIT_DEPTH_SUPPORT
 #endif
-
-// ====================================================================================================================
-// SCC control settings
-// ====================================================================================================================
-
-//------------------------------------------------
-// Processing controls
-//------------------------------------------------
-
-//------------------------------------------------
-// Derived macros
-//------------------------------------------------
-
-//------------------------------------------------
-// Backwards-compatibility
-//------------------------------------------------
 
 // ====================================================================================================================
 // Basic type redefinition
@@ -378,7 +362,6 @@ enum RefPicList
   REF_PIC_LIST_1               = 1,   ///< reference list 1
   REF_PIC_LIST_INTRABC         = 0,
   NUM_REF_PIC_LIST_01          = 2,
-  NUM_REF_PIC_LIST_CU_MV_FIELD = 2,
   REF_PIC_LIST_X               = 100  ///< special mark
 };
 
@@ -750,13 +733,6 @@ enum NalUnitType
   NAL_UNIT_INVALID,
 };
 
-enum ACTRDTestTypes
-{
-  ACT_TWO_CLR            = 0,  //two color space
-  ACT_TRAN_CLR           = 1,  //transformed color space
-  ACT_ORG_CLR            = 2   //original color space
-};
-
 enum LumaLevelToDQPMode
 {
   LUMALVL_TO_DQP_DISABLED   = 0,
@@ -929,6 +905,13 @@ struct TComACTTURDCost
   UInt   uiIsCSCEnabled;        //0 - original; 1 - transform; 2 - neutral
 };
 
+enum ACTRDTestTypes
+{
+  ACT_TWO_CLR            = 0,  //two color space
+  ACT_TRAN_CLR           = 1,  //transformed color space
+  ACT_ORG_CLR            = 2   //original color space
+};
+
 enum PaletteRunMode
 {
   PALETTE_RUN_LEFT  = 0,
@@ -1034,7 +1017,6 @@ public:
     }
   }
 };
-
 
 //! \}
 

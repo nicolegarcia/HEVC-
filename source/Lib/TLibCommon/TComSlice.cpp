@@ -106,9 +106,9 @@ TComSlice::TComSlice()
 , m_temporalLayerNonReferenceFlag ( false )
 , m_LFCrossSliceBoundaryFlag      ( false )
 , m_enableTMVPFlag                ( true )
+, m_encCABACTableIdx              (I_SLICE)
 , m_useIntegerMv                  ( false )
 , m_pcLastEncPic                  ( NULL )
-, m_encCABACTableIdx              (I_SLICE)
 , m_pcCurPicLongTerm              ( NULL )
 , m_pcTwoVersionsOfCurrDecPicFlag ( false )
 {
@@ -233,32 +233,6 @@ Void  TComSlice::sortPicList        (TComList<TComPic*>& rcListPic)
   }
 }
 
-Bool TComSlice::isOnlyCurrentPictureAsReference()
-{
-  if ( m_eSliceType == I_SLICE )
-  {
-    return true;
-  }
-
-  for ( Int i=0; i < getNumRefIdx( REF_PIC_LIST_0 ); i++ )
-  {
-    if ( getRefPic( REF_PIC_LIST_0, i )->getPOC() != getPOC() )
-    {
-      return false;
-    }
-  }
-
-  for ( Int i=0; i < getNumRefIdx( REF_PIC_LIST_1 ); i++ )
-  {
-    if ( getRefPic( REF_PIC_LIST_1, i )->getPOC() != getPOC() )
-    {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 TComPic* TComSlice::xGetRefPic (TComList<TComPic*>& rcListPic, Int poc)
 {
   TComList<TComPic*>::iterator  iterPic = rcListPic.begin();
@@ -354,6 +328,7 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
   {
     ::memset( m_apcRefPicList, 0, sizeof (m_apcRefPicList));
     ::memset( m_aiNumRefIdx,   0, sizeof ( m_aiNumRefIdx ));
+
     if (!checkNumPocTotalCurr)
     {
       if( m_pRPS->getNumberOfPictures() == 0 )
@@ -451,11 +426,11 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
     {
       if ( getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
       {
-        assert( numPicTotalCurr == 1 );
+        assert(numPicTotalCurr == 1);
       }
       else
       {
-        assert( numPicTotalCurr == 0 );
+        assert(numPicTotalCurr == 0);
       }
     }
 
@@ -542,6 +517,32 @@ Void TComSlice::setRefPicList( TComList<TComPic*>& rcListPic, Bool checkNumPocTo
       m_bIsUsedAsLongTerm[REF_PIC_LIST_1][rIdx] = ( cIdx >= NumPicStCurr0 + NumPicStCurr1 );
     }
   }
+}
+
+Bool TComSlice::isOnlyCurrentPictureAsReference()
+{
+  if ( m_eSliceType == I_SLICE )
+  {
+    return true;
+  }
+
+  for ( Int i=0; i < getNumRefIdx( REF_PIC_LIST_0 ); i++ )
+  {
+    if ( getRefPic( REF_PIC_LIST_0, i )->getPOC() != getPOC() )
+    {
+      return false;
+    }
+  }
+
+  for ( Int i=0; i < getNumRefIdx( REF_PIC_LIST_1 ); i++ )
+  {
+    if ( getRefPic( REF_PIC_LIST_1, i )->getPOC() != getPOC() )
+    {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 Void TComSlice::setRefPOCListSliceHeader()
@@ -683,7 +684,7 @@ Int TComSlice::getNumRpsCurrTempList() const
 {
   Int numRpsCurrTempList = 0;
 
-  if ( m_eSliceType == I_SLICE )
+  if (m_eSliceType == I_SLICE)
   {
     return 0;
   }
@@ -819,7 +820,6 @@ Void TComSlice::decodingRefreshMarking(Int& pocCRA, Bool& bRefreshPending, TComL
     {
       rpcPic = *(iterPic);
       rpcPic->setCurrSliceIdx(0);
-
       if (rpcPic->getPOC() != pocCurr)
       {
         rpcPic->getSlice(0)->setReferenced(false);
@@ -991,9 +991,9 @@ Void TComSlice::copySliceInfo(TComSlice *pSrc)
   m_enableTMVPFlag                = pSrc->m_enableTMVPFlag;
   m_maxNumMergeCand               = pSrc->m_maxNumMergeCand;
   m_encCABACTableIdx              = pSrc->m_encCABACTableIdx;
-
   m_RefPicListModification        = pSrc->m_RefPicListModification;
 }
+
 
 /** Function for setting the slice's temporal layer ID and corresponding temporal_layer_switching_point_flag.
  * \param uiTLayer Temporal layer ID of the current slice

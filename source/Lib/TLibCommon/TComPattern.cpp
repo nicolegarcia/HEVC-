@@ -41,8 +41,7 @@
 #include "TComTU.h"
 #include "Debug.h"
 #include "TComPrediction.h"
-#include <cmath>
-#include <algorithm>
+
 //! \ingroup TLibCommon
 //! \{
 
@@ -573,7 +572,7 @@ Bool isAboveLeftAvailable( const TComDataCU* pcCU, UInt uiPartIdxLT )
   const TComDataCU* pcCUAboveLeft = pcCU->getPUAboveLeft( uiPartAboveLeft, uiPartIdxLT );
   if(pcCU->getSlice()->getPPS()->getConstrainedIntraPred())
   {
-    bAboveLeftFlag = ( pcCUAboveLeft && pcCUAboveLeft->isConstrainedIntra( uiPartAboveLeft ) );
+    bAboveLeftFlag = ( pcCUAboveLeft && pcCUAboveLeft->isIntra( uiPartAboveLeft ) );
   }
   else
   {
@@ -596,7 +595,7 @@ Int isAboveAvailable( const TComDataCU* pcCU, UInt uiPartIdxLT, UInt uiPartIdxRT
     const TComDataCU* pcCUAbove = pcCU->getPUAbove( uiPartAbove, g_auiRasterToZscan[uiRasterPart] );
     if(pcCU->getSlice()->getPPS()->getConstrainedIntraPred())
     {
-      if ( pcCUAbove && pcCUAbove->isConstrainedIntra( uiPartAbove ) )
+      if ( pcCUAbove && pcCUAbove->isIntra( uiPartAbove ) )
       {
         iNumIntra++;
         *pbValidFlags = true;
@@ -637,7 +636,7 @@ Int isLeftAvailable( const TComDataCU* pcCU, UInt uiPartIdxLT, UInt uiPartIdxLB,
     const TComDataCU* pcCULeft = pcCU->getPULeft( uiPartLeft, g_auiRasterToZscan[uiRasterPart] );
     if(pcCU->getSlice()->getPPS()->getConstrainedIntraPred())
     {
-      if ( pcCULeft && pcCULeft->isConstrainedIntra( uiPartLeft ) )
+      if ( pcCULeft && pcCULeft->isIntra( uiPartLeft ) )
       {
         iNumIntra++;
         *pbValidFlags = true;
@@ -677,7 +676,7 @@ Int isAboveRightAvailable( const TComDataCU* pcCU, UInt uiPartIdxLT, UInt uiPart
     const TComDataCU* pcCUAboveRight = pcCU->getPUAboveRight( uiPartAboveRight, uiPartIdxRT, uiOffset );
     if(pcCU->getSlice()->getPPS()->getConstrainedIntraPred())
     {
-      if ( pcCUAboveRight && pcCUAboveRight->isConstrainedIntra( uiPartAboveRight ) )
+      if ( pcCUAboveRight && pcCUAboveRight->isIntra( uiPartAboveRight ) )
       {
         iNumIntra++;
         *pbValidFlags = true;
@@ -717,7 +716,7 @@ Int isBelowLeftAvailable( const TComDataCU* pcCU, UInt uiPartIdxLT, UInt uiPartI
     const TComDataCU* pcCUBelowLeft = pcCU->getPUBelowLeft( uiPartBelowLeft, uiPartIdxLB, uiOffset );
     if(pcCU->getSlice()->getPPS()->getConstrainedIntraPred())
     {
-      if ( pcCUBelowLeft && pcCUBelowLeft->isConstrainedIntra( uiPartBelowLeft ) )
+      if ( pcCUBelowLeft && pcCUBelowLeft->isIntra( uiPartBelowLeft ) )
       {
         iNumIntra++;
         *pbValidFlags = true;

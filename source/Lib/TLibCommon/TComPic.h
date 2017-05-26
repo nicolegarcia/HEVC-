@@ -67,7 +67,7 @@ private:
   Bool                  m_bIsLongTerm;            //  IS long term picture
   TComPicSym            m_picSym;                 //  Symbol
   TComPicYuv*           m_apcPicYuv[NUM_PIC_YUV];
-  TComPicYuv*           m_apcPicYuvCSC;
+
   TComPicYuv*           m_pcPicYuvPred;           //  Prediction
   TComPicYuv*           m_pcPicYuvResi;           //  Residual
   Bool                  m_bReconstructed;
@@ -85,6 +85,7 @@ private:
   TComHash              m_hashMap;
   Bool                  m_bCurPic;
   Bool                  m_bInDPB;
+  TComPicYuv*           m_apcPicYuvCSC;
 
 public:
   TComPic();
@@ -100,7 +101,6 @@ public:
 #else
   Void          create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirtual /*= false*/ );
 #endif
-  Void          copyPicInfo(const TComPic& sComPic);
 
   virtual Void  destroy();
 
@@ -123,19 +123,7 @@ public:
   const TComDataCU* getCtu( UInt ctuRsAddr ) const { return  m_picSym.getCtu( ctuRsAddr ); }
 
   TComPicYuv*   getPicYuvOrg()        { return  m_apcPicYuv[PIC_YUV_ORG]; }
-  const TComPicYuv* getPicYuvOrg() const { return  m_apcPicYuv[PIC_YUV_ORG]; }
   TComPicYuv*   getPicYuvRec()        { return  m_apcPicYuv[PIC_YUV_REC]; }
-  TComPicYuv*   getPicYuvCSC()        { return  m_apcPicYuvCSC; }
-  Void          allocateCSCBuffer( Int iWidth, Int iHeight, ChromaFormat chromaFormatIDC, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth )
-                { assert( m_apcPicYuvCSC == NULL ); m_apcPicYuvCSC = new TComPicYuv; m_apcPicYuvCSC->create( iWidth, iHeight, chromaFormatIDC, uiMaxWidth, uiMaxHeight, uiMaxDepth, true ); }
-  Void          releaseCSCBuffer()    { m_apcPicYuvCSC->destroy(); delete m_apcPicYuvCSC; m_apcPicYuvCSC = NULL; }
-  Void          exchangePicYuvRec()
-                {
-                   TComPicYuv* pcTmpPicYuv;
-                   pcTmpPicYuv = m_apcPicYuv[PIC_YUV_REC];
-                   m_apcPicYuv[PIC_YUV_REC] = m_apcPicYuvCSC;
-                   m_apcPicYuvCSC = pcTmpPicYuv;
-                }
 
   TComPicYuv*   getPicYuvPred()       { return  m_pcPicYuvPred; }
   TComPicYuv*   getPicYuvResi()       { return  m_pcPicYuvResi; }
@@ -163,9 +151,6 @@ public:
   Bool          getOutputMark () const      { return m_bNeededForOutput;  }
 
   Void          compressMotion();
-#if REDUCED_ENCODER_MEMORY
-  Void          storeMotionForIBCEnc();
-#endif
   UInt          getCurrSliceIdx() const           { return m_uiCurrSliceIdx;                }
   Void          setCurrSliceIdx(UInt i)      { m_uiCurrSliceIdx = i;                   }
   UInt          getNumAllocatedSlice() const      {return m_picSym.getNumAllocatedSlice();}
@@ -178,7 +163,16 @@ public:
   Bool          getSAOMergeAvailability(Int currAddr, Int mergeAddr);
 
   UInt          getSubstreamForCtuAddr(const UInt ctuAddr, const Bool bAddressInRaster, TComSlice *pcSlice);
-  
+
+  Void          copyPicInfo(const TComPic& sComPic);
+  const TComPicYuv* getPicYuvOrg() const { return  m_apcPicYuv[PIC_YUV_ORG]; }
+  TComPicYuv*   getPicYuvCSC()        { return  m_apcPicYuvCSC; }
+  Void          allocateCSCBuffer(Int iWidth, Int iHeight, ChromaFormat chromaFormatIDC, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth);
+  Void          releaseCSCBuffer();
+  Void          exchangePicYuvRec();
+#if REDUCED_ENCODER_MEMORY
+  Void          storeMotionForIBCEnc();
+#endif
   Void          addPictureToHashMapForInter();
   TComHash*     getHashMap() { return &m_hashMap; }
   const TComHash* getHashMap() const { return &m_hashMap; }

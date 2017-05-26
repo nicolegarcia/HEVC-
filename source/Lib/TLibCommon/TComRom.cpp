@@ -162,6 +162,7 @@ public:
         break;
 
       //------------------------------------------------
+
       case SCAN_TRAV:
         {
           if (m_line%2==0)
@@ -171,7 +172,10 @@ public:
               m_line++;
               m_column = m_blockWidth - 1;
             }
-            else m_column++;
+            else
+            {
+              m_column++;
+            }
           }
           else
           {
@@ -180,13 +184,15 @@ public:
               m_line++;
               m_column = 0;
             }
-            else m_column--;
+            else
+            {
+              m_column--;
+            }
           }
         }
         break;
 
       //------------------------------------------------
-
 
       default:
         {

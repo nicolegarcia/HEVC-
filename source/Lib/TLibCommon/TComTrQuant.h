@@ -89,7 +89,7 @@ struct QpParam
           const Int           chromaQPOffset,
           const ChromaFormat  chFmt );
 
-  QpParam(const TComDataCU   &cu, const ComponentID compID, UInt uiAbsPartIdx);
+  QpParam(const TComDataCU   &cu, const ComponentID compID, UInt absPartIdx);
 
 }; // END STRUCT DEFINITION QpParam
 

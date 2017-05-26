@@ -713,60 +713,6 @@ Void TEncSlice::calCostSliceI(TComPic* pcPic) // TODO: this only analyses the fi
   m_pcRateCtrl->getRCPic()->setTotalIntraCost(iSumHadSlice);
 }
 
-Void TEncSlice::xSetPredFromPPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
-{
-  TComPPS *pcPPS = m_pcGOPEncoder->getPPS(pcSlice->getPPSId());
-  TComSPS *pcSPS = m_pcGOPEncoder->getSPS(pcPPS->getSPSId());
-  pcSlice->setSPS(pcSPS);
-  pcSlice->setPPS(pcPPS);
-  UInt num = std::min(pcPPS->getPpsScreenExtension().getNumPalettePred(), pcSPS->getSpsScreenExtension().getPaletteMaxPredSize());
-  if( !num )
-  {
-    memset(lastPaletteSize, 0, MAX_NUM_COMPONENT*sizeof(UChar));
-    return;
-  }
-
-  for(int i=0; i<3; i++)
-  {
-    lastPaletteSize[i] = num;
-    memcpy(lastPalette[i], pcPPS->getPpsScreenExtension().getPalettePred(i), num*sizeof(Pel));
-  }
-  for(Int ch=0; ch<MAX_NUM_CHANNEL_TYPE; ch++)
-  {
-    pcPPS->getPpsScreenExtension().setPalettePredictorBitDepth( ChannelType( ch ), pcSPS->getBitDepth( ChannelType( ch ) ) );
-  }
-  pcPPS->getPpsScreenExtension().setMonochromePaletteFlag( pcSPS->getChromaFormatIdc() == CHROMA_400 ? true : false );
-}
-
-Void TEncSlice::xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
-{
-  TComPPS *pcPPS = m_pcGOPEncoder->getPPS(pcSlice->getPPSId());
-  TComSPS *pcSPS = m_pcGOPEncoder->getSPS(pcPPS->getSPSId());
-  UInt num = std::min(pcSPS->getSpsScreenExtension().getNumPalettePred(), pcSPS->getSpsScreenExtension().getPaletteMaxPredSize());
-  if( !num )
-  {
-    memset(lastPaletteSize, 0, MAX_NUM_COMPONENT*sizeof(UChar));
-    return;
-  }
-  for(int i=0; i<3; i++)
-  {
-    lastPaletteSize[i] = num;
-    memcpy(lastPalette[i], pcSPS->getSpsScreenExtension().getPalettePred(i), num*sizeof(Pel));
-  }
-  pcSlice->setSPS(pcSPS);
-}
-
-Void TEncSlice::xSetPredDefault(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
-{
-  const TComSPS *pcSPS = pcSlice->getSPS();
-  pcSlice->setSPS(pcSPS);
-  for(int i=0; i<3; i++)
-  {
-    lastPaletteSize[i] = 0;
-    memset(lastPalette[i],0 , pcSPS->getSpsScreenExtension().getPaletteMaxSize()*sizeof(Pel));
-  }
-}
-
 /** \param pcPic   picture class
  */
 Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, const Bool bFastDeltaQP )
@@ -1279,6 +1225,7 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
 
     // run CTU trial encoder
     m_pcCuEncoder->compressCtu( pCtu, lastPaletteSize, lastPaletteUsedSize, lastPalette );
+
 
     // All CTU decisions have now been made. Restore entropy coder to an initial stage, ready to make a true encode,
     // which will result in the state of the contexts being correct. It will also count up the number of bits coded,
@@ -1837,4 +1784,58 @@ Double TEncSlice::xGetQPValueAccordingToLambda ( Double lambda )
   return 4.2005*log(lambda) + 13.7122;
 }
 
+// SCM added functions
+Void TEncSlice::xSetPredFromPPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
+{
+  TComPPS *pcPPS = m_pcGOPEncoder->getPPS(pcSlice->getPPSId());
+  TComSPS *pcSPS = m_pcGOPEncoder->getSPS(pcPPS->getSPSId());
+  pcSlice->setSPS(pcSPS);
+  pcSlice->setPPS(pcPPS);
+  UInt num = std::min(pcPPS->getPpsScreenExtension().getNumPalettePred(), pcSPS->getSpsScreenExtension().getPaletteMaxPredSize());
+  if( !num )
+  {
+    memset(lastPaletteSize, 0, MAX_NUM_COMPONENT*sizeof(UChar));
+    return;
+  }
+
+  for(int i=0; i<3; i++)
+  {
+    lastPaletteSize[i] = num;
+    memcpy(lastPalette[i], pcPPS->getPpsScreenExtension().getPalettePred(i), num*sizeof(Pel));
+  }
+  for(Int ch=0; ch<MAX_NUM_CHANNEL_TYPE; ch++)
+  {
+    pcPPS->getPpsScreenExtension().setPalettePredictorBitDepth( ChannelType( ch ), pcSPS->getBitDepth( ChannelType( ch ) ) );
+  }
+  pcPPS->getPpsScreenExtension().setMonochromePaletteFlag( pcSPS->getChromaFormatIdc() == CHROMA_400 ? true : false );
+}
+
+Void TEncSlice::xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
+{
+  TComPPS *pcPPS = m_pcGOPEncoder->getPPS(pcSlice->getPPSId());
+  TComSPS *pcSPS = m_pcGOPEncoder->getSPS(pcPPS->getSPSId());
+  UInt num = std::min(pcSPS->getSpsScreenExtension().getNumPalettePred(), pcSPS->getSpsScreenExtension().getPaletteMaxPredSize());
+  if( !num )
+  {
+    memset(lastPaletteSize, 0, MAX_NUM_COMPONENT*sizeof(UChar));
+    return;
+  }
+  for(int i=0; i<3; i++)
+  {
+    lastPaletteSize[i] = num;
+    memcpy(lastPalette[i], pcSPS->getSpsScreenExtension().getPalettePred(i), num*sizeof(Pel));
+  }
+  pcSlice->setSPS(pcSPS);
+}
+
+Void TEncSlice::xSetPredDefault(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice)
+{
+  const TComSPS *pcSPS = pcSlice->getSPS();
+  pcSlice->setSPS(pcSPS);
+  for(int i=0; i<3; i++)
+  {
+    lastPaletteSize[i] = 0;
+    memset(lastPalette[i],0 , pcSPS->getSpsScreenExtension().getPaletteMaxSize()*sizeof(Pel));
+  }
+}
 //! \}

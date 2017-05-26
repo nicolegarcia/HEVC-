@@ -51,19 +51,10 @@
 #include "TEncCfg.h"
 #include "TLibCommon/TComHash.h"
 
-// ====================================================================================================================
-// Constants 
-// ====================================================================================================================
-
-#define CHROMA_REFINEMENT_CANDIDATES  8
-
 //! \ingroup TLibEncoder
 //! \{
 
 class TEncCu;
-
-#define INTRABC_HASH_DEPTH                     1  ////< Currently used only for 8x8
-#define INTRABC_HASH_TABLESIZE                (1 << 16)
 
 struct IntraBCHashNode
 {
@@ -103,17 +94,6 @@ private:
   TCoeff*         m_ppcQTTempTUArlCoeff[MAX_NUM_COMPONENT];
 #endif
 
-  IntraBCHashNode***      m_pcIntraBCHashTable;                 ///< The hash table used for Intra BC search
-  Bool*           m_puhQTTempACTFlag;
-  TCoeff*         m_pcACTTempTUCoeff[MAX_NUM_COMPONENT];
-  TComYuv         m_pcACTTempTransformSkipTComYuv;
-  TComYuv*        m_pcQTTempTComYuvCS;
-  TComYuv*        m_pcNoCorrYuvTmp;
-#if ADAPTIVE_QP_SELECTION
-  TCoeff*         m_ppcACTTempTUArlCoeff[MAX_NUM_COMPONENT];
-#endif
-  TComACTTURDCost m_sACTRDCostTU[5];
-
 protected:
   // interface to option
   TEncCfg*        m_pcEncCfg;
@@ -142,10 +122,23 @@ protected:
   // UInt            m_auiMVPIdxCost[AMVP_MAX_NUM_CANDS+1][AMVP_MAX_NUM_CANDS];
   UInt            m_auiMVPIdxCost[AMVP_MAX_NUM_CANDS+1][AMVP_MAX_NUM_CANDS+1]; //th array bounds
 
+  TComMv          m_integerMv2Nx2N[NUM_REF_PIC_LIST_01][MAX_NUM_REF];
+
+  Bool            m_isInitialized;
+
+  IntraBCHashNode***      m_pcIntraBCHashTable;                 ///< The hash table used for Intra BC search
+  Bool*           m_puhQTTempACTFlag;
+  TCoeff*         m_pcACTTempTUCoeff[MAX_NUM_COMPONENT];
+  TComYuv         m_pcACTTempTransformSkipTComYuv;
+  TComYuv*        m_pcQTTempTComYuvCS;
+  TComYuv*        m_pcNoCorrYuvTmp;
+#if ADAPTIVE_QP_SELECTION
+  TCoeff*         m_ppcACTTempTUArlCoeff[MAX_NUM_COMPONENT];
+#endif
+  TComACTTURDCost m_sACTRDCostTU[5];
   RefPicList      m_currRefPicList;
   Int             m_currRefPicIndex;
   Bool            m_bSkipFracME;
-  TComMv          m_integerMv2Nx2N[NUM_REF_PIC_LIST_01][MAX_NUM_REF];
   TComMv          m_acBVs[SCM_S0067_NUM_CANDIDATES];
   UInt            m_uiNumBVs, m_uiNumBV16s;
   Distortion      m_lastCandCost;
@@ -169,7 +162,6 @@ protected:
 
   PaletteInfoStruct m_currentPaletteElement;
   PaletteInfoStruct m_nextPaletteElement;
-  Bool              m_isInitialized;
 
   Int               m_paletteErrLimit;
   Pel               m_indexBlock[MAX_CU_SIZE * MAX_CU_SIZE];
@@ -204,8 +196,6 @@ protected:
 public:
   TEncSearch();
   virtual ~TEncSearch();
-
-  TComYuv* getTmpYuvPred() {return &m_tmpYuvPred;}
 
   Void init(TEncCfg*       pcEncCfg,
             TComTrQuant*   pcTrQuant,
@@ -267,6 +257,38 @@ public:
                                   Pel         resiLuma[NUMBER_OF_STORED_RESIDUAL_TYPES][MAX_CU_SIZE * MAX_CU_SIZE]
                                   DEBUG_STRING_FN_DECLARE(sDebug));
 
+  /// encoder estimation - inter prediction (non-skip)
+  Bool predInterSearch          ( TComDataCU* pcCU,
+                                  TComYuv*    pcOrgYuv,
+                                  TComYuv*    pcPredYuv,
+                                  TComYuv*    pcResiYuv,
+                                  TComYuv*    pcRecoYuv
+                                  DEBUG_STRING_FN_DECLARE(sDebug),
+                                  Bool        bUseRes = false
+#if AMP_MRG
+                                 ,Bool        bUseMRG = false
+#endif
+                                , TComMv*     iMVCandList = NULL
+                                );
+
+  /// encode residual and compute rd-cost for inter mode
+  Void encodeResAndCalcRdInterCU( TComDataCU* pcCU,
+                                  TComYuv*    pcYuvOrg,
+                                  TComYuv*    pcYuvPred,
+                                  TComYuv*    pcYuvResi,
+                                  TComYuv*    pcYuvResiBest,
+                                  TComYuv*    pcYuvRec,
+                                  Bool        bSkipResidual,
+                                  TComYuv*    pcYuvNoCorrResi,
+                                  ACTRDTestTypes eACTRDTestType
+                                  DEBUG_STRING_FN_DECLARE(sDebug) );
+
+  /// set ME search range
+  Void setAdaptiveSearchRange   ( Int iDir, Int iRefIdx, Int iSearchRange) { assert(iDir < MAX_NUM_REF_LIST_ADAPT_SR && iRefIdx<Int(MAX_IDX_ADAPT_SR)); m_aaiAdaptSR[iDir][iRefIdx] = iSearchRange; }
+
+  Void xEncPCM    (TComDataCU* pcCU, UInt uiAbsPartIdx, Pel* piOrg, Pel* piPCM, Pel* piPred, Pel* piResi, Pel* piReco, UInt uiStride, UInt uiWidth, UInt uiHeight, const ComponentID compID );
+  Void IPCMSearch (TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* rpcPredYuv, TComYuv* rpcResiYuv, TComYuv* rpcRecoYuv );
+
   Void  estIntraPredQTCT        ( TComDataCU*    pcCU,
                                   TComYuv*       pcOrgYuv,
                                   TComYuv*       pcPredYuv,
@@ -292,20 +314,6 @@ public:
                                             TComYuv*    pcRecoYuv,
                                             Pel         resiLuma[NUMBER_OF_STORED_RESIDUAL_TYPES][MAX_CU_SIZE * MAX_CU_SIZE]
                                           );
-
-  /// encoder estimation - inter prediction (non-skip)
-  Bool predInterSearch          ( TComDataCU* pcCU,
-                                  TComYuv*    pcOrgYuv,
-                                  TComYuv*    pcPredYuv,
-                                  TComYuv*    pcResiYuv,
-                                  TComYuv*    pcRecoYuv
-                                  DEBUG_STRING_FN_DECLARE(sDebug),
-                                  Bool        bUseRes = false
-#if AMP_MRG
-                                 ,Bool        bUseMRG = false
-#endif
-                                , TComMv*     iMVCandList = NULL
-                                );
 
   Bool isBlockVectorValid( Int xPos, Int yPos, Int width, Int height, TComDataCU *pcCU, UInt absPartIdx,
                            Int xStartInCU, Int yStartInCU, Int xBv, Int yBv, Int ctuSize );
@@ -443,7 +451,7 @@ public:
   }
 
   Void xIntraBCSearchMVCandUpdate(Distortion sad, Int x, Int y, Distortion* sadBestCand, TComMv* cMVCand);
-  
+
   Int xIntraBCSearchMVChromaRefine( TComDataCU *pcCU,
                                     Int         roiWidth,
                                     Int         roiHeight,
@@ -471,24 +479,6 @@ public:
                                   Bool         bUse1DSearchFor8x8
                                 , Bool         testOnlyPred
                                 );
-
-  /// encode residual and compute rd-cost for inter mode
-  Void encodeResAndCalcRdInterCU( TComDataCU* pcCU,
-                                  TComYuv*    pcYuvOrg,
-                                  TComYuv*    pcYuvPred,
-                                  TComYuv*    pcYuvResi,
-                                  TComYuv*    pcYuvResiBest,
-                                  TComYuv*    pcYuvRec,
-                                  Bool        bSkipResidual,
-                                  TComYuv*    pcYuvNoCorrResi,
-                                  ACTRDTestTypes eACTRDTestType
-                                  DEBUG_STRING_FN_DECLARE(sDebug) );
-
-  /// set ME search range
-  Void setAdaptiveSearchRange   ( Int iDir, Int iRefIdx, Int iSearchRange) { assert(iDir < MAX_NUM_REF_LIST_ADAPT_SR && iRefIdx<Int(MAX_IDX_ADAPT_SR)); m_aaiAdaptSR[iDir][iRefIdx] = iSearchRange; }
-
-  Void xEncPCM    (TComDataCU* pcCU, UInt uiAbsPartIdx, Pel* piOrg, Pel* piPCM, Pel* piPred, Pel* piResi, Pel* piReco, UInt uiStride, UInt uiWidth, UInt uiHeight, const ComponentID compID );
-  Void IPCMSearch (TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* rpcPredYuv, TComYuv* rpcResiYuv, TComYuv* rpcRecoYuv );
   UInt paletteSearch  (TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPredYuv, TComYuv*& rpcResiYuv,TComYuv *& rpcResiBestYuv, TComYuv*& rpcRecoYuv, Bool forcePalettePrediction, UInt iterNumber, UInt *paletteSize);
 
   Void deriveRunAndCalcBits( TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* pcRecoYuv, UInt& minBits, Bool bReset, PaletteScanMode paletteScanMode);
@@ -536,8 +526,6 @@ protected:
   Void  xEncCoeffQT               ( TComTU &rTu,
                                     ComponentID  component,
                                     Bool         bRealCoeff );
-  Void  xEncColorTransformFlagQT  ( TComTU &rTu );
-
   Void  xEncIntraHeader           ( TComDataCU*  pcCU,
                                     UInt         uiTrDepth,
                                     UInt         uiAbsPartIdx,
@@ -563,15 +551,6 @@ protected:
                                     DEBUG_STRING_FN_DECLARE(sTest)
                                          ,Int           default0Save1Load2 = 0
                                    );
-
-  Void  xIntraCodingTUBlockCSC    (       TComYuv*      pcResiYuv,
-                                          Pel           resiLuma[MAX_CU_SIZE * MAX_CU_SIZE],
-                                    const Bool          checkDecorrelation,
-                                    const ComponentID   compID,
-                                          TComTU        &rTu,
-                                          QpParam       &cQP
-                                          DEBUG_STRING_FN_DECLARE(sDebug)
-                                  );
 
   Void  xRecurIntraCodingLumaQT   ( TComYuv*    pcOrgYuv,
                                     TComYuv*    pcPredYuv,
@@ -613,54 +592,11 @@ protected:
                                     TComTU      &rTu
                                     DEBUG_STRING_FN_DECLARE(sDebug));
 
-  Void  xRecurIntraCodingQTTUCSC  ( TComYuv*       pcOrgYuv,
-                                    TComYuv*       pcPredYuv,
-                                    TComYuv*       pcResiYuv,
-                                    Distortion&    PUDistY,
-                                    Distortion&    PUDistC,
-                                    Double&        dPUCost,
-                                    TComTU&        rTu,
-                                    Bool           bTestMaxTUSize,
-                                    ACTRDTestTypes eACTRDTestType
-                                    DEBUG_STRING_FN_DECLARE(sDebug)
-                                   );
-
-  Void  xRecurIntraCodingQTCSC    ( TComYuv*     pcOrgYuv,
-                                    TComYuv*     pcPredYuv,
-                                    TComYuv*     pcResiYuv,
-                                    Distortion&  PUDistY,
-                                    Distortion&  PUDistC,
-                                    Double&      dPUCost,
-                                    TComTU&      rTu,
-                                    Bool         bTestMaxTUSize
-                                    DEBUG_STRING_FN_DECLARE(sDebug)
-                                  );
-
   Void  xSetIntraResultChromaQT   ( TComYuv*    pcRecoYuv, TComTU &rTu);
 
   Void  xStoreIntraResultQT       ( const ComponentID compID, TComTU &rTu, Bool bACTCache = false);
   Void  xLoadIntraResultQT        ( const ComponentID compID, TComTU &rTu, Bool bACTCache = false);
 
-  // Palette related functions
-  Void  xInitTBCTable();
-  UShort xGetTruncBinBits                  ( const UInt index, const UInt maxSymbolP1 );
-  UShort xGetEscapeNumBins                 ( const Pel val );
-
-  Void  xDerivePaletteLossy                ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
-  Void  xDerivePaletteLossyIterative       ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
-  UInt  xFindCandidatePalettePredictors    ( UInt paletteIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt paletteSizeTemp, UInt maxNoPredInd );
-  Void  xDerivePaletteLossyForcePrediction ( TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
-  Void  xDerivePaletteLossless             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, Bool forcePalettePrediction );
-  Bool  xCalLeftRun                        ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt startPos, UInt total, UInt &run, UChar* pEscapeFlag );
-  Bool  xCalAboveRun                       ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt width, UInt startPos, UInt total, UInt &run, UChar* pEscapeFlag );
-  Void  xCalcPixelPred                     ( TComDataCU* pcCU, Pel* pOrg [3], Pel *pPalette[3], Pel* pValue, Pel*paPixelValue[3], Pel*paRecoValue[3], UInt width, UInt height, UInt strideOrg, UInt startPos );
-  Double xCalcPixelPredRD                  ( TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma = false );
-  UInt  xGetTruncatedBinBits               ( UInt symbol, UInt maxSymbol );
-  UInt  xGetEpExGolombNumBins              ( UInt symbol, UInt count );
-  Void  xPreCalcPaletteIndex               ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize );
-  Void  xPreCalcPaletteIndexRD             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, UInt calcErrorBits );
-  Void  xReorderPalette                    ( TComDataCU* pcCU, Pel *Palette[3], UInt numComp );
-  Void  xRotationScan                      ( Pel* pLevel, UInt width, UInt height, Bool isInverse );
 
   // -------------------------------------------------------------------------------------------------------------------
   // Inter search (AMP)
@@ -806,7 +742,6 @@ protected:
 
 
   Void xEncodeInterResidualQT( const ComponentID compID, TComTU &rTu );
-  Void xEstimateInterResidualQTTUCSC( TComYuv* pcResi, Double &rdCost, UInt &bits, Distortion &dist, TComTU &rTu, TComYuv* pcOrgResi, ACTRDTestTypes eACTRDtype DEBUG_STRING_FN_DECLARE(sDebug) );
   Void xEstimateInterResidualQT( TComYuv* pcResi, Double &rdCost, UInt &ruiBits, Distortion &ruiDist, Distortion *puiZeroDist, TComTU &rTu DEBUG_STRING_FN_DECLARE(sDebug), TComYuv* pcOrgResi = NULL );
   Void xSetInterResidualQTData( TComYuv* pcResi, Bool bSpatial, TComTU &rTu  );
 
@@ -823,16 +758,74 @@ protected:
   Void  setWpScalingDistParam( TComDataCU* pcCU, Int iRefIdx, RefPicList eRefPicListCur );
   inline  Void  setDistParamComp( ComponentID compIdx )  { m_cDistParam.compIdx = compIdx; }
 
-  Void   xDeriveRun (TComDataCU* pcCU, Pel* pOrg [3],  Pel *pPalette [3],  Pel* pValue, UChar* pSPoint, Pel *pRecoValue[], Pel *pPixelRec[], TCoeff* pRun, UInt width, UInt height,  UInt strideOrg, UInt paletteSize);
+  // SCM new added functions
+  TComYuv* getTmpYuvPred() {return &m_tmpYuvPred;}
+  Void  xEncColorTransformFlagQT  ( TComTU &rTu );
+
+  Void  xIntraCodingTUBlockCSC    (       TComYuv*      pcResiYuv,
+                                          Pel           resiLuma[MAX_CU_SIZE * MAX_CU_SIZE],
+                                    const Bool          checkDecorrelation,
+                                    const ComponentID   compID,
+                                          TComTU        &rTu,
+                                          QpParam       &cQP
+                                          DEBUG_STRING_FN_DECLARE(sDebug)
+                                  );
+  Void  xRecurIntraCodingQTTUCSC  ( TComYuv*       pcOrgYuv,
+                                    TComYuv*       pcPredYuv,
+                                    TComYuv*       pcResiYuv,
+                                    Distortion&    PUDistY,
+                                    Distortion&    PUDistC,
+                                    Double&        dPUCost,
+                                    TComTU&        rTu,
+                                    Bool           bTestMaxTUSize,
+                                    ACTRDTestTypes eACTRDTestType
+                                    DEBUG_STRING_FN_DECLARE(sDebug)
+                                   );
+
+  Void  xRecurIntraCodingQTCSC    ( TComYuv*     pcOrgYuv,
+                                    TComYuv*     pcPredYuv,
+                                    TComYuv*     pcResiYuv,
+                                    Distortion&  PUDistY,
+                                    Distortion&  PUDistC,
+                                    Double&      dPUCost,
+                                    TComTU&      rTu,
+                                    Bool         bTestMaxTUSize
+                                    DEBUG_STRING_FN_DECLARE(sDebug)
+                                  );
+
+  Void xEstimateInterResidualQTTUCSC( TComYuv* pcResi, Double &rdCost, UInt &bits, Distortion &dist, TComTU &rTu, TComYuv* pcOrgResi, ACTRDTestTypes eACTRDtype DEBUG_STRING_FN_DECLARE(sDebug) );
+
+  // Palette related functions
+  Void  xInitTBCTable();
+  UShort xGetTruncBinBits                  ( const UInt index, const UInt maxSymbolP1 );
+  UShort xGetEscapeNumBins                 ( const Pel val );
+
+  Void  xDerivePaletteLossy                ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
+  Void  xDerivePaletteLossyIterative       ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
+  UInt  xFindCandidatePalettePredictors    ( UInt paletteIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt paletteSizeTemp, UInt maxNoPredInd );
+  Void  xDerivePaletteLossyForcePrediction ( TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
+  Void  xDerivePaletteLossless             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, Bool forcePalettePrediction );
+  Bool  xCalLeftRun                        ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt startPos, UInt total, UInt &run, UChar* pEscapeFlag );
+  Bool  xCalAboveRun                       ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt width, UInt startPos, UInt total, UInt &run, UChar* pEscapeFlag );
+  Void  xCalcPixelPred                     ( TComDataCU* pcCU, Pel* pOrg [3], Pel *pPalette[3], Pel* pValue, Pel*paPixelValue[3], Pel*paRecoValue[3], UInt width, UInt height, UInt strideOrg, UInt startPos );
+  Double xCalcPixelPredRD                  ( TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma = false );
+  UInt  xGetTruncatedBinBits               ( UInt symbol, UInt maxSymbol );
+  UInt  xGetEpExGolombNumBins              ( UInt symbol, UInt count );
+  Void  xPreCalcPaletteIndex               ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize );
+  Void  xPreCalcPaletteIndexRD             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, UInt calcErrorBits );
+  Void  xReorderPalette                    ( TComDataCU* pcCU, Pel *Palette[3], UInt numComp );
+  Void  xRotationScan                      ( Pel* pLevel, UInt width, UInt height, Bool isInverse );
+
+  Void  xDeriveRun (TComDataCU* pcCU, Pel* pOrg [3],  Pel *pPalette [3],  Pel* pValue, UChar* pSPoint, Pel *pRecoValue[], Pel *pPixelRec[], TCoeff* pRun, UInt width, UInt height,  UInt strideOrg, UInt paletteSize);
   Double xGetRunBits(TComDataCU* pcCU, Pel *pValue, UInt startPos, UInt run, PaletteRunMode paletteRunMode, UInt64 *allBits, UInt64 *indexBits, UInt64 *runBits);
   UInt preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, UInt iterNumber);
   Void preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost,
-    UInt *errorOrig, UInt *errorNew, UInt calcErrBits);
+                      UInt *errorOrig, UInt *errorNew, UInt calcErrBits);
   UInt calcPaletteIndexPredAndBits(Int iMaxSymbol, UInt idxStart, UInt width, UInt *predIndex, UInt *currIndex);
   UInt calcPaletteEndPosition(UInt copyPixels[], UInt positionInit, UInt run);
   UInt calcPaletteStartCopy(UInt positionInit, UInt positionCurrSegment, UInt width);
   UInt findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataCU* pcCU, UInt idxStart, UInt indexMaxSize, UInt width, UInt total,
-    UInt copyPixels[], Int restrictLevelRun, UInt calcErrBits);
+                          UInt copyPixels[], Int restrictLevelRun, UInt calcErrBits);
   UInt calcPaletteErrorCopy(UInt idxStart, UInt run, UInt width, UInt *mode);
   UInt64 calcPaletteErrorLevel(Int idxStart, UInt run, UInt paletteIdx);
   Void modifyPaletteSegment(UInt width, UInt idxStart, UInt paletteMode, UInt paletteIdx, UInt run);

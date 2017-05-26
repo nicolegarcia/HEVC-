@@ -95,9 +95,7 @@ Void TEncTop::create ()
   // create processing unit classes
   m_cGOPEncoder.        create( );
   m_cSliceEncoder.      create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth );
-  m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC
-                         ,m_paletteMaxSize, m_paletteMaxPredSize
-     );
+  m_cCuEncoder.         create( m_maxTotalCUDepth, m_maxCUWidth, m_maxCUHeight, m_chromaFormatIDC, m_paletteMaxSize, m_paletteMaxPredSize );
   if (m_bUseSAO)
   {
     m_cEncSAO.create( getSourceWidth(), getSourceHeight(), m_chromaFormatIDC, m_maxCUWidth, m_maxCUHeight, m_maxTotalCUDepth, m_log2SaoOffsetScale[CHANNEL_TYPE_LUMA], m_log2SaoOffsetScale[CHANNEL_TYPE_CHROMA] );
@@ -547,7 +545,7 @@ Void TEncTop::xGetNewPicBuffer ( TComPic*& rpcPic, Int ppsId )
     {
       TEncPic* pcEPic = new TEncPic;
 #if REDUCED_ENCODER_MEMORY
-      pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1 );
+      pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1);
 #else
       pcEPic->create( sps, pps, pps.getMaxCuDQPDepth()+1, false);
 #endif
@@ -1092,14 +1090,15 @@ Void TEncTop::xInitPPS(TComPPS &pps, const TComSPS &sps)
   pps.setTransquantBypassEnabledFlag(getTransquantBypassEnabledFlag());
   pps.setUseTransformSkip( m_useTransformSkip );
   pps.getPpsRangeExtension().setLog2MaxTransformSkipBlockSize( m_log2MaxTransformSkipBlockSize  );
-  if ( sps.getSpsScreenExtension().getUseIntraBlockCopy() )
-  {
-    pps.setNumRefIdxL0DefaultActive( bestPos + 1 );
-  }
 
   if (m_sliceSegmentMode != NO_SLICES)
   {
     pps.setDependentSliceSegmentsEnabledFlag( true );
+  }
+
+  if ( sps.getSpsScreenExtension().getUseIntraBlockCopy() )
+  {
+    pps.setNumRefIdxL0DefaultActive( bestPos + 1 );
   }
   pps.getPpsScreenExtension().setUseColourTrans( m_useColourTrans );
   pps.getPpsScreenExtension().setUseIntraBlockCopy(sps.getSpsScreenExtension().getUseIntraBlockCopy());

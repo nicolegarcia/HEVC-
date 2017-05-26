@@ -85,11 +85,6 @@ public:
   virtual     ~TComPicYuv         ();
 
   // ------------------------------------------------------------------------------------------------
-  //  Copy assignment operator
-  // ------------------------------------------------------------------------------------------------
-  TComPicYuv&        operator=  (const TComPicYuv& sComPicYuv);
-
-    // ------------------------------------------------------------------------------------------------
   //  Memory management
   // ------------------------------------------------------------------------------------------------
 
@@ -174,6 +169,10 @@ public:
   // Set border extension flag
   Void          setBorderExtension(Bool b) { m_bIsBorderExtended = b; }
   Void          DefaultConvertPix(TComPicYuv* pcSrcPicYuv, const BitDepths& bitDepths);
+  // ------------------------------------------------------------------------------------------------
+  //  Copy assignment operator
+  // ------------------------------------------------------------------------------------------------
+  TComPicYuv&        operator=  (const TComPicYuv& sComPicYuv);
 };// END CLASS DEFINITION TComPicYuv
 
 

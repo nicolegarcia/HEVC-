@@ -454,7 +454,7 @@ Void TComYuv::removeHighFreq( const TComYuv* pcYuvSrc,
   }
 }
 
-Void TComYuv::convert(const Bool extendedPrecision, const UInt uiPixX, const UInt uiPixY, const UInt uiWidth, Bool bForwardConversion, const BitDepths& bitDepths, Bool bLossless, TComYuv* pcYuvNoCorrResi)
+Void TComYuv::convert(const Bool extendedPrecision, const UInt pixX, const UInt pixY, const UInt width, Bool bForwardConversion, const BitDepths& bitDepths, Bool bLossless, TComYuv* pcYuvNoCorrResi)
 {
   const Int lumaBitDepth   = bitDepths.recon[CHANNEL_TYPE_LUMA];
   const Int chromaBitDepth = bitDepths.recon[CHANNEL_TYPE_CHROMA];
@@ -464,21 +464,21 @@ Void TComYuv::convert(const Bool extendedPrecision, const UInt uiPixX, const UIn
   Int CoeffMaxY =  (1<<(extendedPrecision? std::max(15, lumaBitDepth+6):15)) - 1;
   Int CoeffMaxC =  (1<<(extendedPrecision? std::max(15, chromaBitDepth+6):15)) - 1;
   assert(getChromaFormat() == CHROMA_444);
-  UInt uiPartSize = uiWidth;
+  UInt partSize = width;
 
-  Pel* pOrg0  = getAddrPix( (ComponentID)0, uiPixX, uiPixY );
-  Pel* pOrg1  = getAddrPix( (ComponentID)1, uiPixX, uiPixY );
-  Pel* pOrg2  = getAddrPix( (ComponentID)2, uiPixX, uiPixY );
+  Pel* pOrg0  = getAddrPix( (ComponentID)0, pixX, pixY );
+  Pel* pOrg1  = getAddrPix( (ComponentID)1, pixX, pixY );
+  Pel* pOrg2  = getAddrPix( (ComponentID)2, pixX, pixY );
 
-  Pel* pDst0  = getAddrPix( (ComponentID)0, uiPixX, uiPixY );
-  Pel* pDst1  = getAddrPix( (ComponentID)1, uiPixX, uiPixY );
-  Pel* pDst2  = getAddrPix( (ComponentID)2, uiPixX, uiPixY );
+  Pel* pDst0  = getAddrPix( (ComponentID)0, pixX, pixY );
+  Pel* pDst1  = getAddrPix( (ComponentID)1, pixX, pixY );
+  Pel* pDst2  = getAddrPix( (ComponentID)2, pixX, pixY );
 
   if(pcYuvNoCorrResi)
   {
-    pDst0  = pcYuvNoCorrResi->getAddrPix( (ComponentID)0, uiPixX, uiPixY );
-    pDst1  = pcYuvNoCorrResi->getAddrPix( (ComponentID)1, uiPixX, uiPixY );
-    pDst2  = pcYuvNoCorrResi->getAddrPix( (ComponentID)2, uiPixX, uiPixY );
+    pDst0  = pcYuvNoCorrResi->getAddrPix( (ComponentID)0, pixX, pixY );
+    pDst1  = pcYuvNoCorrResi->getAddrPix( (ComponentID)1, pixX, pixY );
+    pDst2  = pcYuvNoCorrResi->getAddrPix( (ComponentID)2, pixX, pixY );
   }
   const Int  iStride0 = getStride((ComponentID)0);
   const Int  iStride1 = getStride((ComponentID)1);
@@ -493,9 +493,9 @@ Void TComYuv::convert(const Bool extendedPrecision, const UInt uiPixX, const UIn
       Int iShiftChroma = maxBitDepth - bitDepths.recon[CHANNEL_TYPE_CHROMA];
       Int iRoundLuma   = 1<<(1+iShiftLuma);
       Int iRoundChroma = 1<<(1+iShiftChroma);
-      for(Int y=0; y<uiPartSize; y++) 
+      for(Int y=0; y<partSize; y++)
       { 
-        for(Int x=0; x<uiPartSize; x++) 
+        for(Int x=0; x<partSize; x++)
         {
           Int r, g, b;
           r = pOrg2[x]<<iShiftChroma;
@@ -519,9 +519,9 @@ Void TComYuv::convert(const Bool extendedPrecision, const UInt uiPixX, const UIn
     }
     else
     {
-      for(Int y=0; y<uiPartSize; y++)
+      for(Int y=0; y<partSize; y++)
       {
-        for(Int x=0; x<uiPartSize; x++)
+        for(Int x=0; x<partSize; x++)
         {
           Int r, g, b;
           r = pOrg2[x];
@@ -551,9 +551,9 @@ Void TComYuv::convert(const Bool extendedPrecision, const UInt uiPixX, const UIn
     Int iShiftChroma = maxBitDepth - bitDepths.recon[CHANNEL_TYPE_CHROMA];
     Int iRoundLuma   = iShiftLuma? (1<<(iShiftLuma-1)): 0;
     Int iRoundChroma = iShiftChroma? (1<<(iShiftChroma-1)): 0;
-    for(Int y=0; y<uiPartSize; y++)
+    for(Int y=0; y<partSize; y++)
     {
-      for(Int x=0; x<uiPartSize; x++)
+      for(Int x=0; x<partSize; x++)
       {
         Int y0, cg, co;
         y0 = Clip3<Int>(CoeffMinY,CoeffMaxY, pOrg0[x]);
@@ -587,11 +587,10 @@ Void TComYuv::convert(const Bool extendedPrecision, const UInt uiPixX, const UIn
   }
 }
 
-
-Void TComYuv::DefaultConvertPix(const UInt uiPixX, const UInt uiPixY, const UInt uiWidth, const BitDepths& bitDepths )
+Void TComYuv::DefaultConvertPix(const UInt pixX, const UInt pixY, const UInt width, const BitDepths& bitDepths )
 {
   assert(getChromaFormat() == CHROMA_444);
-  UInt uiPartSize = uiWidth;
+  UInt partSize = width;
   Int  iMaxLuma   = (1<<bitDepths.recon[CHANNEL_TYPE_LUMA])   - 1;
   Int  iMaxChroma = (1<<bitDepths.recon[CHANNEL_TYPE_CHROMA]) - 1;
   Int  iChromaOffset = (1<<(bitDepths.recon[CHANNEL_TYPE_CHROMA]-1));
@@ -601,17 +600,17 @@ Void TComYuv::DefaultConvertPix(const UInt uiPixX, const UInt uiPixY, const UInt
   Int iRoundLuma   = 1<<(1+iShiftLuma);
   Int iRoundChroma = 1<<(1+iShiftChroma);
 
-  Pel* pDst0  = getAddrPix( (ComponentID)0, uiPixX, uiPixY );
-  Pel* pDst1  = getAddrPix( (ComponentID)1, uiPixX, uiPixY );
-  Pel* pDst2  = getAddrPix( (ComponentID)2, uiPixX, uiPixY );
+  Pel* pDst0  = getAddrPix( (ComponentID)0, pixX, pixY );
+  Pel* pDst1  = getAddrPix( (ComponentID)1, pixX, pixY );
+  Pel* pDst2  = getAddrPix( (ComponentID)2, pixX, pixY );
 
   const Int  iStride0 = getStride((ComponentID)0);
   const Int  iStride1 = getStride((ComponentID)1);
   const Int  iStride2 = getStride((ComponentID)2);
 
-  for(Int y=0; y<uiPartSize; y++) 
+  for(Int y=0; y<partSize; y++)
   {
-    for(Int x=0; x<uiPartSize; x++) 
+    for(Int x=0; x<partSize; x++)
     {
       Int r, g, b;
       r = pDst2[x]<<iShiftChroma;
@@ -631,7 +630,7 @@ Void TComYuv::DefaultConvertPix(const UInt uiPixX, const UInt uiPixY, const UInt
 
     pDst0 += iStride0;
     pDst1 += iStride1;
-    pDst2 += iStride2; 
+    pDst2 += iStride2;
   }
 }
 

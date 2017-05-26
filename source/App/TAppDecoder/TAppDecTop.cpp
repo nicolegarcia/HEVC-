@@ -385,8 +385,7 @@ Void TAppDecTop::xWriteOutput( TComList<TComPic*>* pcListPic, UInt tId )
       TComPic* pcPicBottom = *(iterPic);
 
       if ( pcPicTop->getOutputMark() && pcPicBottom->getOutputMark() &&
-          (numPicsNotYetDisplayed >  numReorderPicsHighestTid ||
-           dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()) &&
+          (numPicsNotYetDisplayed >  numReorderPicsHighestTid || dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()) &&
           (!(pcPicTop->getPOC()%2) && pcPicBottom->getPOC() == pcPicTop->getPOC()+1) &&
           (pcPicTop->getPOC() == m_iPOCLastDisplay+1 || m_iPOCLastDisplay < 0))
       {
@@ -452,12 +451,10 @@ Void TAppDecTop::xWriteOutput( TComList<TComPic*>* pcListPic, UInt tId )
       pcPic = *(iterPic);
 
       if(pcPic->getOutputMark() && pcPic->getPOC() > m_iPOCLastDisplay &&
-        (numPicsNotYetDisplayed >  numReorderPicsHighestTid ||
-         dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()))
+        (numPicsNotYetDisplayed >  numReorderPicsHighestTid || dpbFullness > maxDecPicBufferingHighestTid - m_cTDecTop.getTwoVersionsOfCurrDecPicFlag()))
       {
         // write to file
          numPicsNotYetDisplayed--;
-
         if(pcPic->getSlice(0)->isReferenced() == false)
         {
           dpbFullness--;

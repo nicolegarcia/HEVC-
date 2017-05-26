@@ -437,13 +437,13 @@ Void TComLoopFilter::xGetBoundaryStrengthSingle ( TComDataCU* pCtu, DeblockEdgeD
   }
 
   //-- Set BS for Intra MB : BS = 4 or 3
-  if ( pcCUP->isLoopFilterIntra(uiPartP) || pcCUQ->isLoopFilterIntra(uiPartQ) )
+  if ( pcCUP->isIntra(uiPartP) || pcCUQ->isIntra(uiPartQ) )
   {
     uiBs = 2;
   }
 
   //-- Set BS for not Intra MB : BS = 2 or 1 or 0
-  if ( !pcCUP->isLoopFilterIntra(uiPartP) && !pcCUQ->isLoopFilterIntra(uiPartQ) )
+  if ( !pcCUP->isIntra(uiPartP) && !pcCUQ->isIntra(uiPartQ) )
   {
     UInt nsPartQ = uiPartQ;
     UInt nsPartP = uiPartP;
@@ -771,6 +771,7 @@ Void TComLoopFilter::xEdgeFilterChroma( TComDataCU* const pcCU, const UInt uiAbs
       }
 
       iQP_P = pcCUP->getQP(uiPartPIdx);
+
       if (bPCMFilter || pcCU->getSlice()->getPPS()->getTransquantBypassEnabledFlag() || sps.getSpsScreenExtension().getUsePaletteMode() )
       {
         // Check if each of PUs is I_PCM with LF disabling

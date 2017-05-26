@@ -201,6 +201,7 @@ Void TEncEntropy::encodePartSize( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
   m_pcEntropyCoderIf->codePartSize( pcCU, uiAbsPartIdx, uiDepth );
 }
 
+
 /** Encode I_PCM information.
  * \param pcCU          pointer to CU
  * \param uiAbsPartIdx  CU index

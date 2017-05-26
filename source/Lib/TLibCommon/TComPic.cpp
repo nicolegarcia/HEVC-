@@ -57,12 +57,12 @@ TComPic::TComPic()
 , m_bCheckLTMSB                           (false)
 , m_bCurPic                               (false)
 , m_bInDPB                                (false)
+, m_apcPicYuvCSC                          (NULL)
 {
   for(UInt i=0; i<NUM_PIC_YUV; i++)
   {
     m_apcPicYuv[i]      = NULL;
   }
-  m_apcPicYuvCSC = NULL;
 }
 
 TComPic::~TComPic()
@@ -70,35 +70,10 @@ TComPic::~TComPic()
   destroy();
 }
 
-Void TComPic::copyPicInfo( const TComPic& sComPic )
-{
-  UInt i = 0;
-
-  m_uiTLayer = sComPic.m_uiTLayer;
-
-  m_bNeededForOutput = sComPic.m_bNeededForOutput;
-  m_bReconstructed = sComPic.m_bReconstructed;
-
-  m_uiCurrSliceIdx = sComPic.m_uiCurrSliceIdx;
-  m_bCheckLTMSB = sComPic.m_bCheckLTMSB;
-
-  m_isTop = sComPic.m_isTop;
-  m_isField = sComPic.m_isField;
-
-  for ( i = 0; i < NUM_PIC_YUV; i++ )
-  {
-    if ( sComPic.m_apcPicYuv[i] != NULL )
-    {
-      *m_apcPicYuv[i] = *(sComPic.m_apcPicYuv[i]);
-    }
-  }
-}
-
-Void TComPic::create( const TComSPS &sps, const TComPPS &pps,
 #if REDUCED_ENCODER_MEMORY
-                      const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction )
+Void TComPic::create( const TComSPS &sps, const TComPPS &pps, const Bool bCreateEncoderSourcePicYuv, const Bool bCreateForImmediateReconstruction )
 #else
-                      const Bool bIsVirtual )
+Void TComPic::create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirtual)
 #endif
 {
   destroy();
@@ -250,18 +225,6 @@ Void TComPic::compressMotion()
   }
 }
 
-#if REDUCED_ENCODER_MEMORY
-Void TComPic::storeMotionForIBCEnc()
-{
-  TComPicSym* pPicSym = getPicSym();
-  for ( UInt uiCUAddr = 0; uiCUAddr < pPicSym->getNumberOfCtusInFrame(); uiCUAddr++ )
-  {
-    TComDataCU* pCtu = pPicSym->getCtu(uiCUAddr);
-    pCtu->storeMVForIBCEnc();
-  }
-}
-#endif
-
 Bool  TComPic::getSAOMergeAvailability(Int currAddr, Int mergeAddr)
 {
   Bool mergeCtbInSliceSeg = (mergeAddr >= getPicSym()->getCtuTsToRsAddrMap(getCtu(currAddr)->getSlice()->getSliceCurStartCtuTsAddr()));
@@ -305,6 +268,63 @@ UInt TComPic::getSubstreamForCtuAddr(const UInt ctuAddr, const Bool bAddressInRa
   }
   return subStrm;
 }
+
+Void TComPic::copyPicInfo( const TComPic& sComPic )
+{
+  UInt i = 0;
+
+  m_uiTLayer = sComPic.m_uiTLayer;
+
+  m_bNeededForOutput = sComPic.m_bNeededForOutput;
+  m_bReconstructed = sComPic.m_bReconstructed;
+
+  m_uiCurrSliceIdx = sComPic.m_uiCurrSliceIdx;
+  m_bCheckLTMSB = sComPic.m_bCheckLTMSB;
+
+  m_isTop = sComPic.m_isTop;
+  m_isField = sComPic.m_isField;
+
+  for ( i = 0; i < NUM_PIC_YUV; i++ )
+  {
+    if ( sComPic.m_apcPicYuv[i] != NULL )
+    {
+      *m_apcPicYuv[i] = *(sComPic.m_apcPicYuv[i]);
+    }
+  }
+}
+
+Void TComPic::allocateCSCBuffer(Int iWidth, Int iHeight, ChromaFormat chromaFormatIDC, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth)
+{
+  assert(m_apcPicYuvCSC == NULL);
+  m_apcPicYuvCSC = new TComPicYuv; m_apcPicYuvCSC->create(iWidth, iHeight, chromaFormatIDC, uiMaxWidth, uiMaxHeight, uiMaxDepth, true);
+}
+
+Void TComPic::releaseCSCBuffer()
+{
+  m_apcPicYuvCSC->destroy();
+  delete m_apcPicYuvCSC;
+  m_apcPicYuvCSC = NULL;
+}
+
+Void TComPic::exchangePicYuvRec()
+{
+  TComPicYuv* pcTmpPicYuv;
+  pcTmpPicYuv = m_apcPicYuv[PIC_YUV_REC];
+  m_apcPicYuv[PIC_YUV_REC] = m_apcPicYuvCSC;
+  m_apcPicYuvCSC = pcTmpPicYuv;
+}
+
+#if REDUCED_ENCODER_MEMORY
+Void TComPic::storeMotionForIBCEnc()
+{
+  TComPicSym* pPicSym = getPicSym();
+  for ( UInt uiCUAddr = 0; uiCUAddr < pPicSym->getNumberOfCtusInFrame(); uiCUAddr++ )
+  {
+    TComDataCU* pCtu = pPicSym->getCtu(uiCUAddr);
+    pCtu->storeMVForIBCEnc();
+  }
+}
+#endif
 
 Void TComPic::addPictureToHashMapForInter()
 {

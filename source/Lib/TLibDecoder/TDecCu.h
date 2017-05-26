@@ -77,9 +77,7 @@ public:
   Void  init                    ( TDecEntropy* pcEntropyDecoder, TComTrQuant* pcTrQuant, TComPrediction* pcPrediction );
 
   /// create internal buffers
-  Void  create                  ( UInt uiMaxDepth, UInt uiMaxWidth, UInt uiMaxHeight, ChromaFormat chromaFormatIDC
-                                 ,UInt paletteMaxSize, UInt paletteMaxPredSize
-    );
+  Void  create                  ( UInt uiMaxDepth, UInt uiMaxWidth, UInt uiMaxHeight, ChromaFormat chromaFormatIDC, UInt paletteMaxSize, UInt paletteMaxPredSize );
 
   /// destroy internal buffers
   Void  destroy                 ();
@@ -98,13 +96,14 @@ protected:
   Void xDecompressCU            ( TComDataCU* pCtu, UInt uiAbsPartIdx, UInt uiDepth );
 
   Void xReconInter              ( TComDataCU* pcCU, UInt uiDepth );
-  Void xReconPaletteMode        ( TComDataCU* pcCU, UInt depth );
-  Void xDecodePaletteTexture    ( TComDataCU* pcCU, const UInt partIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt stride, const UInt width, const UInt height, const ComponentID compID, UChar* pEscapeFlag);
+
   Void xReconIntraQT            ( TComDataCU* pcCU, UInt uiDepth );
   Void xIntraRecBlk             ( TComYuv* pcRecoYuv, TComYuv* pcPredYuv, TComYuv* pcResiYuv, const ComponentID component, TComTU &rTu );
   Void xIntraRecQT              ( TComYuv* pcRecoYuv, TComYuv* pcPredYuv, TComYuv* pcResiYuv, const ChannelType chType, TComTU &rTu );
   Void xIntraRecBlk             ( TComYuv* pcRecoYuv, TComYuv* pcPredYuv, TComYuv* pcResiYuv, TComTU &rTu );
   Void xIntraRecQT              ( TComYuv* pcRecoYuv, TComYuv* pcPredYuv, TComYuv* pcResiYuv, TComTU &rTu );
+  Void xReconPaletteMode        ( TComDataCU* pcCU, UInt depth );
+  Void xDecodePaletteTexture    ( TComDataCU* pcCU, const UInt partIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt stride, const UInt width, const UInt height, const ComponentID compID, UChar* pEscapeFlag);
 
   Void xReconPCM                ( TComDataCU* pcCU, UInt uiDepth );
 

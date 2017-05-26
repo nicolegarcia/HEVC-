@@ -68,24 +68,15 @@ TComPicYuv::TComPicYuv()
   m_bIsBorderExtended = false;
 }
 
+
+
+
 TComPicYuv::~TComPicYuv()
 {
   destroy();
 }
 
-TComPicYuv& TComPicYuv::operator= (const TComPicYuv& sComPicYuv)
-{
-  m_picWidth = sComPicYuv.m_picWidth;
-  m_picHeight = sComPicYuv.m_picHeight;
-  m_chromaFormatIDC = sComPicYuv.m_chromaFormatIDC;
-  m_marginX = sComPicYuv.m_marginX;
-  m_marginY = sComPicYuv.m_marginY;
-  m_bIsBorderExtended = sComPicYuv.m_bIsBorderExtended;
 
-  sComPicYuv.copyToPic(this);
-
-  return *this;
-}
 
 Void TComPicYuv::createWithoutCUInfo ( const Int picWidth,                 ///< picture width
                                        const Int picHeight,                ///< picture height
@@ -339,6 +330,21 @@ Void TComPicYuv::dump (const std::string &fileName, const BitDepths &bitDepths, 
   }
 
   fclose(pFile);
+}
+
+
+TComPicYuv& TComPicYuv::operator= (const TComPicYuv& sComPicYuv)
+{
+  m_picWidth = sComPicYuv.m_picWidth;
+  m_picHeight = sComPicYuv.m_picHeight;
+  m_chromaFormatIDC = sComPicYuv.m_chromaFormatIDC;
+  m_marginX = sComPicYuv.m_marginX;
+  m_marginY = sComPicYuv.m_marginY;
+  m_bIsBorderExtended = sComPicYuv.m_bIsBorderExtended;
+
+  sComPicYuv.copyToPic(this);
+
+  return *this;
 }
 
 Void TComPicYuv::DefaultConvertPix(TComPicYuv* pcSrcPicYuv, const BitDepths& bitDepths)

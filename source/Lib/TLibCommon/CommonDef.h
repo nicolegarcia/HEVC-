@@ -49,7 +49,6 @@
 // disable Bool coercion "performance warning"
 #pragma warning( disable : 4800 )
 #endif // _MSC_VER > 1000
-
 #include "TypeDef.h"
 
 #ifdef _MSC_VER
@@ -116,6 +115,7 @@ static const UInt   MAX_UINT =                            0xFFFFFFFFU; ///< max.
 static const Int    MAX_INT =                              2147483647; ///< max. value of signed 32-bit integer
 static const Double MAX_DOUBLE =                             1.7e+308; ///< max. value of Double-type value
 static const Int64  MAX_INT64 =                  0x7FFFFFFFFFFFFFFFLL; ///< max. value of signed 64-bit integer
+
 // ====================================================================================================================
 // Coding tool configuration
 // ====================================================================================================================
@@ -257,6 +257,14 @@ static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T1 =            1;
 static const Int SCM__S0269_PALETTE_RUN_MSB_IDX_CTX_T2 =            3;
 static const UChar PALETTE_SIZE_INVALID =                        0xff;
 static const UInt PALETTE_MAX_SYMBOL_P1 =                         256;  ///< palette related pre-calculated array size, this value shall be greater than 1
+static const Int DELTA_QP_FOR_YCgCo_TRANS =                        -5;
+static const Int DELTA_QP_FOR_YCgCo_TRANS_V =                      -3;
+static const Int MAX_PALETTE_SIZE =                                65;
+static const Int MAX_PRED_CHEK =                                    4;
+static const Int MAX_PALETTE_ITER =                                 2; // maximum number of palette derivation
+static const Int CHROMA_REFINEMENT_CANDIDATES =                     8;
+static const Int INTRABC_HASH_DEPTH =                               1;  ////< Currently used only for 8x8
+static const Int INTRABC_HASH_TABLESIZE =                   (1 << 16);
 
 // ====================================================================================================================
 // Macro functions

@@ -124,12 +124,13 @@ private:
 
   // for motion cost
   TComMv                  m_mvPredictor;
-  TComMv                  m_mvPredictors[2];
   Double                  m_motionLambda;
   Int                     m_iCostScale;
+  TComMv                  m_mvPredictors[2];
   Bool                    m_bRGBformat;
   Bool                    m_useColourTrans;
-  Bool                    m_useLL;  
+  Bool                    m_useLL;
+
 public:
   TComRdCost();
   virtual ~TComRdCost();
@@ -160,7 +161,6 @@ public:
   // for motion cost
   static UInt    xGetExpGolombNumberOfBits( Int iVal );
   Void    selectMotionLambda( Bool bSad, Int iAdd, Bool bIsTransquantBypass ) { m_motionLambda = (bSad ? m_dLambdaMotionSAD[(bIsTransquantBypass && m_costMode==COST_MIXED_LOSSLESS_LOSSY_CODING) ?1:0] + iAdd : m_dLambdaMotionSSE[(bIsTransquantBypass && m_costMode==COST_MIXED_LOSSLESS_LOSSY_CODING)?1:0] + iAdd); }
-
   Void    setPredictor( TComMv& rcMv )
   {
     m_mvPredictor = rcMv;
@@ -220,6 +220,13 @@ public:
     return length;
   }
 
+  Bool      getRGBFormatFlag                  ()                 const { return m_bRGBformat;    }
+  Void      setRGBFormatFlag                  (const Bool value)       { m_bRGBformat = value;   }
+  Bool      getUseColourTrans                 ()                 const { return m_useColourTrans;}
+  Void      setUseColourTrans                 (const Bool value)       { m_useColourTrans= value;}
+  Bool      getUseLossless                    ()                 const { return m_useLL;         }
+  Void      setUseLossless                    (const Bool value)       { m_useLL= value;         }
+  Void      adjustLambdaForColourTrans        (Int delta_QP, const BitDepths &bitDepths);
 
   Void    setCostScale( Int iCostScale )    { m_iCostScale = iCostScale; }
   Distortion getCost( UInt b )                 { return Distortion(( m_motionLambda * b ) / 65536.0); }
@@ -267,14 +274,6 @@ private:
 public:
 
   Distortion   getDistPart(Int bitDepth, const Pel* piCur, Int iCurStride, const Pel* piOrg, Int iOrgStride, UInt uiBlkWidth, UInt uiBlkHeight, const ComponentID compID, DFunc eDFunc = DF_SSE );
-
-  Bool      getRGBFormatFlag                  ()                 const { return m_bRGBformat;   } 
-  Void      setRGBFormatFlag                  (const Bool value)       { m_bRGBformat = value;  } 
-  Bool      getUseColourTrans                  ()                 const { return m_useColourTrans;}
-  Void      setUseColourTrans                  (const Bool value)       { m_useColourTrans= value;}
-  Bool      getUseLossless                    ()                 const { return m_useLL;}
-  Void      setUseLossless                    (const Bool value)       { m_useLL= value;}
-  Void      adjustLambdaForColourTrans         (Int delta_QP, const BitDepths &bitDepths);
 
 };// END CLASS DEFINITION TComRdCost
 

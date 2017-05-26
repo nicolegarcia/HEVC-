@@ -194,14 +194,9 @@ protected:
   Bool      m_saoCtuBoundary;
   Bool      m_saoResetEncoderStateAfterIRAP;
 
-
   //====== Motion search ========
   Bool      m_bDisableIntraPUsInInterSlices;
   MESearchMethod m_motionEstimationSearchMethod;
-  Bool      m_useHashBasedIntraBlockCopySearch; // Enable the use of hash based search is applied to 8x8 blocks
-  Int       m_intraBlockCopySearchWidthInCTUs;  // Search range for IBC (-1: full frame search)
-  UInt      m_intraBlockCopyNonHashSearchWidthInCTUs; // IBC search range for conventional non-hash based method (i.e., fast/full search)
-  Bool      m_useHashBasedME;                   //  Hash based inter search 
   Int       m_iSearchRange;                     //  0:Full frame
   Int       m_bipredSearchRange;
   Bool      m_bClipForBiPredMeEnabled;
@@ -216,11 +211,7 @@ protected:
 
   Int       m_chromaCbQpOffset;                 //  Chroma Cb QP Offset (0:default)
   Int       m_chromaCrQpOffset;                 //  Chroma Cr Qp Offset (0:default)
-  Int       m_actYQpOffset;
-  Int       m_actCbQpOffset;
-  Int       m_actCrQpOffset;
   WCGChromaQPControl m_wcgChromaQpControl;                    ///< Wide-colour-gamut chroma QP control.
-
   UInt      m_sliceChromaQpOffsetPeriodicity;                 ///< Used in conjunction with Slice Cb/Cr QpOffsetIntraOrPeriodic. Use 0 (default) to disable periodic nature.
   Int       m_sliceChromaQpOffsetIntraOrPeriodic[2/*Cb,Cr*/]; ///< Chroma Cb QP Offset at slice level for I slice or for periodic inter slices as defined by SliceChromaQPOffsetPeriodicity. Replaces offset in the GOP table.
 
@@ -231,8 +222,6 @@ protected:
 #endif
   Bool      m_extendedPrecisionProcessingFlag;
   Bool      m_highPrecisionOffsetsEnabledFlag;
-  Bool      m_useIntraBlockCopy;
-  Bool      m_intraBlockCopyFastSearch;
   Bool      m_bUseAdaptiveQP;
   Int       m_iQPAdaptationRange;
 
@@ -261,15 +250,6 @@ protected:
   Bool      m_cabacBypassAlignmentEnabledFlag;
   Bool      m_rdpcmEnabledFlag[NUMBER_OF_RDPCM_SIGNALLING_MODES];
   LumaLevelToDeltaQPMapping m_lumaLevelToDeltaQPMapping; ///< mapping from luma level to delta QP.
-  Bool      m_bRGBformat;
-  Bool      m_useColourTrans;
-  Bool      m_useLL;
-  Bool      m_usePaletteMode;
-  UInt      m_paletteMaxSize;
-  UInt      m_paletteMaxPredSize;
-  Int       m_motionVectorResolutionControlIdc;
-  Bool      m_palettePredInPPSEnabled;
-  Bool      m_palettePredInSPSEnabled;
   Int*      m_aidQP;
   UInt      m_uiDeltaQpRD;
   Bool      m_bFastDeltaQP;
@@ -293,7 +273,6 @@ protected:
   Bool      m_bPCMInputBitDepthFlag;
   Bool      m_bPCMFilterDisableFlag;
   Bool      m_intraSmoothingDisabledFlag;
-  Bool      m_disableIntraBoundaryFilter;
   Bool      m_loopFilterAcrossTilesEnabledFlag;
   Bool      m_tileUniformSpacingFlag;
   Int       m_iNumColumnsMinus1;
@@ -394,8 +373,7 @@ protected:
   Double    m_RCInitialCpbFullness;
   Bool      m_TransquantBypassEnabledFlag;                    ///< transquant_bypass_enabled_flag setting in PPS.
   Bool      m_CUTransquantBypassFlagForce;                    ///< if transquant_bypass_enabled_flag, then, if true, all CU transquant bypass flags will be set to true.
-  Bool      m_bTransquantBypassInferTUSplit;
-  Bool      m_bNoTUSplitIntraACTEnabled;
+
   CostMode  m_costMode;                                       ///< The cost function to use, primarily when considering lossless coding.
 
   TComVPS   m_cVPS;
@@ -442,6 +420,29 @@ protected:
   std::string m_summaryOutFilename;                           ///< filename to use for producing summary output file.
   std::string m_summaryPicFilenameBase;                       ///< Base filename to use for producing summary picture output files. The actual filenames used will have I.txt, P.txt and B.txt appended.
   UInt        m_summaryVerboseness;                           ///< Specifies the level of the verboseness of the text output.
+
+  // SCM new added variables
+  Bool      m_useIntraBlockCopy;
+  Bool      m_intraBlockCopyFastSearch;
+  Bool      m_useHashBasedIntraBlockCopySearch; // Enable the use of hash based search is applied to 8x8 blocks
+  Int       m_intraBlockCopySearchWidthInCTUs;  // Search range for IBC (-1: full frame search)
+  UInt      m_intraBlockCopyNonHashSearchWidthInCTUs; // IBC search range for conventional non-hash based method (i.e., fast/full search)
+  Bool      m_useHashBasedME;                   //  Hash based inter search
+  Bool      m_bRGBformat;
+  Bool      m_useColourTrans;
+  Int       m_actYQpOffset;
+  Int       m_actCbQpOffset;
+  Int       m_actCrQpOffset;
+  Bool      m_useLL;
+  Bool      m_bTransquantBypassInferTUSplit;
+  Bool      m_bNoTUSplitIntraACTEnabled;
+  Bool      m_usePaletteMode;
+  UInt      m_paletteMaxSize;
+  UInt      m_paletteMaxPredSize;
+  Int       m_motionVectorResolutionControlIdc;
+  Bool      m_palettePredInPPSEnabled;
+  Bool      m_palettePredInSPSEnabled;
+  Bool      m_disableIntraBoundaryFilter;
 
 public:
   TEncCfg()
@@ -532,10 +533,6 @@ public:
   //====== Motion search ========
   Void      setDisableIntraPUsInInterSlices ( Bool  b )      { m_bDisableIntraPUsInInterSlices = b; }
   Void      setMotionEstimationSearchMethod ( MESearchMethod e ) { m_motionEstimationSearchMethod = e; }
-  Void      setUseHashBasedIntraBCSearch    ( Bool b )       { m_useHashBasedIntraBlockCopySearch = b; }
-  Void      setIntraBCSearchWidthInCTUs     ( Int  i )       { m_intraBlockCopySearchWidthInCTUs = i; }
-  Void      setIntraBCNonHashSearchWidthInCTUs( UInt u )     { m_intraBlockCopyNonHashSearchWidthInCTUs = u; }
-  Void      setUseHashBasedME               ( Bool b )       { m_useHashBasedME = b; }
   Void      setSearchRange                  ( Int   i )      { m_iSearchRange = i; }
   Void      setBipredSearchRange            ( Int   i )      { m_bipredSearchRange = i; }
   Void      setClipForBiPredMeEnabled       ( Bool  b )      { m_bClipForBiPredMeEnabled = b; }
@@ -552,9 +549,6 @@ public:
 
   Void      setChromaCbQpOffset             ( Int   i )      { m_chromaCbQpOffset = i; }
   Void      setChromaCrQpOffset             ( Int   i )      { m_chromaCrQpOffset = i; }
-  Void      setActQpYOffset                 ( Int   i )      { m_actYQpOffset  = i; }
-  Void      setActQpCbOffset                ( Int   i )      { m_actCbQpOffset = i; }
-  Void      setActQpCrOffset                ( Int   i )      { m_actCrQpOffset = i; }
   Void      setWCGChromaQpControl           ( const WCGChromaQPControl &ctrl )     { m_wcgChromaQpControl = ctrl; }
   const WCGChromaQPControl &getWCGChromaQPControl () const { return m_wcgChromaQpControl; }
   Void      setSliceChromaOffsetQpIntraOrPeriodic( UInt periodicity, Int sliceChromaQpOffsetIntraOrPeriodic[2]) { m_sliceChromaQpOffsetPeriodicity = periodicity; memcpy(m_sliceChromaQpOffsetIntraOrPeriodic, sliceChromaQpOffsetIntraOrPeriodic, sizeof(m_sliceChromaQpOffsetIntraOrPeriodic)); }
@@ -577,13 +571,6 @@ public:
 
   Bool      getHighPrecisionOffsetsEnabledFlag() const { return m_highPrecisionOffsetsEnabledFlag; }
   Void      setHighPrecisionOffsetsEnabledFlag(Bool value) { m_highPrecisionOffsetsEnabledFlag = value; }
-
-  Bool      getUseIntraBlockCopy()         const   { return m_useIntraBlockCopy;  }
-  Void      setUseIntraBlockCopy(Bool value)       { m_useIntraBlockCopy = value; }
-
-  Bool      getUseIntraBlockCopyFastSearch() const     { return m_intraBlockCopyFastSearch;  }
-  Void      setUseIntraBlockCopyFastSearch(Bool value) { m_intraBlockCopyFastSearch = value; }
-
 
   Void      setUseAdaptiveQP                ( Bool  b )      { m_bUseAdaptiveQP = b; }
   Void      setQPAdaptationRange            ( Int   i )      { m_iQPAdaptationRange = i; }
@@ -649,11 +636,6 @@ public:
   Bool      getFastMEAssumingSmootherMVEnabled () const { return m_bFastMEAssumingSmootherMVEnabled; }
   Int       getMinSearchWindow                 () const { return m_minSearchWindow; }
   Bool      getRestrictMESampling              () const { return m_bRestrictMESampling; }
-  Bool      getUseHashBasedIntraBCSearch    ()      { return m_useHashBasedIntraBlockCopySearch; }
-  Bool      getUseIntraBCFullFrameSearch    ()      { return m_intraBlockCopySearchWidthInCTUs == -1; }
-  Int       getIntraBCSearchWidthInCTUs     ()      { return m_intraBlockCopySearchWidthInCTUs; }
-  UInt      getIntraBCNonHashSearchWidthInCTUs()    { return m_intraBlockCopyNonHashSearchWidthInCTUs; }
-  Bool      getUseHashBasedME               ()      { return m_useHashBasedME; }
 
   //==== Quality control ========
   Int       getMaxDeltaQP                   () const { return  m_iMaxDeltaQP; }
@@ -663,7 +645,6 @@ public:
 
   //==== Tool list ========
   Void      setBitDepth( const ChannelType chType, Int internalBitDepthForChannel ) { m_bitDepth[chType] = internalBitDepthForChannel; }
-  Int       getBitDepth(const ChannelType chType) { return m_bitDepth[chType]; }
   Void      setUseASR                       ( Bool  b )     { m_bUseASR     = b; }
   Void      setUseHADME                     ( Bool  b )     { m_bUseHADME   = b; }
   Void      setUseRDOQ                      ( Bool  b )     { m_useRDOQ    = b; }
@@ -728,32 +709,12 @@ public:
   Void setCabacBypassAlignmentEnabledFlag              (const Bool value)  { m_cabacBypassAlignmentEnabledFlag = value; }
   Bool getRdpcmEnabledFlag                             (const RDPCMSignallingMode signallingMode)        const      { return m_rdpcmEnabledFlag[signallingMode];  }
   Void setRdpcmEnabledFlag                             (const RDPCMSignallingMode signallingMode, const Bool value) { m_rdpcmEnabledFlag[signallingMode] = value; }
-  Void setRGBFormatFlag                                (const Bool value)  { m_bRGBformat = value;  }
-  Bool getRGBFormatFlag                                ()            const { return m_bRGBformat; }
-  Bool getUseColourTrans                               ()            const { return m_useColourTrans; }
-  Void setUseColourTrans                               (const Bool value)  { m_useColourTrans = value; }
-  Bool getUseLossless                                  ()            const { return m_useLL; }
-  Void setUseLossless                                  (const Bool value)  { m_useLL = value; }
-  Void setUsePaletteMode                               (const Bool value)  { m_usePaletteMode = value; }
-  Bool getUsePaletteMode()                                           const { return m_usePaletteMode; }
-  Void setPaletteMaxSize                               (const UInt value)  { m_paletteMaxSize = value; }
-  UInt getPaletteMaxSize()                                           const { return m_paletteMaxSize; }
-  Void setPaletteMaxPredSize                           (const UInt value)  { m_paletteMaxPredSize = value; }
-  UInt getPaletteMaxPredSize()                                       const { return m_paletteMaxPredSize; }
-  Void setMotionVectorResolutionControlIdc             ( Int idc )         { m_motionVectorResolutionControlIdc = idc; }
-  Int  getMotionVectorResolutionControlIdc             ()            const { return m_motionVectorResolutionControlIdc; }
-  Void setPalettePredInPPSEnabled                      ( Bool b )          { m_palettePredInPPSEnabled = b; }
-  Bool getPalettePredInPPSEnabled                      ()            const { return m_palettePredInPPSEnabled; }
-  Void setPalettePredInSPSEnabled                      ( Bool b )          { m_palettePredInSPSEnabled = b; }
-  Bool getPalettePredInSPSEnabled                      ()            const { return m_palettePredInSPSEnabled; }
   Bool getUseTransformSkipFast                         ()      { return m_useTransformSkipFast;    }
   Void setUseTransformSkipFast                         ( Bool b ) { m_useTransformSkipFast  = b;   }
   UInt getLog2MaxTransformSkipBlockSize                () const      { return m_log2MaxTransformSkipBlockSize;     }
   Void setLog2MaxTransformSkipBlockSize                ( UInt u )    { m_log2MaxTransformSkipBlockSize  = u;       }
   Bool getIntraSmoothingDisabledFlag               ()      const { return m_intraSmoothingDisabledFlag; }
   Void setIntraSmoothingDisabledFlag               (Bool bValue) { m_intraSmoothingDisabledFlag=bValue; }
-  Void setDisableIntraBoundaryFilter                   (Bool bValue) { m_disableIntraBoundaryFilter=bValue; }
-  Bool getDisableIntraBoundaryFilter                   ()      const { return m_disableIntraBoundaryFilter; }
 
   const Int* getdQPs                        () const { return m_aidQP;       }
   UInt      getDeltaQpRD                    () const { return m_uiDeltaQpRD; }
@@ -984,10 +945,6 @@ public:
   Void         setTransquantBypassEnabledFlag(Bool flag)             { m_TransquantBypassEnabledFlag = flag; }
   Bool         getCUTransquantBypassFlagForceValue()                 { return m_CUTransquantBypassFlagForce; }
   Void         setCUTransquantBypassFlagForceValue(Bool flag)        { m_CUTransquantBypassFlagForce = flag; }
-  Bool         getTransquantBypassInferTUSplit()                     { return m_bTransquantBypassInferTUSplit; }
-  Void         setTransquantBypassInferTUSplit(Bool flag)            { m_bTransquantBypassInferTUSplit = flag; }
-  Bool         getNoTUSplitIntraACTEnabled()                         { return m_bNoTUSplitIntraACTEnabled; }
-  Void         setNoTUSplitIntraACTEnabled(Bool flag)                { m_bNoTUSplitIntraACTEnabled = flag; } 
   CostMode     getCostMode( ) const                                  { return m_costMode; }
   Void         setCostMode(CostMode m )                              { m_costMode = m; }
 
@@ -1109,6 +1066,52 @@ public:
 
   Void      setSummaryVerboseness(UInt v)                            { m_summaryVerboseness = v; }
   UInt      getSummaryVerboseness( ) const                           { return m_summaryVerboseness; }
+
+  // SCM new added functions
+  Void      setUseHashBasedIntraBCSearch       ( Bool b )           { m_useHashBasedIntraBlockCopySearch = b; }
+  Void      setIntraBCSearchWidthInCTUs        ( Int  i )           { m_intraBlockCopySearchWidthInCTUs = i; }
+  Void      setIntraBCNonHashSearchWidthInCTUs ( UInt u )           { m_intraBlockCopyNonHashSearchWidthInCTUs = u; }
+  Void      setUseHashBasedME                  ( Bool b )           { m_useHashBasedME = b; }
+
+  Void      setActQpYOffset                    ( Int   i )          { m_actYQpOffset  = i; }
+  Void      setActQpCbOffset                   ( Int   i )          { m_actCbQpOffset = i; }
+  Void      setActQpCrOffset                   ( Int   i )          { m_actCrQpOffset = i; }
+
+  Bool      getUseIntraBlockCopy                () const            { return m_useIntraBlockCopy; }
+  Void      setUseIntraBlockCopy                (Bool value)        { m_useIntraBlockCopy = value; }
+  Bool      getUseIntraBlockCopyFastSearch      () const            { return m_intraBlockCopyFastSearch; }
+  Void      setUseIntraBlockCopyFastSearch      (Bool value)        { m_intraBlockCopyFastSearch = value; }
+
+  Bool      getUseHashBasedIntraBCSearch        () const            { return m_useHashBasedIntraBlockCopySearch; }
+  Bool      getUseIntraBCFullFrameSearch        () const            { return m_intraBlockCopySearchWidthInCTUs == -1; }
+  Int       getIntraBCSearchWidthInCTUs         () const            { return m_intraBlockCopySearchWidthInCTUs; }
+  UInt      getIntraBCNonHashSearchWidthInCTUs  () const            { return m_intraBlockCopyNonHashSearchWidthInCTUs; }
+  Bool      getUseHashBasedME                   () const            { return m_useHashBasedME; }
+  Int       getBitDepth                         (const ChannelType chType) const { return m_bitDepth[chType]; }
+  Void      setRGBFormatFlag                    (const Bool value)  { m_bRGBformat = value; }
+  Bool      getRGBFormatFlag                    () const            { return m_bRGBformat; }
+  Bool      getUseColourTrans                   () const            { return m_useColourTrans; }
+  Void      setUseColourTrans                   (const Bool value)  { m_useColourTrans = value; }
+  Bool      getUseLossless                      () const            { return m_useLL; }
+  Void      setUseLossless                      (const Bool value)  { m_useLL = value; }
+  Void      setUsePaletteMode                   (const Bool value)  { m_usePaletteMode = value; }
+  Bool      getUsePaletteMode                   () const            { return m_usePaletteMode; }
+  Void      setPaletteMaxSize                   (const UInt value)  { m_paletteMaxSize = value; }
+  UInt      getPaletteMaxSize                   () const            { return m_paletteMaxSize; }
+  Void      setPaletteMaxPredSize               (const UInt value)  { m_paletteMaxPredSize = value; }
+  UInt      getPaletteMaxPredSize               () const            { return m_paletteMaxPredSize; }
+  Void      setMotionVectorResolutionControlIdc ( Int idc )         { m_motionVectorResolutionControlIdc = idc; }
+  Int       getMotionVectorResolutionControlIdc () const            { return m_motionVectorResolutionControlIdc; }
+  Void      setPalettePredInPPSEnabled          ( Bool b )          { m_palettePredInPPSEnabled = b; }
+  Bool      getPalettePredInPPSEnabled          () const            { return m_palettePredInPPSEnabled; }
+  Void      setPalettePredInSPSEnabled          ( Bool b )          { m_palettePredInSPSEnabled = b; }
+  Bool      getPalettePredInSPSEnabled          () const            { return m_palettePredInSPSEnabled; }
+  Bool      getTransquantBypassInferTUSplit     () const            { return m_bTransquantBypassInferTUSplit; }
+  Void      setDisableIntraBoundaryFilter       (Bool bValue)       { m_disableIntraBoundaryFilter=bValue; }
+  Bool      getDisableIntraBoundaryFilter       () const            { return m_disableIntraBoundaryFilter; }
+  Void      setTransquantBypassInferTUSplit     (Bool flag)         { m_bTransquantBypassInferTUSplit = flag; }
+  Bool      getNoTUSplitIntraACTEnabled         () const            { return m_bNoTUSplitIntraACTEnabled; }
+  Void      setNoTUSplitIntraACTEnabled         (Bool flag)         { m_bNoTUSplitIntraACTEnabled = flag; } 
 };
 
 //! \}

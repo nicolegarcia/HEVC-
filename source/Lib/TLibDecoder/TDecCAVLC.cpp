@@ -1898,8 +1898,7 @@ Void TDecCavlc::parseProfileTier(ProfileTierLevel *ptl, const Bool /*bIsSubLayer
        ptl->getProfileCompatibilityFlag(Profile::MAINSTILLPICTURE) ||
        ptl->getProfileCompatibilityFlag(Profile::MAINREXT) ||
        ptl->getProfileCompatibilityFlag(Profile::HIGHTHROUGHPUTREXT) ||
-       ptl->getProfileCompatibilityFlag(Profile::MAINSCC)
-       )
+       ptl->getProfileCompatibilityFlag(Profile::MAINSCC) )
   {
     READ_FLAG(    uiCode, PTL_TRACE_TEXT("inbld_flag"                      )); assert(uiCode == 0);
   }
@@ -1946,16 +1945,6 @@ Void TDecCavlc::parseRemainingBytes( Bool noTrailingBytesExpected )
 }
 
 Void TDecCavlc::parseSkipFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiDepth*/ )
-{
-  assert(0);
-}
-
-Void TDecCavlc::parsePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj )
-{
-  assert(0);
-}
-
-Void TDecCavlc::parsePaletteModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
   assert(0);
 }
@@ -2066,11 +2055,6 @@ Void TDecCavlc::parseTransformSubdivFlag( UInt& /*ruiSubdivFlag*/, UInt /*uiLog2
 }
 
 Void TDecCavlc::parseQtCbf( TComTU &/*rTu*/, const ComponentID /*compID*/, const Bool /*lowestLevel*/ )
-{
-  assert(0);
-}
-
-Void  TDecCavlc::parseColourTransformFlag( UInt , Bool&  )
 {
   assert(0);
 }
@@ -2347,6 +2331,21 @@ Bool TDecCavlc::xMoreRbspData()
 }
 
 Void TDecCavlc::parseExplicitRdpcmMode( TComTU& /*rTu*/, ComponentID /*compID*/ )
+{
+  assert(0);
+}
+
+Void TDecCavlc::parsePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj )
+{
+  assert(0);
+}
+
+Void TDecCavlc::parsePaletteModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+{
+  assert(0);
+}
+
+Void  TDecCavlc::parseColourTransformFlag( UInt absPartIdx, Bool& flag )
 {
   assert(0);
 }

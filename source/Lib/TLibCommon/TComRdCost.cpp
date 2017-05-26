@@ -40,7 +40,6 @@
 #include <limits>
 #include "TComRom.h"
 #include "TComRdCost.h"
-#include "TComTU.h"
 
 #if VECTOR_CODING__DISTORTION_CALCULATIONS && (RExt__HIGH_BIT_DEPTH_SUPPORT==0)
 #include <emmintrin.h>
@@ -113,7 +112,7 @@ Void TComRdCost::setLambda( Double dLambda, const BitDepths &bitDepths )
   m_sqrtLambda        = sqrt(m_dLambda);
   if(getUseColourTrans()&&!getUseLossless())
   {
-    m_sqrtLambda        = sqrt(m_dLambda* pow(2.0, DELTA_QP_FOR_YCgCo_TRANS/3.0));
+    m_sqrtLambda      = sqrt(m_dLambda* pow(2.0, DELTA_QP_FOR_YCgCo_TRANS/3.0));
   }
 
   m_dLambdaMotionSAD[0] = 65536.0 * m_sqrtLambda;
@@ -369,8 +368,6 @@ Void TComRdCost::adjustLambdaForColourTrans(Int delta_QP, const BitDepths &bitDe
   Double dLambda = m_dLambda * lamdbaAdjustRate;
   setLambda( dLambda, bitDepths );
 }
-
-
 
 // ====================================================================================================================
 // Distortion functions

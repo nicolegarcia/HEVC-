@@ -82,7 +82,7 @@ TDecTop::TDecTop()
   , m_prefixSEINALUs()
   , m_pcPicBeforeILF(NULL)
   , m_pcPicAfterILF(NULL)
-  , m_pcTwoVersionsOfCurrDecPicFlag (false)
+  , m_pcTwoVersionsOfCurrDecPicFlag(false)
 {
 #if ENC_DEC_TRACE
   if (g_hTrace == NULL)
@@ -417,7 +417,6 @@ Void TDecTop::xSwapPicPoiterExeptTComPicYuvRefType( TComPic** picA, TComPic** pi
   *picA = *picB;
   *picB = pcPicTemp;
 }
-
 
 Void TDecTop::xActivateParameterSets()
 {

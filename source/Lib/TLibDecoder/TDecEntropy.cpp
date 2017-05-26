@@ -70,20 +70,6 @@ Void TDecEntropy::decodeCUTransquantBypassFlag(TComDataCU* pcCU, UInt uiAbsPartI
   m_pcEntropyDecoderIf->parseCUTransquantBypassFlag( pcCU, uiAbsPartIdx, uiDepth );
 }
 
-Void TDecEntropy::decodePaletteModeInfo( TComDataCU* pcCU, UInt absPartIdx, UInt depth, Bool& bCodeDQP, Bool& isChromaQpAdjCoded )
-{
-  const UChar cuWidth =UChar(pcCU->getSlice()->getSPS()->getMaxCUWidth()>>depth);
-  const UInt log2CbSize = g_aucConvertToBit[cuWidth] + 2;
-  if( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() && pcCU->isIntra( absPartIdx ) && log2CbSize <= pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
-  {
-    m_pcEntropyDecoderIf->parsePaletteModeFlag( pcCU, absPartIdx, depth );
-    if ( pcCU->getPaletteModeFlag( absPartIdx ) )
-    {
-      m_pcEntropyDecoderIf->parsePaletteModeSyntax( pcCU, absPartIdx, depth, 3, bCodeDQP, isChromaQpAdjCoded );
-      pcCU->saveLastPaletteInLcuFinal( pcCU, absPartIdx, MAX_NUM_COMPONENT );
-    }
-  }
-}
 
 /** decode merge flag
  * \param pcSubCU
@@ -203,6 +189,7 @@ Void TDecEntropy::decodeIntraDirModeChroma( TComDataCU* pcCU, UInt uiAbsPartIdx,
 #endif
 }
 
+
 /** decode motion information for every PU block.
  * \param pcCU
  * \param uiAbsPartIdx
@@ -306,8 +293,9 @@ Void TDecEntropy::decodePUWise( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDept
       cMv[1] = pcCU->getCUMvField( REF_PIC_LIST_1 )->getMv(uiSubPartIdx);
       iRefIdxBi[0] = pcCU->getCUMvField( REF_PIC_LIST_0 )->getRefIdx(uiSubPartIdx);
       iRefIdxBi[1] = pcCU->getCUMvField( REF_PIC_LIST_1 )->getRefIdx(uiSubPartIdx);
-      b8x8BiPredRestricted = pcCU->is8x8BipredRestriction(cMv[0],cMv[1],iRefIdxBi[0],iRefIdxBi[1]);                
-    }        
+      b8x8BiPredRestricted = pcCU->is8x8BipredRestriction(cMv[0],cMv[1],iRefIdxBi[0],iRefIdxBi[1]);
+    }
+
     if ( (pcCU->getInterDir(uiSubPartIdx) == 3) && pcSubCU->isBipredRestriction(uiPartIdx,b8x8BiPredRestricted) )
     {
       pcCU->getCUMvField( REF_PIC_LIST_1 )->setAllMv( TComMv(0,0), ePartSize, uiSubPartIdx, uiDepth, uiPartIdx);
@@ -694,6 +682,7 @@ Void TDecEntropy::decodeCoeff( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth
       pcCU->setColourTransformSubParts(0, uiAbsPartIdx, uiDepth);
       return;
     }
+
   }
 
   TComTURecurse tuRecurse(pcCU, uiAbsPartIdx, uiDepth);
@@ -708,6 +697,21 @@ Void TDecEntropy::decodeCoeff( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth
   Int quadtreeTULog2MinSizeInCU = pcCU->getQuadtreeTULog2MinSizeInCU(uiAbsPartIdx);
   
   xDecodeTransform( bCodeDQP, isChromaQpAdjCoded, tuRecurse, quadtreeTULog2MinSizeInCU );
+}
+
+Void TDecEntropy::decodePaletteModeInfo( TComDataCU* pcCU, UInt absPartIdx, UInt depth, Bool& bCodeDQP, Bool& isChromaQpAdjCoded )
+{
+  const UChar cuWidth =UChar(pcCU->getSlice()->getSPS()->getMaxCUWidth()>>depth);
+  const UInt log2CbSize = g_aucConvertToBit[cuWidth] + 2;
+  if( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() && pcCU->isIntra( absPartIdx ) && log2CbSize <= pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
+  {
+    m_pcEntropyDecoderIf->parsePaletteModeFlag( pcCU, absPartIdx, depth );
+    if ( pcCU->getPaletteModeFlag( absPartIdx ) )
+    {
+      m_pcEntropyDecoderIf->parsePaletteModeSyntax( pcCU, absPartIdx, depth, 3, bCodeDQP, isChromaQpAdjCoded );
+      pcCU->saveLastPaletteInLcuFinal( pcCU, absPartIdx, MAX_NUM_COMPONENT );
+    }
+  }
 }
 
 //! \}
