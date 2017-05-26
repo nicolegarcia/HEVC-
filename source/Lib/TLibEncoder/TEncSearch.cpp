@@ -367,7 +367,7 @@ Void TEncSearch::init(TEncCfg*       pcEncCfg,
   m_pppcRDSbacCoder              = pppcRDSbacCoder;
   m_pcRDGoOnSbacCoder            = pcRDGoOnSbacCoder;
 
-  m_uiNumBVs = 0;
+  m_numBVs = 0;
 
   for (UInt iDir = 0; iDir < MAX_NUM_REF_LIST_ADAPT_SR; iDir++)
   {
@@ -10894,61 +10894,61 @@ static UInt MergeCandLists(TComMv *dst, UInt dn, TComMv *src, UInt sn, Bool isSr
 
 // based on xPatternSearch
 Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
-                                      Int          iPartIdx,
-                                      UInt         uiPartAddr,
+                                      Int          partIdx,
+                                      UInt         partAddr,
                                       TComPattern *pcPatternKey,
                                       Pel         *piRefY,
-                                      Int          iRefStride,
+                                      Int          refStride,
                                       TComMv      *pcMvSrchRngLT,
                                       TComMv      *pcMvSrchRngRB,
                                       TComMv      &rcMv,
-                                      Distortion  &ruiSAD,
-                                      Int          iRoiWidth,
-                                      Int          iRoiHeight,
+                                      Distortion  &SAD,
+                                      Int          roiWidth,
+                                      Int          roiHeight,
                                       TComMv      *mvPred,
-                                      Bool         bUse1DSearchFor8x8
-                                    , Bool         testOnlyPred
+                                      Bool         bUse1DSearchFor8x8,
+                                      Bool         testOnlyPred
                                       )
 {
-  const Int   iSrchRngHorLeft   = pcMvSrchRngLT->getHor();
-  const Int   iSrchRngHorRight  = pcMvSrchRngRB->getHor();
-  const Int   iSrchRngVerTop    = pcMvSrchRngLT->getVer();
-  const Int   iSrchRngVerBottom = pcMvSrchRngRB->getVer();
+  const Int   srchRngHorLeft   = pcMvSrchRngLT->getHor();
+  const Int   srchRngHorRight  = pcMvSrchRngRB->getHor();
+  const Int   srchRngVerTop    = pcMvSrchRngLT->getVer();
+  const Int   srchRngVerBottom = pcMvSrchRngRB->getVer();
 
-  const UInt  lcuWidth          = pcCU->getSlice()->getSPS()->getMaxCUWidth();
-  const UInt  lcuHeight         = pcCU->getSlice()->getSPS()->getMaxCUHeight();
-  const Int   puPelOffsetX      = g_auiRasterToPelX[ g_auiZscanToRaster[ uiPartAddr ] ];
-  const Int   puPelOffsetY      = g_auiRasterToPelY[ g_auiZscanToRaster[ uiPartAddr ] ];
-  const Int   cuPelX            = pcCU->getCUPelX() + puPelOffsetX;  // Point to the location of PU
-  const Int   cuPelY            = pcCU->getCUPelY() + puPelOffsetY;
+  const UInt  lcuWidth         = pcCU->getSlice()->getSPS()->getMaxCUWidth();
+  const UInt  lcuHeight        = pcCU->getSlice()->getSPS()->getMaxCUHeight();
+  const Int   puPelOffsetX     = g_auiRasterToPelX[ g_auiZscanToRaster[ partAddr ] ];
+  const Int   puPelOffsetY     = g_auiRasterToPelY[ g_auiZscanToRaster[ partAddr ] ];
+  const Int   cuPelX           = pcCU->getCUPelX() + puPelOffsetX;  // Point to the location of PU
+  const Int   cuPelY           = pcCU->getCUPelY() + puPelOffsetY;
 
-  Distortion  uiSad;
-  Distortion  uiSadBest         = std::numeric_limits<Distortion>::max();
-  Int         iBestX            = 0;
-  Int         iBestY            = 0;
+  Distortion  sad;
+  Distortion  sadBest          = std::numeric_limits<Distortion>::max();
+  Int         bestX            = 0;
+  Int         bestY            = 0;
 
   Pel*        piRefSrch;
 
-  Int         iBestCandIdx = 0;
-  UInt        uiPartOffset = 0;
-  Distortion  uiSadBestCand[CHROMA_REFINEMENT_CANDIDATES];
+  Int         bestCandIdx = 0;
+  UInt        partOffset = 0;
+  Distortion  sadBestCand[CHROMA_REFINEMENT_CANDIDATES];
   TComMv      cMVCand[CHROMA_REFINEMENT_CANDIDATES];
 
-  uiPartOffset = uiPartAddr;
+  partOffset = partAddr;
 
-  for(int iCand = 0; iCand < CHROMA_REFINEMENT_CANDIDATES; iCand++)
+  for(int cand = 0; cand < CHROMA_REFINEMENT_CANDIDATES; cand++)
   {
-    uiSadBestCand[iCand] = std::numeric_limits<Distortion>::max();
-    cMVCand[iCand].set(0,0);
+    sadBestCand[cand] = std::numeric_limits<Distortion>::max();
+    cMVCand[cand].set(0,0);
   }
 
   //-- jclee for using the SAD function pointer
-  m_pcRdCost->setDistParam( pcPatternKey, piRefY, iRefStride,  m_cDistParam );
+  m_pcRdCost->setDistParam( pcPatternKey, piRefY, refStride,  m_cDistParam );
 
-  const Int        iRelCUPelX    = cuPelX % lcuWidth;
-  const Int        iRelCUPelY    = cuPelY % lcuHeight;
-  const Int chromaROIWidthInPixels  = iRoiWidth;
-  const Int chromaROIHeightInPixels = iRoiHeight;
+  const Int        relCUPelX    = cuPelX % lcuWidth;
+  const Int        relCUPelY    = cuPelY % lcuHeight;
+  const Int chromaROIWidthInPixels  = roiWidth;
+  const Int chromaROIHeightInPixels = roiHeight;
 
   const UInt curTileIdx = pcCU->getPic()->getPicSym()->getTileIdxMap( pcCU->getCtuRsAddr() );
   TComTile* curTile = pcCU->getPic()->getPicSym()->getTComTile( curTileIdx );
@@ -10966,36 +10966,36 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
     m_cDistParam.iRows     = 4;//to calculate the sad line by line;
     m_cDistParam.iSubShift = 0;
 
-    Distortion uiTempSadBest = 0;
+    Distortion tempSadBest = 0;
 
-    Int srLeft = iSrchRngHorLeft, srRight = iSrchRngHorRight, srTop = iSrchRngVerTop, srBottom = iSrchRngVerBottom;
+    Int srLeft = srchRngHorLeft, srRight = srchRngHorRight, srTop = srchRngVerTop, srBottom = srchRngVerBottom;
 
-    const Int iPicWidth  = pcCU->getSlice()->getSPS()->getPicWidthInLumaSamples();
-    const Int iPicHeight = pcCU->getSlice()->getSPS()->getPicHeightInLumaSamples();
+    const Int picWidth  = pcCU->getSlice()->getSPS()->getPicWidthInLumaSamples();
+    const Int picHeight = pcCU->getSlice()->getSPS()->getPicHeightInLumaSamples();
 
     if(m_pcEncCfg->getUseIntraBCFullFrameSearch() )
     {
       srLeft  = -1 * cuPelX;
       srTop   = -1 * cuPelY;
 
-      srRight  = iPicWidth - cuPelX - iRoiWidth;
-      srBottom = lcuHeight - cuPelY % lcuHeight - iRoiHeight;
+      srRight  = picWidth - cuPelX - roiWidth;
+      srBottom = lcuHeight - cuPelY % lcuHeight - roiHeight;
 
-      if( cuPelX + srRight + iRoiWidth > iPicWidth)
+      if( cuPelX + srRight + roiWidth > picWidth)
       {
-        srRight = iPicWidth%lcuWidth - cuPelX %lcuWidth - iRoiWidth;
+        srRight = picWidth%lcuWidth - cuPelX %lcuWidth - roiWidth;
       }
-      if( cuPelY + srBottom + iRoiHeight > iPicHeight)
+      if( cuPelY + srBottom + roiHeight > picHeight)
       {
-        srBottom = iPicHeight%lcuHeight - cuPelY % lcuHeight - iRoiHeight;
+        srBottom = picHeight%lcuHeight - cuPelY % lcuHeight - roiHeight;
       }
-      if( cuPelX + srRight + iRoiWidth > tileAreaRight)
+      if( cuPelX + srRight + roiWidth > tileAreaRight)
       {
-        srRight = tileAreaRight%lcuWidth - cuPelX %lcuWidth - iRoiWidth;
+        srRight = tileAreaRight%lcuWidth - cuPelX %lcuWidth - roiWidth;
       }
-      if( cuPelY + srBottom + iRoiHeight > tileAreaBottom)
+      if( cuPelY + srBottom + roiHeight > tileAreaBottom)
       {
-        srBottom = tileAreaBottom%lcuHeight - cuPelY % lcuHeight - iRoiHeight;
+        srBottom = tileAreaBottom%lcuHeight - cuPelY % lcuHeight - roiHeight;
       }
       if( cuPelX + srLeft < tileAreaLeft)
       {
@@ -11007,25 +11007,25 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
       }
     }
 
-    if(iRoiWidth>8 || iRoiHeight>8)
+    if(roiWidth>8 || roiHeight>8)
     {
-      m_uiNumBVs = 0;
+      m_numBVs = 0;
     }
-    else if (iRoiWidth+iRoiHeight==16)
+    else if (roiWidth+roiHeight==16)
     {
-      m_uiNumBVs = m_uiNumBV16s;
+      m_numBVs = m_numBV16s;
     }
 
     if( testOnlyPred )
     {
-      m_uiNumBVs = 0;
+      m_numBVs = 0;
     }
 
     TComMv cMvPredEncOnly[16];
     Int nbPreds = 0;
-    pcCU->getIntraBCMVPsEncOnly(uiPartAddr, cMvPredEncOnly, nbPreds, iPartIdx );
-    m_uiNumBVs = MergeCandLists(m_acBVs, m_uiNumBVs, cMvPredEncOnly, nbPreds, true);
-    for(UInt cand = 0; cand < m_uiNumBVs; cand++)
+    pcCU->getIntraBCMVPsEncOnly(partAddr, cMvPredEncOnly, nbPreds, partIdx );
+    m_numBVs = MergeCandLists(m_acBVs, m_numBVs, cMvPredEncOnly, nbPreds, true);
+    for(UInt cand = 0; cand < m_numBVs; cand++)
     {
       Int xPred = m_acBVs[cand].getHor()>>2;
       Int yPred = m_acBVs[cand].getVer()>>2;
@@ -11033,18 +11033,18 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
             && !( (yPred < srTop)  || (yPred > srBottom) )
             && !( (xPred < srLeft) || (xPred > srRight) ) )
       {
-        Int iTempY = yPred + iRelCUPelY + iRoiHeight - 1;
-        Int iTempX = xPred + iRelCUPelX + iRoiWidth  - 1;
-        Bool validCand = isValidIntraBCSearchArea(pcCU, xPred, yPred, chromaROIWidthInPixels, chromaROIHeightInPixels, uiPartOffset);
+        Int tempY = yPred + relCUPelY + roiHeight - 1;
+        Int tempX = xPred + relCUPelX + roiWidth  - 1;
+        Bool validCand = isValidIntraBCSearchArea(pcCU, xPred, yPred, chromaROIWidthInPixels, chromaROIHeightInPixels, partOffset);
 
-        if((iTempX >= (Int)lcuWidth) && (iTempY >= 0) && m_pcEncCfg->getUseIntraBCFullFrameSearch())
+        if((tempX >= (Int)lcuWidth) && (tempY >= 0) && m_pcEncCfg->getUseIntraBCFullFrameSearch())
         {
           validCand = false;
         }
 
-        if ((iTempX >= 0) && (iTempY >= 0))
+        if ((tempX >= 0) && (tempY >= 0))
         {
-          Int iTempRasterIdx = (iTempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (iTempX/pcCU->getPic()->getMinCUWidth());
+          Int iTempRasterIdx = (tempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (tempX/pcCU->getPic()->getMinCUWidth());
           Int iTempZscanIdx = g_auiRasterToZscan[iTempRasterIdx];
           if(iTempZscanIdx >= pcCU->getZorderIdxInCtu())
           {
@@ -11054,319 +11054,363 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
 
         if( validCand )
         {
-          uiSad = m_pcRdCost->getCostMultiplePreds( xPred, yPred);
+          sad = m_pcRdCost->getCostMultiplePreds( xPred, yPred);
 
-          for(int r = 0; r < iRoiHeight; )
+          for(int r = 0; r < roiHeight; )
           {
-            piRefSrch = piRefY + yPred * iRefStride + r*iRefStride + xPred;
+            piRefSrch = piRefY + yPred * refStride + r*refStride + xPred;
             m_cDistParam.pCur = piRefSrch;
             m_cDistParam.pOrg = pcPatternKey->getROIY() + r * pcPatternKey->getPatternLStride();
 
-            uiSad += m_cDistParam.DistFunc( &m_cDistParam );
-            if(uiSad > uiSadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            sad += m_cDistParam.DistFunc( &m_cDistParam );
+            if (sad > sadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            {
               break;
+            }
 
             r += 4;
           }
 
-          xIntraBCSearchMVCandUpdate(uiSad, xPred, yPred, uiSadBestCand, cMVCand);
+          xIntraBCSearchMVCandUpdate(sad, xPred, yPred, sadBestCand, cMVCand);
         }
       }
     }
 
-    iBestX = cMVCand[0].getHor();
-    iBestY = cMVCand[0].getVer();
-    rcMv.set( iBestX, iBestY );
-    uiSadBest = uiSadBestCand[0];
+    bestX = cMVCand[0].getHor();
+    bestY = cMVCand[0].getVer();
+    rcMv.set( bestX, bestY );
+    sadBest = sadBestCand[0];
 
     if( testOnlyPred )
     {
-      ruiSAD = uiSadBest;
+      SAD = sadBest;
       return;
     }
 
-    const Int boundY = (0 - iRoiHeight - puPelOffsetY);
-    Int lowY = ((pcCU->getPartitionSize(uiPartAddr) == SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU) && m_pcEncCfg->getUseIntraBCFullFrameSearch())
-             ? -cuPelY : max(iSrchRngVerTop, 0 - cuPelY);
+    const Int boundY = (0 - roiHeight - puPelOffsetY);
+    Int lowY = ((pcCU->getPartitionSize(partAddr) == SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU) && m_pcEncCfg->getUseIntraBCFullFrameSearch())
+             ? -cuPelY : max(srchRngVerTop, 0 - cuPelY);
     for(Int y = boundY ; y >= lowY ; y-- )
     {
-      if ( !isValidIntraBCSearchArea( pcCU, 0, y, chromaROIWidthInPixels, chromaROIHeightInPixels, uiPartOffset ) )
+      if ( !isValidIntraBCSearchArea( pcCU, 0, y, chromaROIWidthInPixels, chromaROIHeightInPixels, partOffset ) )
       {
         continue;
       }
 
-      uiSad = m_pcRdCost->getCostMultiplePreds( 0, y);
+      sad = m_pcRdCost->getCostMultiplePreds( 0, y);
 
-      for(int r = 0; r < iRoiHeight; )
+      for(int r = 0; r < roiHeight; )
       {
-        piRefSrch = piRefY + y * iRefStride + r*iRefStride;
+        piRefSrch = piRefY + y * refStride + r*refStride;
         m_cDistParam.pCur = piRefSrch;
         m_cDistParam.pOrg = pcPatternKey->getROIY() + r * pcPatternKey->getPatternLStride();
 
-        uiSad += m_cDistParam.DistFunc( &m_cDistParam );
+        sad += m_cDistParam.DistFunc( &m_cDistParam );
 
-        if(uiSad > uiSadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+        if (sad > sadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+        {
           break;
+        }
 
         r += 4;
       }
 
-      xIntraBCSearchMVCandUpdate(uiSad, 0, y, uiSadBestCand, cMVCand);
-      uiTempSadBest = uiSadBestCand[0];
-      if(uiSadBestCand[0] <= 3)
+      xIntraBCSearchMVCandUpdate(sad, 0, y, sadBestCand, cMVCand);
+      tempSadBest = sadBestCand[0];
+      if(sadBestCand[0] <= 3)
       {
-        iBestX = cMVCand[0].getHor();
-        iBestY = cMVCand[0].getVer();
-        uiSadBest = uiSadBestCand[0];
-        rcMv.set( iBestX, iBestY );
-        ruiSAD = uiSadBest;
-        goto end;
+        bestX = cMVCand[0].getHor();
+        bestY = cMVCand[0].getVer();
+        sadBest = sadBestCand[0];
+        rcMv.set( bestX, bestY );
+        SAD = sadBest;
+
+        updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
+        return;
       }
     }
 
-    const Int boundX = ((pcCU->getPartitionSize(uiPartAddr) == SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU) && m_pcEncCfg->getUseIntraBCFullFrameSearch())
-                     ? -cuPelX : max(iSrchRngHorLeft, - cuPelX);
-    for(Int x = 0 - iRoiWidth - puPelOffsetX ; x >= boundX ; --x )
+    const Int boundX = ((pcCU->getPartitionSize(partAddr) == SCM_S0067_IBC_FULL_1D_SEARCH_FOR_PU) && m_pcEncCfg->getUseIntraBCFullFrameSearch())
+                     ? -cuPelX : max(srchRngHorLeft, - cuPelX);
+    for(Int x = 0 - roiWidth - puPelOffsetX ; x >= boundX ; --x )
     {
-      if (!isValidIntraBCSearchArea(pcCU, x, 0, chromaROIWidthInPixels, chromaROIHeightInPixels, uiPartOffset))
+      if (!isValidIntraBCSearchArea(pcCU, x, 0, chromaROIWidthInPixels, chromaROIHeightInPixels, partOffset))
       {
         continue;
       }
 
-      uiSad = m_pcRdCost->getCostMultiplePreds( x, 0);
+      sad = m_pcRdCost->getCostMultiplePreds( x, 0);
 
-      for(int r = 0; r < iRoiHeight; )
+      for(int r = 0; r < roiHeight; )
       {
-        piRefSrch = piRefY + r*iRefStride + x;
+        piRefSrch = piRefY + r*refStride + x;
         m_cDistParam.pCur = piRefSrch;
         m_cDistParam.pOrg = pcPatternKey->getROIY() + r * pcPatternKey->getPatternLStride();
 
-        uiSad += m_cDistParam.DistFunc( &m_cDistParam );
-        if(uiSad > uiSadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+        sad += m_cDistParam.DistFunc( &m_cDistParam );
+        if (sad > sadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+        {
           break;
+        }
 
         r += 4;
       }
 
-      xIntraBCSearchMVCandUpdate(uiSad, x, 0, uiSadBestCand, cMVCand);
-      uiTempSadBest = uiSadBestCand[0];
-      if(uiSadBestCand[0] <= 3)
+      xIntraBCSearchMVCandUpdate(sad, x, 0, sadBestCand, cMVCand);
+      tempSadBest = sadBestCand[0];
+      if(sadBestCand[0] <= 3)
       {
-        iBestX = cMVCand[0].getHor();
-        iBestY = cMVCand[0].getVer();
-        uiSadBest = uiSadBestCand[0];
-        rcMv.set( iBestX, iBestY );
-        ruiSAD = uiSadBest;
-        goto end;
+        bestX = cMVCand[0].getHor();
+        bestY = cMVCand[0].getVer();
+        sadBest = sadBestCand[0];
+        rcMv.set( bestX, bestY );
+        SAD = sadBest;
+
+        updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
+        return;
       }
     }
 
-    iBestX = cMVCand[0].getHor();
-    iBestY = cMVCand[0].getVer();
-    uiSadBest = uiSadBestCand[0];
-    if((!iBestX && !iBestY) || (uiSadBest - m_pcRdCost->getCostMultiplePreds( iBestX, iBestY) <= 32))
+    bestX = cMVCand[0].getHor();
+    bestY = cMVCand[0].getVer();
+    sadBest = sadBestCand[0];
+    if((!bestX && !bestY) || (sadBest - m_pcRdCost->getCostMultiplePreds( bestX, bestY) <= 32))
     {
       //chroma refine
-      iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
-      iBestX       = cMVCand[iBestCandIdx].getHor();
-      iBestY       = cMVCand[iBestCandIdx].getVer();
-      uiSadBest    = uiSadBestCand[iBestCandIdx];
-      rcMv.set( iBestX, iBestY );
-      ruiSAD       = uiSadBest;
-      goto end;
+      bestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, roiWidth, roiHeight, cuPelX, cuPelY, sadBestCand, cMVCand, partOffset,partIdx);
+      bestX       = cMVCand[bestCandIdx].getHor();
+      bestY       = cMVCand[bestCandIdx].getVer();
+      sadBest    = sadBestCand[bestCandIdx];
+      rcMv.set( bestX, bestY );
+      SAD       = sadBest;
+
+      updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
+      return;
     }
 
     if( pcCU->getWidth(0) < 16 && !bUse1DSearchFor8x8 )
     {
-      for(Int y = max(iSrchRngVerTop, -cuPelY); y <= iSrchRngVerBottom; y +=2)
+      for(Int y = max(srchRngVerTop, -cuPelY); y <= srchRngVerBottom; y +=2)
       {
-        if ((y == 0) || ((Int) (cuPelY + y + iRoiHeight) >= iPicHeight)) //NOTE: RExt - is this still necessary?
-          continue;
-
-        Int iTempY = y + iRelCUPelY + iRoiHeight - 1;
-
-        for(Int x = max(iSrchRngHorLeft, -cuPelX); x <= iSrchRngHorRight; x++)
+        if ((y == 0) || ((Int)(cuPelY + y + roiHeight) >= picHeight)) //NOTE: RExt - is this still necessary?
         {
-          if ((x == 0) || ((Int) (cuPelX + x + iRoiWidth) >= iPicWidth)) //NOTE: RExt - is this still necessary?
-            continue;
+          continue;
+        }
 
-          Int iTempX = x + iRelCUPelX + iRoiWidth - 1;
+        Int tempY = y + relCUPelY + roiHeight - 1;
 
-          if ((iTempX >= 0) && (iTempY >= 0))
+        for(Int x = max(srchRngHorLeft, -cuPelX); x <= srchRngHorRight; x++)
+        {
+          if ((x == 0) || ((Int)(cuPelX + x + roiWidth) >= picWidth)) //NOTE: RExt - is this still necessary?
           {
-            Int iTempRasterIdx = (iTempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (iTempX/pcCU->getPic()->getMinCUWidth());
+            continue;
+          }
+
+          Int tempX = x + relCUPelX + roiWidth - 1;
+
+          if ((tempX >= 0) && (tempY >= 0))
+          {
+            Int iTempRasterIdx = (tempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (tempX/pcCU->getPic()->getMinCUWidth());
             Int iTempZscanIdx = g_auiRasterToZscan[iTempRasterIdx];
-            if(iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+            if (iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+            {
               continue;
+            }
           }
 
-          if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, uiPartOffset))
+          if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, partOffset))
           {
             continue;
           }
 
-          uiSad = m_pcRdCost->getCostMultiplePreds( x, y);
-          for(int r = 0; r < iRoiHeight; )
+          sad = m_pcRdCost->getCostMultiplePreds( x, y);
+          for(int r = 0; r < roiHeight; )
           {
-            piRefSrch = piRefY + y * iRefStride + r*iRefStride + x;
+            piRefSrch = piRefY + y * refStride + r*refStride + x;
             m_cDistParam.pCur = piRefSrch;
             m_cDistParam.pOrg = pcPatternKey->getROIY() + r * pcPatternKey->getPatternLStride();
 
-            uiSad += m_cDistParam.DistFunc( &m_cDistParam );
-            if(uiSad > uiSadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            sad += m_cDistParam.DistFunc( &m_cDistParam );
+            if (sad > sadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            {
               break;
+            }
 
             r += 4;
           }
 
-          xIntraBCSearchMVCandUpdate(uiSad, x, y, uiSadBestCand, cMVCand);
+          xIntraBCSearchMVCandUpdate(sad, x, y, sadBestCand, cMVCand);
         }
       }
 
-      iBestX = cMVCand[0].getHor();
-      iBestY = cMVCand[0].getVer();
-      uiSadBest = uiSadBestCand[0];
-      if(uiSadBest - m_pcRdCost->getCostMultiplePreds( iBestX, iBestY) <= 16)
+      bestX = cMVCand[0].getHor();
+      bestY = cMVCand[0].getVer();
+      sadBest = sadBestCand[0];
+      if(sadBest - m_pcRdCost->getCostMultiplePreds( bestX, bestY) <= 16)
       {
         //chroma refine
-        iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
-        iBestX       = cMVCand[iBestCandIdx].getHor();
-        iBestY       = cMVCand[iBestCandIdx].getVer();
-        uiSadBest    = uiSadBestCand[iBestCandIdx];
-        rcMv.set( iBestX, iBestY );
-        ruiSAD       = uiSadBest;
-        goto end;
+        bestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, roiWidth, roiHeight, cuPelX, cuPelY, sadBestCand, cMVCand, partOffset,partIdx);
+        bestX       = cMVCand[bestCandIdx].getHor();
+        bestY       = cMVCand[bestCandIdx].getVer();
+        sadBest    = sadBestCand[bestCandIdx];
+        rcMv.set( bestX, bestY );
+        SAD       = sadBest;
+
+        updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
+        return;
       }
 
 
-      for(Int y = (max(iSrchRngVerTop, -cuPelY) + 1); y <= iSrchRngVerBottom; y += 2)
+      for(Int y = (max(srchRngVerTop, -cuPelY) + 1); y <= srchRngVerBottom; y += 2)
       {
-        if ((y == 0) || ((Int) (cuPelY + y + iRoiHeight) >= iPicHeight)) //NOTE: RExt - is this still necessary?
-          continue;
-
-        Int iTempY = y + iRelCUPelY + iRoiHeight - 1;
-
-        for(Int x = max(iSrchRngHorLeft, -cuPelX); x <= iSrchRngHorRight; x += 2)
+        if ((y == 0) || ((Int)(cuPelY + y + roiHeight) >= picHeight)) //NOTE: RExt - is this still necessary?
         {
-          if ((x == 0) || ((Int) (cuPelX + x + iRoiWidth) >= iPicWidth)) //NOTE: RExt - is this still necessary?
-            continue;
+          continue;
+        }
 
-          Int iTempX = x + iRelCUPelX + iRoiWidth - 1;
+        Int tempY = y + relCUPelY + roiHeight - 1;
 
-          if ((iTempX >= 0) && (iTempY >= 0))
+        for(Int x = max(srchRngHorLeft, -cuPelX); x <= srchRngHorRight; x += 2)
+        {
+          if ((x == 0) || ((Int)(cuPelX + x + roiWidth) >= picWidth)) //NOTE: RExt - is this still necessary?
           {
-            Int iTempRasterIdx = (iTempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (iTempX/pcCU->getPic()->getMinCUWidth());
+            continue;
+          }
+
+          Int tempX = x + relCUPelX + roiWidth - 1;
+
+          if ((tempX >= 0) && (tempY >= 0))
+          {
+            Int iTempRasterIdx = (tempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (tempX/pcCU->getPic()->getMinCUWidth());
             Int iTempZscanIdx = g_auiRasterToZscan[iTempRasterIdx];
-            if(iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+            if (iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+            {
               continue;
+            }
           }
 
-          if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, uiPartOffset))
+          if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, partOffset))
           {
             continue;
           }
 
-          uiSad = m_pcRdCost->getCostMultiplePreds( x, y);
-          for(int r = 0; r < iRoiHeight; )
+          sad = m_pcRdCost->getCostMultiplePreds( x, y);
+          for(int r = 0; r < roiHeight; )
           {
-            piRefSrch = piRefY + y * iRefStride + r*iRefStride + x;
+            piRefSrch = piRefY + y * refStride + r*refStride + x;
             m_cDistParam.pCur = piRefSrch;
             m_cDistParam.pOrg = pcPatternKey->getROIY() + r * pcPatternKey->getPatternLStride();
 
-            uiSad += m_cDistParam.DistFunc( &m_cDistParam );
-            if(uiSad > uiSadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            sad += m_cDistParam.DistFunc( &m_cDistParam );
+            if (sad > sadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            {
               break;
+            }
 
             r += 4;
           }
 
-          xIntraBCSearchMVCandUpdate(uiSad, x, y, uiSadBestCand, cMVCand);
-          if(uiSadBestCand[0] <= 5)
+          xIntraBCSearchMVCandUpdate(sad, x, y, sadBestCand, cMVCand);
+          if(sadBestCand[0] <= 5)
           {
             //chroma refine & return
-            iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
-            iBestX       = cMVCand[iBestCandIdx].getHor();
-            iBestY       = cMVCand[iBestCandIdx].getVer();
-            uiSadBest    = uiSadBestCand[iBestCandIdx];
-            rcMv.set( iBestX, iBestY );
-            ruiSAD       = uiSadBest;
-            goto end;
+            bestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, roiWidth, roiHeight, cuPelX, cuPelY, sadBestCand, cMVCand, partOffset,partIdx);
+            bestX       = cMVCand[bestCandIdx].getHor();
+            bestY       = cMVCand[bestCandIdx].getVer();
+            sadBest    = sadBestCand[bestCandIdx];
+            rcMv.set( bestX, bestY );
+            SAD       = sadBest;
+
+            updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
+            return;
           }
         }
       }
 
-      iBestX = cMVCand[0].getHor();
-      iBestY = cMVCand[0].getVer();
-      uiSadBest = uiSadBestCand[0];
+      bestX = cMVCand[0].getHor();
+      bestY = cMVCand[0].getVer();
+      sadBest = sadBestCand[0];
 
-      if((uiSadBest >= uiTempSadBest) || ((uiSadBest - m_pcRdCost->getCostMultiplePreds( iBestX, iBestY)) <= 32))
+      if((sadBest >= tempSadBest) || ((sadBest - m_pcRdCost->getCostMultiplePreds( bestX, bestY)) <= 32))
       {
         //chroma refine
-        iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
-        iBestX       = cMVCand[iBestCandIdx].getHor();
-        iBestY       = cMVCand[iBestCandIdx].getVer();
-        uiSadBest    = uiSadBestCand[iBestCandIdx];
-        rcMv.set( iBestX, iBestY );
-        ruiSAD       = uiSadBest;
-        goto end;
+        bestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, roiWidth, roiHeight, cuPelX, cuPelY, sadBestCand, cMVCand, partOffset,partIdx);
+        bestX       = cMVCand[bestCandIdx].getHor();
+        bestY       = cMVCand[bestCandIdx].getVer();
+        sadBest    = sadBestCand[bestCandIdx];
+        rcMv.set( bestX, bestY );
+        SAD       = sadBest;
+
+        updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
+        return;
       }
 
-      uiTempSadBest = uiSadBestCand[0];
+      tempSadBest = sadBestCand[0];
 
 
-      for(Int y = (max(iSrchRngVerTop, -cuPelY) + 1); y <= iSrchRngVerBottom; y += 2)
+      for(Int y = (max(srchRngVerTop, -cuPelY) + 1); y <= srchRngVerBottom; y += 2)
       {
-        if ((y == 0) || ((Int) (cuPelY + y + iRoiHeight) >= iPicHeight)) //NOTE: RExt - is this still necessary?
+        if ((y == 0) || ((Int)(cuPelY + y + roiHeight) >= picHeight)) //NOTE: RExt - is this still necessary?
+        {
           continue;
+        }
 
-        Int iTempY = y + iRelCUPelY + iRoiHeight - 1;
+        Int tempY = y + relCUPelY + roiHeight - 1;
 
-        for(Int x = (max(iSrchRngHorLeft, -cuPelX) + 1); x <= iSrchRngHorRight; x += 2)
+        for(Int x = (max(srchRngHorLeft, -cuPelX) + 1); x <= srchRngHorRight; x += 2)
         {
 
-          if ((x == 0) || ((Int) (cuPelX + x + iRoiWidth) >= iPicWidth)) //NOTE: RExt - is this still necessary?
-            continue;
-
-          Int iTempX = x + iRelCUPelX + iRoiWidth - 1;
-
-          if ((iTempX >= 0) && (iTempY >= 0))
+          if ((x == 0) || ((Int)(cuPelX + x + roiWidth) >= picWidth)) //NOTE: RExt - is this still necessary?
           {
-            Int iTempRasterIdx = (iTempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (iTempX/pcCU->getPic()->getMinCUWidth());
+            continue;
+          }
+
+          Int tempX = x + relCUPelX + roiWidth - 1;
+
+          if ((tempX >= 0) && (tempY >= 0))
+          {
+            Int iTempRasterIdx = (tempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (tempX/pcCU->getPic()->getMinCUWidth());
             Int iTempZscanIdx = g_auiRasterToZscan[iTempRasterIdx];
-            if(iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+            if (iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+            {
               continue;
+            }
           }
 
-          if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, uiPartOffset))
+          if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, partOffset))
           {
             continue;
           }
 
-          uiSad = m_pcRdCost->getCostMultiplePreds( x, y);
-          for(int r = 0; r < iRoiHeight; )
+          sad = m_pcRdCost->getCostMultiplePreds( x, y);
+          for(int r = 0; r < roiHeight; )
           {
-            piRefSrch = piRefY + y * iRefStride + r*iRefStride + x;
+            piRefSrch = piRefY + y * refStride + r*refStride + x;
             m_cDistParam.pCur = piRefSrch;
             m_cDistParam.pOrg = pcPatternKey->getROIY() + r * pcPatternKey->getPatternLStride();
 
-            uiSad += m_cDistParam.DistFunc( &m_cDistParam );
-            if(uiSad > uiSadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            sad += m_cDistParam.DistFunc( &m_cDistParam );
+            if (sad > sadBestCand[CHROMA_REFINEMENT_CANDIDATES - 1])
+            {
               break;
+            }
 
             r += 4;
           }
 
-          xIntraBCSearchMVCandUpdate(uiSad, x, y, uiSadBestCand, cMVCand);
-          if(uiSadBestCand[0] <= 5)
+          xIntraBCSearchMVCandUpdate(sad, x, y, sadBestCand, cMVCand);
+          if(sadBestCand[0] <= 5)
           {
             //chroma refine & return
-            iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
-            iBestX       = cMVCand[iBestCandIdx].getHor();
-            iBestY       = cMVCand[iBestCandIdx].getVer();
-            uiSadBest    = uiSadBestCand[iBestCandIdx];
-            rcMv.set( iBestX, iBestY );
-            ruiSAD       = uiSadBest;
-            goto end;
+            bestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, roiWidth, roiHeight, cuPelX, cuPelY, sadBestCand, cMVCand, partOffset,partIdx);
+            bestX       = cMVCand[bestCandIdx].getHor();
+            bestY       = cMVCand[bestCandIdx].getVer();
+            sadBest    = sadBestCand[bestCandIdx];
+            rcMv.set( bestX, bestY );
+            SAD       = sadBest;
+
+            updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
+            return;
           }
         }
       }
@@ -11375,37 +11419,39 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
   else //full search
   {
     setDistParamComp(COMPONENT_Y);
-    piRefY += (iSrchRngVerBottom * iRefStride);
-    Int iPicWidth = pcCU->getSlice()->getSPS()->getPicWidthInLumaSamples();
-    Int iPicHeight = pcCU->getSlice()->getSPS()->getPicHeightInLumaSamples();
+    piRefY += (srchRngVerBottom * refStride);
+    Int picWidth = pcCU->getSlice()->getSPS()->getPicWidthInLumaSamples();
+    Int picHeight = pcCU->getSlice()->getSPS()->getPicHeightInLumaSamples();
 
-    for(Int y = iSrchRngVerBottom; y >= iSrchRngVerTop; y--)
+    for(Int y = srchRngVerBottom; y >= srchRngVerTop; y--)
     {
-      if ( ((Int)(cuPelY + y) < 0) || ((Int) (cuPelY + y + iRoiHeight) >= iPicHeight)) //NOTE: RExt - is this still necessary?
+      if ( ((Int)(cuPelY + y) < 0) || ((Int) (cuPelY + y + roiHeight) >= picHeight)) //NOTE: RExt - is this still necessary?
       {
-        piRefY -= iRefStride;
+        piRefY -= refStride;
         continue;
       }
 
-      for(Int x = iSrchRngHorLeft; x <= iSrchRngHorRight; x++ )
+      for(Int x = srchRngHorLeft; x <= srchRngHorRight; x++ )
       {
 
-        if (((Int)(cuPelX + x) < 0) || ((Int) (cuPelX + x + iRoiWidth) >= iPicWidth)) //NOTE: RExt - is this still necessary?
+        if (((Int)(cuPelX + x) < 0) || ((Int) (cuPelX + x + roiWidth) >= picWidth)) //NOTE: RExt - is this still necessary?
         {
           continue;
         }
 
-        Int iTempX = x + iRelCUPelX + iRoiWidth - 1;
-        Int iTempY = y + iRelCUPelY + iRoiHeight - 1;
-        if ((iTempX >= 0) && (iTempY >= 0))
+        Int tempX = x + relCUPelX + roiWidth - 1;
+        Int tempY = y + relCUPelY + roiHeight - 1;
+        if ((tempX >= 0) && (tempY >= 0))
         {
-          Int iTempRasterIdx = (iTempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (iTempX/pcCU->getPic()->getMinCUWidth());
+          Int iTempRasterIdx = (tempY/pcCU->getPic()->getMinCUHeight()) * pcCU->getPic()->getNumPartInCtuWidth() + (tempX/pcCU->getPic()->getMinCUWidth());
           Int iTempZscanIdx  = g_auiRasterToZscan[iTempRasterIdx];
-          if(iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+          if (iTempZscanIdx >= pcCU->getZorderIdxInCtu())
+          {
             continue;
+          }
         }
 
-        if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, uiPartOffset))
+        if (!isValidIntraBCSearchArea(pcCU, x, y, chromaROIWidthInPixels, chromaROIHeightInPixels, partOffset))
         {
           continue;
         }
@@ -11414,42 +11460,43 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
         m_cDistParam.pCur = piRefSrch;
 
         m_cDistParam.bitDepth = pcCU->getSlice()->getSPS()->getBitDepth( CHANNEL_TYPE_LUMA );
-        uiSad = m_cDistParam.DistFunc( &m_cDistParam );
+        sad = m_cDistParam.DistFunc( &m_cDistParam );
 
-        uiSad += m_pcRdCost->getCostMultiplePreds( x, y);
-        if ( uiSad < uiSadBest )
+        sad += m_pcRdCost->getCostMultiplePreds( x, y);
+        if ( sad < sadBest )
         {
-          uiSadBest = uiSad;
-          iBestX    = x;
-          iBestY    = y;
+          sadBest = sad;
+          bestX    = x;
+          bestY    = y;
         }
       }
 
-      piRefY -= iRefStride;
+      piRefY -= refStride;
     }
   }
 
-  iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
-  iBestX       = cMVCand[iBestCandIdx].getHor();
-  iBestY       = cMVCand[iBestCandIdx].getVer();
-  uiSadBest    = uiSadBestCand[iBestCandIdx];
-  rcMv.set( iBestX, iBestY );
-  ruiSAD       = uiSadBest;
+  bestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, roiWidth, roiHeight, cuPelX, cuPelY, sadBestCand, cMVCand, partOffset,partIdx);
+  bestX       = cMVCand[bestCandIdx].getHor();
+  bestY       = cMVCand[bestCandIdx].getVer();
+  sadBest    = sadBestCand[bestCandIdx];
+  rcMv.set( bestX, bestY );
+  SAD       = sadBest;
 
-end:
-  if(iRoiWidth+iRoiHeight > 8)
-  {
-    m_uiNumBVs = MergeCandLists(m_acBVs, m_uiNumBVs, cMVCand, CHROMA_REFINEMENT_CANDIDATES, false);
-
-    if(iRoiWidth+iRoiHeight==32)
-    {
-      m_uiNumBV16s = m_uiNumBVs;
-    }
-  }
-
-  return;
+  updateBVMergeCandLists(roiWidth, roiHeight, cMVCand);
 }
 
+Void TEncSearch::updateBVMergeCandLists(int roiWidth, int roiHeight, TComMv* mvCand)
+{
+  if(roiWidth+roiHeight > 8)
+  {
+    m_numBVs = MergeCandLists(m_acBVs, m_numBVs, mvCand, CHROMA_REFINEMENT_CANDIDATES, false);
+
+    if(roiWidth+roiHeight==32)
+    {
+      m_numBV16s = m_numBVs;
+    }
+  }
+}
 
 Int TEncSearch::xIntraBCHashTableIndex(TComDataCU* pcCU, Int posX, Int posY, Int width, Int height, Bool isRec)
 {
@@ -11720,7 +11767,7 @@ Void TEncSearch::xIntraBCHashSearch( TComDataCU* pcCU, TComYuv* pcYuvOrg, Int pa
   Int  iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, roiWidth, roiHeight, cuPelX, cuPelY, sadBestCand, cMVCand, 0,partIdx);
   rcMv = cMVCand[iBestCandIdx];
 
-  m_uiNumBVs = MergeCandLists(m_acBVs, m_uiNumBVs, cMVCand, CHROMA_REFINEMENT_CANDIDATES, false);
+  m_numBVs = MergeCandLists(m_acBVs, m_numBVs, cMVCand, CHROMA_REFINEMENT_CANDIDATES, false);
 
   return;
 }

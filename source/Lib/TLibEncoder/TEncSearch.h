@@ -140,7 +140,7 @@ protected:
   Int             m_currRefPicIndex;
   Bool            m_bSkipFracME;
   TComMv          m_acBVs[SCM_S0067_NUM_CANDIDATES];
-  UInt            m_uiNumBVs, m_uiNumBV16s;
+  UInt            m_numBVs, m_numBV16s;
   Distortion      m_lastCandCost;
   Bool            m_bBestScanRotationMode;
   Pel*            m_paOriginalLevel;
@@ -464,21 +464,24 @@ public:
                                     );
 
   Void xIntraPatternSearch      ( TComDataCU*  pcCU,
-                                  Int          iPartIdx,
-                                  UInt         uiPartAddr,
+                                  Int          partIdx,
+                                  UInt         partAddr,
                                   TComPattern* pcPatternKey,
                                   Pel*         piRefY,
-                                  Int          iRefStride,
+                                  Int          refStride,
                                   TComMv*      pcMvSrchRngLT,
                                   TComMv*      pcMvSrchRngRB,
                                   TComMv&      rcMv,
-                                  Distortion&  ruiSAD,
-                                  Int          iRoiWidth,
-                                  Int          iRoiHeight,
+                                  Distortion&  SAD,
+                                  Int          roiWidth,
+                                  Int          roiHeight,
                                   TComMv*      mvPreds,
-                                  Bool         bUse1DSearchFor8x8
-                                , Bool         testOnlyPred
+                                  Bool         bUse1DSearchFor8x8,
+                                  Bool         testOnlyPred
                                 );
+
+  Void updateBVMergeCandLists(int roiWidth, int roiHeight, TComMv* mvCand);
+
   UInt paletteSearch  (TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPredYuv, TComYuv*& rpcResiYuv,TComYuv *& rpcResiBestYuv, TComYuv*& rpcRecoYuv, Bool forcePalettePrediction, UInt iterNumber, UInt *paletteSize);
 
   Void deriveRunAndCalcBits( TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* pcRecoYuv, UInt& minBits, Bool bReset, PaletteScanMode paletteScanMode);
