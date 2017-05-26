@@ -458,7 +458,7 @@ Void TDecTop::xActivateParameterSets()
     //  Get a new picture buffer. This will also set up m_pcPic, and therefore give us a SPS and PPS pointer that we can use.
     m_apcSlicePilot->applyReferencePictureSet(m_cListPic, m_apcSlicePilot->getRPS());
 
-    m_pcTwoVersionsOfCurrDecPicFlag = pps->getPpsScreenExtension().getUseIntraBlockCopy() && 
+    m_pcTwoVersionsOfCurrDecPicFlag = pps->getPpsScreenExtension().getUseIntraBlockCopy() &&
         (sps->getUseSAO() || !pps->getPPSDeblockingFilterDisabledFlag() || pps->getDeblockingFilterOverrideEnabledFlag());
     m_bIBC = pps->getPpsScreenExtension().getUseIntraBlockCopy();
 

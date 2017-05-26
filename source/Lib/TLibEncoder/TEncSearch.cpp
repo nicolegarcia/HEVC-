@@ -4855,7 +4855,7 @@ Void TEncSearch::encodeResAndCalcRdInterCU( TComDataCU* pcCU, TComYuv* pcYuvOrg,
     if(eACTRDTestType == ACT_TWO_CLR || eACTRDTestType == ACT_TRAN_CLR)
     {
       const UInt uiNumSamplesLuma = cuWidthPixels*cuHeightPixels;
-      ::memset( m_pTempPel, 0, sizeof( Pel ) * uiNumSamplesLuma ); 
+      ::memset( m_pTempPel, 0, sizeof( Pel ) * uiNumSamplesLuma );
       zeroDistortion = m_pcRdCost->getDistPart(pcCU->getSlice()->getSPS()->getBitDepth( CHANNEL_TYPE_LUMA ), m_pTempPel, cuWidthPixels, pcYuvResi->getAddr( COMPONENT_Y, 0 ), pcYuvResi->getStride(COMPONENT_Y), cuWidthPixels, cuHeightPixels, COMPONENT_Y ); // initialized with zero residual destortion
       const UInt csx=pcYuvOrg->getComponentScaleX(COMPONENT_Cb);
       const UInt csy=pcYuvOrg->getComponentScaleY(COMPONENT_Cb);
@@ -5425,7 +5425,7 @@ Void TEncSearch::xEstimateInterResidualQT( TComYuv    *pcResi,
 
           m_pcQTTempTComYuv[uiQTTempAccessLayer].copyPartToPartComponentMxN(compID, &m_tmpYuvPred, tuCompRectTmp);
         }
-        m_tmpYuvPred.convert( extendedPrecision, rTu.getRect(COMPONENT_Y).x0, rTu.getRect(COMPONENT_Y).y0, rTu.getRect(COMPONENT_Y).width, false, pcCU->getSlice()->getSPS()->getBitDepths(), pcCU->isLosslessCoded(uiAbsPartIdx) );  
+        m_tmpYuvPred.convert( extendedPrecision, rTu.getRect(COMPONENT_Y).x0, rTu.getRect(COMPONENT_Y).y0, rTu.getRect(COMPONENT_Y).width, false, pcCU->getSlice()->getSPS()->getBitDepths(), pcCU->isLosslessCoded(uiAbsPartIdx) );
 
         uiSingleDistComp[COMPONENT_Y ][0] = m_pcRdCost->getDistPart(pcCU->getSlice()->getSPS()->getBitDepth( CHANNEL_TYPE_LUMA ), m_tmpYuvPred.getAddrPix( COMPONENT_Y, tuCompRect.x0, tuCompRect.y0 ), m_tmpYuvPred.getStride(COMPONENT_Y),
           pcOrgResi->getAddrPix( COMPONENT_Y, tuCompRect.x0, tuCompRect.y0 ), pcOrgResi->getStride(COMPONENT_Y), tuCompRect.width, tuCompRect.height, COMPONENT_Y );
@@ -5437,7 +5437,7 @@ Void TEncSearch::xEstimateInterResidualQT( TComYuv    *pcResi,
         uiSingleDistComp[COMPONENT_Cr][0] = m_pcRdCost->getDistPart(pcCU->getSlice()->getSPS()->getBitDepth( CHANNEL_TYPE_CHROMA ), m_tmpYuvPred.getAddrPix( COMPONENT_Cr, tuCompRectC.x0, tuCompRectC.y0 ), m_tmpYuvPred.getStride(COMPONENT_Cr),
           pcOrgResi->getAddrPix( COMPONENT_Cr, tuCompRectC.x0, tuCompRectC.y0 ), pcOrgResi->getStride(COMPONENT_Cr), tuCompRectC.width, tuCompRectC.height, COMPONENT_Cr );
 
-        uiSingleDistComp[COMPONENT_Y][1] = uiSingleDistComp[COMPONENT_Cb][1] = uiSingleDistComp[COMPONENT_Cr][1] = 0; 
+        uiSingleDistComp[COMPONENT_Y][1] = uiSingleDistComp[COMPONENT_Cb][1] = uiSingleDistComp[COMPONENT_Cr][1] = 0;
       }
     }
 
@@ -6299,7 +6299,7 @@ TEncSearch::xIntraCodingTUBlockCSC(       TComYuv*    pcResiYuv,
     }
 
     pcResi      += stride;
-    pcCodedResi += codedResiStride; 
+    pcCodedResi += codedResiStride;
   }
 
   if ( pcCU->getSlice()->getPPS()->getPpsRangeExtension().getCrossComponentPredictionEnabledFlag() && bUseCrossCPrediction )
@@ -6474,7 +6474,7 @@ TEncSearch::xRecurIntraCodingQTTUCSC( TComYuv* pcOrgYuv, TComYuv* pcPredYuv, TCo
 
     for( UInt ch = 0; ch < numberValidComponents; ch++ )
     {
-      const ComponentID compID = ComponentID(ch); 
+      const ComponentID compID = ComponentID(ch);
       pcResiYuv->copyPartToPartComponent( compID, &(m_pcQTTempTComYuvCS[QTLayer]), absPartIdx, rTu.getRect(compID).width, rTu.getRect(compID).height );
     }
 
@@ -6499,7 +6499,7 @@ TEncSearch::xRecurIntraCodingQTTUCSC( TComYuv* pcOrgYuv, TComYuv* pcPredYuv, TCo
       {
         for( UInt ch = 0; ch < numberValidComponents; ch++ )
         {
-          const ComponentID compID = ComponentID(ch); 
+          const ComponentID compID = ComponentID(ch);
           m_pcQTTempTComYuvCS[QTLayer].copyPartToPartComponent( compID, pcResiYuv, absPartIdx, rTu.getRect(compID).width, rTu.getRect(compID).height );
         }
       }
@@ -6511,7 +6511,7 @@ TEncSearch::xRecurIntraCodingQTTUCSC( TComYuv* pcOrgYuv, TComYuv* pcPredYuv, TCo
 
       SChar preCalcAlpha[MAX_NUM_COMPONENT] = {0, 0, 0};
 
-      if( pcCU->getSlice()->getPPS()->getPpsRangeExtension().getCrossComponentPredictionEnabledFlag() && !m_pcEncCfg->getUseReconBasedCrossCPredictionEstimate() ) 
+      if( pcCU->getSlice()->getPPS()->getPpsRangeExtension().getCrossComponentPredictionEnabledFlag() && !m_pcEncCfg->getUseReconBasedCrossCPredictionEstimate() )
       {
         for( UInt ch = 0; ch < numberValidComponents; ch++ )
         {
@@ -6833,7 +6833,7 @@ TEncSearch::xRecurIntraCodingQTTUCSC( TComYuv* pcOrgYuv, TComYuv* pcPredYuv, TCo
     {
       m_pcRDGoOnSbacCoder->store( m_pppcRDSbacCoder[ fullDepth ][ CI_QT_TRAFO_TEST ] );
       m_pcRDGoOnSbacCoder->load ( m_pppcRDSbacCoder[ fullDepth ][ CI_QT_TRAFO_ROOT ] );
-    } 
+    }
     else
     {
       m_pcRDGoOnSbacCoder->store( m_pppcRDSbacCoder[ fullDepth ][ CI_QT_TRAFO_ROOT ] );
@@ -7006,14 +7006,14 @@ TEncSearch::xRecurIntraCodingQTCSC( TComYuv* pcOrgYuv, TComYuv* pcPredYuv, TComY
 
         pcOrg  += stride;
         pcResi += stride;
-        pcPred += stride; 
+        pcPred += stride;
       }
     }
 
     pcResiYuv->convert(extendedPrecision, rTu.getRect(COMPONENT_Y).x0, rTu.getRect(COMPONENT_Y).y0, rTu.getRect(COMPONENT_Y).width, true, pcCU->getSlice()->getSPS()->getBitDepths(), pcCU->isLosslessCoded(0));
     SChar preCalcAlpha[MAX_NUM_COMPONENT] = {0, 0, 0};
 
-    if( pcCU->getSlice()->getPPS()->getPpsRangeExtension().getCrossComponentPredictionEnabledFlag() && !m_pcEncCfg->getUseReconBasedCrossCPredictionEstimate() ) 
+    if( pcCU->getSlice()->getPPS()->getPpsRangeExtension().getCrossComponentPredictionEnabledFlag() && !m_pcEncCfg->getUseReconBasedCrossCPredictionEstimate() )
     {
       for( UInt ch = 0; ch < numberValidComponents; ch++ )
       {
@@ -7216,26 +7216,26 @@ TEncSearch::xRecurIntraCodingQTCSC( TComYuv* pcOrgYuv, TComYuv* pcPredYuv, TComY
       }
     }
 
-    singleDist[CHANNEL_TYPE_LUMA] = m_pcRdCost->getDistPart( pcCU->getSlice()->getSPS()->getBitDepths().recon[toChannelType(COMPONENT_Y)],  
-      m_pcQTTempTComYuv[QTLayer].getAddr(COMPONENT_Y, absPartIdx), 
-      m_pcQTTempTComYuv[QTLayer].getStride(COMPONENT_Y),
-      pcOrgYuv->getAddr(COMPONENT_Y, absPartIdx), 
-      pcOrgYuv->getStride(COMPONENT_Y),
-      rTu.getRect(COMPONENT_Y).width,
-      rTu.getRect(COMPONENT_Y).height,
-      COMPONENT_Y);
+    singleDist[CHANNEL_TYPE_LUMA] = m_pcRdCost->getDistPart( pcCU->getSlice()->getSPS()->getBitDepths().recon[toChannelType(COMPONENT_Y)],
+                                                             m_pcQTTempTComYuv[QTLayer].getAddr(COMPONENT_Y, absPartIdx),
+                                                             m_pcQTTempTComYuv[QTLayer].getStride(COMPONENT_Y),
+                                                             pcOrgYuv->getAddr(COMPONENT_Y, absPartIdx),
+                                                             pcOrgYuv->getStride(COMPONENT_Y),
+                                                             rTu.getRect(COMPONENT_Y).width,
+                                                             rTu.getRect(COMPONENT_Y).height,
+                                                             COMPONENT_Y);
     singleDist[CHANNEL_TYPE_CHROMA] = 0;
     for(UInt ch = COMPONENT_Cb; ch < numberValidComponents; ch++)
     {
       ComponentID compID = ComponentID(ch);
-      singleDist[CHANNEL_TYPE_CHROMA] += m_pcRdCost->getDistPart( pcCU->getSlice()->getSPS()->getBitDepths().recon[toChannelType(compID)], 
-        m_pcQTTempTComYuv[QTLayer].getAddr(compID, absPartIdx), 
-        m_pcQTTempTComYuv[QTLayer].getStride(compID), 
-        pcOrgYuv->getAddr(compID, absPartIdx), 
-        pcOrgYuv->getStride(compID), 
-        rTu.getRect(compID).width, 
-        rTu.getRect(compID).height, 
-        compID);
+      singleDist[CHANNEL_TYPE_CHROMA] += m_pcRdCost->getDistPart( pcCU->getSlice()->getSPS()->getBitDepths().recon[toChannelType(compID)],
+                                                                  m_pcQTTempTComYuv[QTLayer].getAddr(compID, absPartIdx),
+                                                                  m_pcQTTempTComYuv[QTLayer].getStride(compID),
+                                                                  pcOrgYuv->getAddr(compID, absPartIdx),
+                                                                  pcOrgYuv->getStride(compID),
+                                                                  rTu.getRect(compID).width,
+                                                                  rTu.getRect(compID).height,
+                                                                  compID);
     }
 
     dSingleCost = m_pcRdCost->calcRdCost( singleBits, singleDist[CHANNEL_TYPE_LUMA] + singleDist[CHANNEL_TYPE_CHROMA] );
@@ -7368,7 +7368,7 @@ TEncSearch::estIntraPredQTCT( TComDataCU*    pcCU,
     sqrt(0.57 * pow(2.0, ((LOSSLESS_AND_MIXED_LOSSLESS_RD_COST_TEST_QP_PRIME - 12 - 6 * (pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA) - 8)) / 3.0)))
     : m_pcRdCost->getSqrtLambda();
 #endif
-  
+
   if ( pcCU->getSlice()->getPPS()->getUseDQP() == true )
   {
     pcCU->setQPSubParts( pcCU->getQP( 0 ), 0, depth );
@@ -7424,7 +7424,7 @@ TEncSearch::estIntraPredQTCT( TComDataCU*    pcCU,
         UInt       mode = modeIdx;
         Distortion sad  = 0;
 
-        const Bool bUseFilter = TComPrediction::filteringIntraReferenceSamples( COMPONENT_Y, mode, puRect.width, puRect.height, chFmt, pcCU->getSlice()->getSPS()->getSpsRangeExtension().getIntraSmoothingDisabledFlag() ); 
+        const Bool bUseFilter = TComPrediction::filteringIntraReferenceSamples( COMPONENT_Y, mode, puRect.width, puRect.height, chFmt, pcCU->getSlice()->getSPS()->getSpsRangeExtension().getIntraSmoothingDisabledFlag() );
         predIntraAng( COMPONENT_Y, mode, piOrg, stride, piPred, stride, tuRecurseWithPU, bUseFilter, TComPrediction::UseDPCMForFirstPassIntraEstimation(tuRecurseWithPU, mode) );
 
         //hadamard transform
@@ -7538,7 +7538,7 @@ TEncSearch::estIntraPredQTCT( TComDataCU*    pcCU,
       else if(eACTRDTestType == ACT_TRAN_CLR)
       {
         pcCU->setColourTransformSubParts(true, 0, depth);
-        xRecurIntraCodingQTCSC( pcOrgYuv, pcPredYuv, pcResiYuv, PUDistY, PUDistC, dPUCost, tuRecurseWithPU, false DEBUG_STRING_PASS_INTO(sMode) ); 
+        xRecurIntraCodingQTCSC( pcOrgYuv, pcPredYuv, pcResiYuv, PUDistY, PUDistC, dPUCost, tuRecurseWithPU, false DEBUG_STRING_PASS_INTO(sMode) );
       }
       else if(eACTRDTestType == ACT_ORG_CLR)
       {
@@ -8136,7 +8136,7 @@ UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rp
     height = pcCU->getHeight(0) >> pcCU->getPic()->getComponentScaleY(compID);
     stride = rpcPredYuv->getStride(compID);
 
-    Pel *pOrig = pcOrgYuv->getAddr(compID, 0);    
+    Pel *pOrig = pcOrgYuv->getAddr(compID, 0);
     Pel *pReco = rpcRecoYuv->getAddr(compID, 0);
     distortion += m_pcRdCost->getDistPart( pcCU->getSlice()->getSPS()->getBitDepth(chType), pReco, stride, pOrig, stride, width, height, compID );
   }
@@ -8181,7 +8181,7 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   }
   pcCU->setPaletteScanRotationModeFlagSubParts(paletteScanMode, 0, depth );
   if (paletteScanMode == PALETTE_SCAN_VERTRAV)
-  {    
+  {
     xRotationScan(m_indexBlock, width, height, false);
     xRotationScan(m_posBlock, width, height, false);
   }
@@ -8285,7 +8285,7 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
     UInt uiOrgIdx = m_indexBlockRD[idx]; //Escape already converted
     UInt* indError = m_indError[m_posBlockRD[idx]];
     Int64* errDiffArray = errorDiffPaletteIndArray[uiOrgIdx];
-    
+
     for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
     {
       errDiffArray[paletteIdx] += indError[paletteIdx];
@@ -8336,7 +8336,7 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
       }
       paletteCnt++;
     }
-      
+
     // Merge removed index paletteIdxRemove1 with paletteIdxReplacement1
     if (paletteIdxReplacement1 != (MAX_PALETTE_SIZE-1))
     {
@@ -8411,8 +8411,6 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
       }
     }
 
-    // 
-    
     if (paletteIdxReplacement1 == (MAX_PALETTE_SIZE-1))
     {
       bEscape = 1;
@@ -8433,7 +8431,7 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
 
     UInt currIndex, nextIndex, noSameIndices, predIndex, run=0;
 
-    iBits = 0; 
+    iBits = 0;
     UInt noElement = 0;
     while (noElement < m_paletteNoElementsBest)
     {
@@ -8445,7 +8443,7 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
 
       if (m_paletteInfoBest[noElement].paletteMode == PALETTE_RUN_LEFT && currIndex < (MAX_PALETTE_SIZE-1))
       {
-        UInt idx=1; 
+        UInt idx=1;
         while((noElement + idx) < m_paletteNoElementsBest)
         {
           nextIndex = paletteIdxMapping2[m_paletteInfoBest[noElement+1].index];
@@ -8475,7 +8473,6 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
         {
           iBits += xGetTruncBinBits(currIndex, uiIndexMaxSize) << 15;
         }
-        
 
         if (noSameIndices>0)
         {
@@ -8485,13 +8482,12 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
           m_pcRDGoOnSbacCoder->encodeRun(run, PALETTE_RUN_LEFT, currIndex, total - m_paletteInfoBest[noElement].position - 1);
           iBits += (m_pcRDGoOnSbacCoder->getNumPartialBits() - runBits - initialBits);
         }
-
       }
       noElement += (1 + noSameIndices);
     }
 
     rdCostNew = pcCost->getLambda()*(Double)(iBits>>15)+error;
-    
+
     if ((rdCostNew - rdCostOrig) < rdCostDiff)
     {
       rdCostDiff = (rdCostNew-rdCostOrig);
@@ -8504,7 +8500,7 @@ UInt TEncSearch::preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt
 
 
   m_prevPaletteSize[iterNumber]=paletteSizeBest;
- 
+
   UInt paletteCnt=0;
   for (UInt paletteIdx = 0; paletteIdx < paletteSize; paletteIdx++)
   {
@@ -8588,7 +8584,7 @@ UInt TEncSearch::calcPaletteErrorCopy(UInt idxStart, UInt run, UInt width, UInt 
 
   for (idx=idxStart; idx<=(idxStart+run); idx++)
   {
-    traIdx = m_pScanOrder[idx]; 
+    traIdx = m_pScanOrder[idx];
 
     paletteIdx=m_indexBlockRD[traIdx - width];
     if (paletteIdx==(MAX_PALETTE_SIZE-1))
@@ -8617,7 +8613,7 @@ UInt64 TEncSearch::calcPaletteErrorLevel(Int idxStart, UInt run, UInt paletteIdx
 Void TEncSearch::modifyPaletteSegment(UInt width, UInt idxStart, UInt paletteMode, UInt paletteIdx, UInt run)
 {
   for (UInt idx=idxStart; idx<=(idxStart+run); idx++){
-    UInt uiTraIdx = m_pScanOrder[idx]; 
+    UInt uiTraIdx = m_pScanOrder[idx];
 
     m_paletteRunMode[uiTraIdx]=paletteMode;
 
@@ -8637,7 +8633,7 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
 {
   UInt traIdxStart=m_pScanOrder[idxStart], idx, traIdx, paletteMode, predIndex=0, run, currIndex=0;
   UInt64 indexBits=0, runBits, sPointBits;
-  Int iMaxSymbol; 
+  Int iMaxSymbol;
   if (m_paletteRunMode[traIdxStart]==PALETTE_RUN_LEFT)
   {
     paletteMode=PALETTE_RUN_LEFT;
@@ -8758,7 +8754,7 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
 
     for (idx=idxStart; idx<=(idxStart+run); idx++)
     {
-      traIdx = m_pScanOrder[idx]; 
+      traIdx = m_pScanOrder[idx];
       Pel index = m_indexBlockRD[traIdx];
       error += m_indError[m_posBlockRD[traIdx]][index];
       if (copyPixels[traIdx])
@@ -8802,7 +8798,7 @@ UInt TEncSearch::findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataC
   return(run);
 }
 
-Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, 
+Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost,
   UInt *errorOrig, UInt *errorNew, UInt calcErrBits)
 {
   UInt idx, idxStart, traIdx, noElement, run, uiTotal = height * width,
@@ -8838,7 +8834,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
   for (idx=0; idx<uiTotal; idx++)
   {
-    traIdx = m_pScanOrder[idx]; 
+    traIdx = m_pScanOrder[idx];
     if (m_escapeFlagRD[traIdx])
     {
       errOrig += m_indError[m_posBlockRD[traIdx]][MAX_PALETTE_SIZE];
@@ -8867,9 +8863,8 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
       UInt end = m_paletteInfoBest[noElement].position + m_paletteInfoBest[noElement].run;
       for (idx = m_paletteInfoBest[noElement].position; idx <= end; idx++)
       {
-        traIdx = m_pScanOrder[idx]; 
+        traIdx = m_pScanOrder[idx];
         copyPixels[traIdx - width]=1;
-
       }
     }
   }
@@ -8885,18 +8880,18 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
   m_pcRDGoOnSbacCoder->load(m_pppcRDSbacCoder[pcCU->getDepth(0)][CI_CURR_BEST]);
   m_pcRDGoOnSbacCoder->saveRestorePaletteCtx(1);
 
-  idxStart=0; 
+  idxStart=0;
   findPaletteSegment(currentPaletteElement, pcCU, idxStart, indexMaxSize, width, uiTotal, copyPixels, -1, 1);
   idxStart=currentPaletteElement->position+(currentPaletteElement->run+1);
 
   while (idxStart < uiTotal)
   {
     findPaletteSegment(nextPaletteElement, pcCU, idxStart, indexMaxSize, width, uiTotal, copyPixels, -1, 1);
-    modMode = 0; merge = 0; forceMerge = 0;  
+    modMode = 0; merge = 0; forceMerge = 0;
     if (currentPaletteElement->escape == 0 && nextPaletteElement->escape == 0)
     {
       run=currentPaletteElement->run + nextPaletteElement->run + 1;
-      
+
       rdCostOrig=pcCost->getLambda()*(Double)((currentPaletteElement->bitsAll+nextPaletteElement->bitsAll)>>15)+
         currentPaletteElement->error+nextPaletteElement->error;
       rdCostBestMode = rdCostOrig;
@@ -8905,7 +8900,6 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
       {
         forceMerge = 1;
       }
-     
 
       modRunMode=0;
       if (currentPaletteElement->paletteMode==PALETTE_RUN_LEFT && nextPaletteElement->paletteMode==PALETTE_RUN_ABOVE && forceMerge==0)
@@ -8974,11 +8968,11 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
         if (currentPaletteElement->paletteMode==PALETTE_RUN_LEFT)
         {
           if (currentPaletteElement->paletteMode==PALETTE_RUN_LEFT && nextPaletteElement->paletteMode==PALETTE_RUN_LEFT && (currentPaletteElement->usedForCopy==0 || nextPaletteElement->usedForCopy==0))
-          { 
+          {
             testLevel=1;
           }
           if (nextPaletteElement->paletteMode==PALETTE_RUN_ABOVE && nextPaletteElement->usedForCopy==0)
-          { 
+          {
             testLevel=1;
           }
           if (forceMerge==1)
@@ -8996,9 +8990,9 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
         {
           testCopy=0;
         }
- 
+
         if (testLevel)
-        { 
+        {
           paletteMode = PALETTE_RUN_LEFT;
           iMaxSymbol = (idxStartMerge > 0) ? indexMaxSize - 1 : indexMaxSize;
           paletteIdxStart = 0, paletteIdxEnd = paletteSize - 1;
@@ -9055,8 +9049,8 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
         }
 
 
-        if (testCopy) 
-        { 
+        if (testCopy)
+        {
           paletteMode=PALETTE_RUN_ABOVE;
           errorMin=calcPaletteErrorCopy(idxStartMerge, run, width, &merge);
 
@@ -9097,7 +9091,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
     }
     else
     {
-      if (modMode==1) 
+      if (modMode==1)
       {
         modifyPaletteSegment(width, uiModPositionNextBest, nextPaletteElement->paletteMode, nextPaletteElement->index, modRunNextBest);
         findPaletteSegment(currentPaletteElement, pcCU, currentPaletteElement->position, indexMaxSize, width, uiTotal, copyPixels, modRunCurrentBest, 1);
@@ -9129,7 +9123,7 @@ Void TEncSearch::preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3],
 
   for (idx=0; idx<uiTotal; idx++)
   {
-    traIdx = m_pScanOrder[idx]; 
+    traIdx = m_pScanOrder[idx];
     if (m_escapeFlagRD[traIdx])
     {
       errNew += m_indError[m_posBlockRD[traIdx]][MAX_PALETTE_SIZE];
@@ -9220,7 +9214,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
 
         if( pEscapeFlag[traIdx] )
         {
-          xCalcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, width, height, strideOrg, traIdx); 
+          xCalcPixelPred(pcCU, pOrg, pPalette, pValue, paPixelValue, paRecoValue, width, height, strideOrg, traIdx);
         }
         idx++;
 
@@ -9258,9 +9252,7 @@ Void TEncSearch::xDeriveRun(TComDataCU* pcCU, Pel* pOrg[3],  Pel *pPalette[3],  
         m_paletteInfo[noElements].bitsInd  = indexBits;
         m_paletteInfo[noElements].bitsRun  = runBitsIndex;
         m_paletteInfo[noElements].bitsAll  = allBitsIndex;
-        
         m_paletteInfo[noElements].index    = pEscapeFlag[traIdx] ? (MAX_PALETTE_SIZE - 1) : pValue[traIdx];
-       
 
         if (idx>0)
         {
@@ -9392,7 +9384,7 @@ Bool TEncSearch::isBlockVectorValid( Int xPos, Int yPos, Int width, Int height, 
   Int interpolationSamplesX = (pcCU->getPic()->getChromaFormat() == CHROMA_422 || pcCU->getPic()->getChromaFormat() == CHROMA_420) ?((xBv&0x1)<< 1) : 0;
   Int interpolationSamplesY = (pcCU->getPic()->getChromaFormat() == CHROMA_420) ? ((yBv&0x1)<< 1) : 0;
   Int refRightX  = xPos + xBv + width - 1 + interpolationSamplesX;
-  Int refBottomY = yPos + yBv + height - 1 + interpolationSamplesY;  
+  Int refBottomY = yPos + yBv + height - 1 + interpolationSamplesY;
   Int picWidth = pcCU->getSlice()->getSPS()->getPicWidthInLumaSamples();
   Int picHeight = pcCU->getSlice()->getSPS()->getPicHeightInLumaSamples();
 
@@ -9460,7 +9452,7 @@ Bool TEncSearch::isBlockVectorValid( Int xPos, Int yPos, Int width, Int height, 
   {
     return false;
   }
-  
+
   // same CTU
   Int mask = 1<<ctuSizeLog2;
   mask -= 1;
@@ -10516,7 +10508,7 @@ Bool TEncSearch::xHashInterEstimation( TComDataCU* pcCU, Int width, Int height, 
       {
         bitsOnRefIdx--;
       }
-      
+
       if ( refList == 0 || pcCU->getSlice()->getList1IdxToList0Idx( refIdx ) < 0 )
       {
         Int count = static_cast<Int>( pcCU->getSlice()->getRefPic( eRefPicList, refIdx )->getHashMap()->count( hashValue1 ) );
@@ -11171,19 +11163,18 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
 
     iBestX = cMVCand[0].getHor();
     iBestY = cMVCand[0].getVer();
-    uiSadBest = uiSadBestCand[0]; 
+    uiSadBest = uiSadBestCand[0];
     if((!iBestX && !iBestY) || (uiSadBest - m_pcRdCost->getCostMultiplePreds( iBestX, iBestY) <= 32))
     {
       //chroma refine
       iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
       iBestX       = cMVCand[iBestCandIdx].getHor();
       iBestY       = cMVCand[iBestCandIdx].getVer();
-      uiSadBest    = uiSadBestCand[iBestCandIdx]; 
+      uiSadBest    = uiSadBestCand[iBestCandIdx];
       rcMv.set( iBestX, iBestY );
       ruiSAD       = uiSadBest;
       goto end;
     }
-
 
     if( pcCU->getWidth(0) < 16 && !bUse1DSearchFor8x8 )
     {
@@ -11241,7 +11232,7 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
         iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
         iBestX       = cMVCand[iBestCandIdx].getHor();
         iBestY       = cMVCand[iBestCandIdx].getVer();
-        uiSadBest    = uiSadBestCand[iBestCandIdx]; 
+        uiSadBest    = uiSadBestCand[iBestCandIdx];
         rcMv.set( iBestX, iBestY );
         ruiSAD       = uiSadBest;
         goto end;
@@ -11296,7 +11287,7 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
             iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
             iBestX       = cMVCand[iBestCandIdx].getHor();
             iBestY       = cMVCand[iBestCandIdx].getVer();
-            uiSadBest    = uiSadBestCand[iBestCandIdx]; 
+            uiSadBest    = uiSadBestCand[iBestCandIdx];
             rcMv.set( iBestX, iBestY );
             ruiSAD       = uiSadBest;
             goto end;
@@ -11314,7 +11305,7 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
         iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
         iBestX       = cMVCand[iBestCandIdx].getHor();
         iBestY       = cMVCand[iBestCandIdx].getVer();
-        uiSadBest    = uiSadBestCand[iBestCandIdx]; 
+        uiSadBest    = uiSadBestCand[iBestCandIdx];
         rcMv.set( iBestX, iBestY );
         ruiSAD       = uiSadBest;
         goto end;
@@ -11372,7 +11363,7 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
             iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
             iBestX       = cMVCand[iBestCandIdx].getHor();
             iBestY       = cMVCand[iBestCandIdx].getVer();
-            uiSadBest    = uiSadBestCand[iBestCandIdx]; 
+            uiSadBest    = uiSadBestCand[iBestCandIdx];
             rcMv.set( iBestX, iBestY );
             ruiSAD       = uiSadBest;
             goto end;
@@ -11441,7 +11432,7 @@ Void TEncSearch::xIntraPatternSearch( TComDataCU  *pcCU,
   iBestCandIdx = xIntraBCSearchMVChromaRefine(pcCU, iRoiWidth, iRoiHeight, cuPelX, cuPelY, uiSadBestCand, cMVCand, uiPartOffset,iPartIdx);
   iBestX       = cMVCand[iBestCandIdx].getHor();
   iBestY       = cMVCand[iBestCandIdx].getVer();
-  uiSadBest    = uiSadBestCand[iBestCandIdx];  
+  uiSadBest    = uiSadBestCand[iBestCandIdx];
   rcMv.set( iBestX, iBestY );
   ruiSAD       = uiSadBest;
 
@@ -11571,13 +11562,13 @@ Int TEncSearch::xIntraBCHashTableIndex(TComDataCU* pcCU, Int posX, Int posY, Int
 
   grad   = (grad >> 4) & 0xf; // 4 bits
 
-  avgDC1 = (avgDC1>>5) & 0x7; // 3 bits 
+  avgDC1 = (avgDC1>>5) & 0x7; // 3 bits
   avgDC2 = (avgDC2>>5) & 0x7;
   avgDC3 = (avgDC3>>5) & 0x7;
   avgDC4 = (avgDC4>>5) & 0x7;
 
   hashIdx = (avgDC1 << 13) + (avgDC2 << 10) + (avgDC3 << 7) + (avgDC4 << 4) + grad;
-  
+
   assert(hashIdx <= 0XFFFF);
 
   return hashIdx;
@@ -11604,13 +11595,13 @@ Void TEncSearch::xIntraBCHashSearch( TComDataCU* pcCU, TComYuv* pcYuvOrg, Int pa
     cMVCand[cand].set(0,0);
   }
 
-  pcCU->getPartIndexAndSize( partIdx, partAddr, roiWidth, roiHeight ); 
+  pcCU->getPartIndexAndSize( partIdx, partAddr, roiWidth, roiHeight );
 
   pcPatternKey->initPattern( pcYuv->getAddr  ( COMPONENT_Y, partAddr ),
-    roiWidth,
-    roiHeight,
-    pcYuv->getStride(COMPONENT_Y),
-    pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA) );
+                             roiWidth,
+                             roiHeight,
+                             pcYuv->getStride(COMPONENT_Y),
+                             pcCU->getSlice()->getSPS()->getBitDepth(CHANNEL_TYPE_LUMA) );
 
   orgHashIndex = xIntraBCHashTableIndex(pcCU, pcCU->getCUPelX(), pcCU->getCUPelY(), roiWidth, roiHeight, false);
 
@@ -12528,7 +12519,7 @@ Void TEncSearch::xPreCalcPaletteIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* 
   Int errorLimit = bLossless ? 0 : 3 * m_paletteErrLimit * m_paletteErrLimit;
 
   UInt scaleX = pcCU->getPic()->getComponentScaleX(COMPONENT_Cb);
-  UInt scaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb); 
+  UInt scaleY = pcCU->getPic()->getComponentScaleY(COMPONENT_Cb);
 
   UInt paletteIdx, minError, bestIdx, pos;
   UChar useEscapeFlag=0;
@@ -12553,7 +12544,6 @@ Void TEncSearch::xPreCalcPaletteIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* 
       UInt round = localAdjC ? (1 << (localAdjC-1)) : 0;
       bestIdx=0;
       minError = MAX_UINT;
-     
 
       paletteIdx = 0;
       while (paletteIdx < paletteSize)
@@ -12637,8 +12627,8 @@ Void TEncSearch::xPreCalcPaletteIndexRD(TComDataCU* pcCU, Pel *Palette[3], Pel* 
         }
         indError[MAX_PALETTE_SIZE - 1] = (UInt)rdCost;
         indError[MAX_PALETTE_SIZE] = (UInt)errorTemp;
-      } 
-      m_posBlock[pos] = pos; 
+      }
+      m_posBlock[pos] = pos;
     }
   }
 
@@ -13169,8 +13159,8 @@ Void TEncSearch::xDerivePaletteLossy( TComDataCU* pcCU, Pel *Palette[3], Pel* pS
       {
         Pel pOrg[3]={ pSrc[0][pos],  pSrc[1][posC],  pSrc[2][posC]};
         UInt errorTemp;
-        Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp); 
-        if (rdCost<minError) 
+        Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp);
+        if (rdCost<minError)
         {
           escape=1;
         }
@@ -13212,7 +13202,7 @@ Void TEncSearch::xDerivePaletteLossy( TComDataCU* pcCU, Pel *Palette[3], Pel* pS
       Palette[1][paletteSizeTemp] = (palettePredSamples[i][2]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
       Palette[2][paletteSizeTemp] = (palettePredSamples[i][3]+palettePredSamples[i][4]/2)/palettePredSamples[i][4];
 
-      Double dMinError = pcCost->getLambda()*(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]+2*pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]); 
+      Double dMinError = pcCost->getLambda()*(pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA]+2*pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]);
 
       for (UInt y = 0; y < height; y++)
       {
@@ -13234,7 +13224,7 @@ Void TEncSearch::xDerivePaletteLossy( TComDataCU* pcCU, Pel *Palette[3], Pel* pS
       }
 
       UInt maxPredCheck=xFindCandidatePalettePredictors(paletteIndBest, pcCU, Palette, pPred, paletteSizeTemp, MAX_PRED_CHEK);
-  
+
       Int best=-1;
       if (paletteIndPred[i]>=0)
       {
@@ -13390,7 +13380,7 @@ Void TEncSearch::xDerivePaletteLossyIterative(TComDataCU* pcCU, Pel *Palette[3],
         Pel pOrg[3]={ pSrc[0][pos],  pSrc[1][posC],  pSrc[2][posC]};
         Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp, discardChroma);
 
-        if (rdCost<minError) 
+        if (rdCost<minError)
         {
           escape=1;
         }
@@ -13545,7 +13535,7 @@ Void TEncSearch::xDerivePaletteLossyIterative(TComDataCU* pcCU, Pel *Palette[3],
     Palette[0][paletteIdx]=pPaletteTemp[0][bestIdx];
     Palette[1][paletteIdx]=pPaletteTemp[1][bestIdx];
     Palette[2][paletteIdx]=pPaletteTemp[2][bestIdx];
-    
+
     pPaletteTemp[0][bestIdx]=pPaletteTemp[0][paletteIdx];
     pPaletteTemp[1][bestIdx]=pPaletteTemp[1][paletteIdx];
     pPaletteTemp[2][bestIdx]=pPaletteTemp[2][paletteIdx];
@@ -13867,7 +13857,7 @@ UInt TEncSearch::xGetEpExGolombNumBins(UInt symbol, UInt count)
 
 Double TEncSearch::xCalcPixelPredRD(TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma)
 {
-  Pel paPixelValue[3], paRecoValue[3]; 
+  Pel paPixelValue[3], paRecoValue[3];
   Int iQPcurr=Int(pcCU->getQP(0));
 
   Double rdCost = 0;
@@ -14304,8 +14294,8 @@ Void TEncSearch::xDerivePaletteLossyForcePrediction(TComDataCU *pcCU, Pel *Palet
 
         Pel pOrg[3]={ pSrc[0][pos],  pSrc[1][posC],  pSrc[2][posC]};
         UInt errorTemp;
-        Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp); 
-        if (rdCost<minError) 
+        Double rdCost = xCalcPixelPredRD(pcCU, pOrg, pcCost, &errorTemp);
+        if (rdCost<minError)
         {
           escape=1;
         }
@@ -14447,7 +14437,7 @@ Void TEncSearch::xDerivePaletteLossyForcePrediction(TComDataCU *pcCU, Pel *Palet
 }
 
 UShort TEncSearch::xGetTruncBinBits( const UInt index, const UInt maxSymbolP1 )
-{ 
+{
   if( maxSymbolP1 < PALETTE_MAX_SYMBOL_P1 )
   {
     return m_truncBinBits[maxSymbolP1][index];
@@ -14466,7 +14456,7 @@ UShort TEncSearch::xGetEscapeNumBins( const Pel val )
   }
   else
   {
-    return m_escapeNumBins[val]; 
+    return m_escapeNumBins[val];
   }
 }
 
@@ -14476,7 +14466,7 @@ Void TEncSearch::xInitTBCTable()
 
   m_maxSymbolSize = PALETTE_MAX_SYMBOL_P1;
   m_symbolSize = m_maxSymbolSize - 1;
-  
+
   m_truncBinBits = new UShort*[m_maxSymbolSize];
   m_truncBinBits[0] = NULL; // not used
 

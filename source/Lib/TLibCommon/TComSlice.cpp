@@ -561,7 +561,7 @@ Void TComSlice::setRefPOCListSliceHeader()
   for(i=0; i < m_pRPS->getNumberOfNegativePictures(); i++)
   {
     if(m_pRPS->getUsed(i))
-    { 
+    {
       RefPicPOCSetStCurr0[NumPicStCurr0] = getPOC() + m_pRPS->getDeltaPOC(i);
       NumPicStCurr0++;
     }
@@ -603,7 +603,7 @@ Void TComSlice::setRefPOCListSliceHeader()
     }
     else
     {
-      assert( numPicTotalCurr == 0 ); 
+      assert( numPicTotalCurr == 0 );
     }
   }
 

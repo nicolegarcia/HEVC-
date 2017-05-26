@@ -378,9 +378,9 @@ Void TComPicYuv::DefaultConvertPix(TComPicYuv* pcSrcPicYuv, const BitDepths& bit
   const Int  iDstStride1 = getStride(COMPONENT_Cb);
   const Int  iDstStride2 = getStride(COMPONENT_Cr);
 
-  for(Int y = 0; y < m_picHeight; y++) 
+  for(Int y = 0; y < m_picHeight; y++)
   {
-    for(Int x = 0; x < m_picWidth; x++) 
+    for(Int x = 0; x < m_picWidth; x++)
     {
       Int r, g, b;
       r = pSrc2[x]<<iShiftChroma;
@@ -405,7 +405,7 @@ Void TComPicYuv::DefaultConvertPix(TComPicYuv* pcSrcPicYuv, const BitDepths& bit
 
     pDst0 += iDstStride0;
     pDst1 += iDstStride1;
-    pDst2 += iDstStride2; 
+    pDst2 += iDstStride2;
   }
 }
 

@@ -222,7 +222,7 @@ static Void g_initMsbP1IdxLut()
 
 UChar g_getMsbP1Idx(UInt uiVal)
 {
-  UChar idx = 0; 
+  UChar idx = 0;
   while(uiVal > 255)
   {
     uiVal >>= 8;

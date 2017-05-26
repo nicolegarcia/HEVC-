@@ -589,7 +589,7 @@ Bool TComHash::getBlockHashValue( const TComPicYuv* const pPicYuv, Int width, In
 
   //4x4 subblock hash values to current block hash values
   for (Int subWidth = 4; subWidth <= width; subWidth *= 2)
-  {   
+  {
     srcIdx = 1 - srcIdx;
     dstIdx = 1 - dstIdx;
 

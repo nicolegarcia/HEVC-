@@ -549,9 +549,9 @@ INIT_TOP_RUN[NUMBER_OF_SLICE_TYPES][NUM_TOP_RUN_CTX] =
 static const UChar
 INIT_RUN[NUMBER_OF_SLICE_TYPES][NUM_LEFT_RUN_CTX] =
 {
-  { 154, 154, 154, 154, 154 }, 
-  { 154, 154, 154, 154, 154 }, 
-  { 154, 154, 154, 154, 154 }, 
+  { 154, 154, 154, 154, 154 },
+  { 154, 154, 154, 154, 154 },
+  { 154, 154, 154, 154, 154 },
 };
 
 static const UChar

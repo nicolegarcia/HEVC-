@@ -494,7 +494,7 @@ Void TComYuv::convert(const Bool extendedPrecision, const UInt pixX, const UInt 
       Int iRoundLuma   = 1<<(1+iShiftLuma);
       Int iRoundChroma = 1<<(1+iShiftChroma);
       for(Int y=0; y<partSize; y++)
-      { 
+      {
         for(Int x=0; x<partSize; x++)
         {
           Int r, g, b;

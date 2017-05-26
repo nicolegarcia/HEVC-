@@ -1829,7 +1829,7 @@ Void TComTrQuant::adjustBitDepthandLambdaForColourTrans(Int delta_QP)
 {
   Double lamdbaAdjustRate = pow(2.0, delta_QP / 3.0);
 
-  for (UInt component = 0; component < MAX_NUM_COMPONENT; component++) 
+  for (UInt component = 0; component < MAX_NUM_COMPONENT; component++)
   {
     m_lambdas[component] = m_lambdas[component] * lamdbaAdjustRate;
   }

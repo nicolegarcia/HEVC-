@@ -3589,7 +3589,7 @@ Void TComDataCU::getIntraBCMVPsEncOnly(UInt absPartIdx, TComMv* MvPred, Int& nbP
 
   // Lasts
   MvPred[0] = getLastIntraBCMv(0);
-  if( MvPred[0] != TComMv() ) 
+  if( MvPred[0] != TComMv() )
   {
     nbPred++;
     if ( getDerivedBV( absPartIdx, MvPred[nbPred - 1], MvPred[nbPred], width, height ) )
@@ -3598,7 +3598,7 @@ Void TComDataCU::getIntraBCMVPsEncOnly(UInt absPartIdx, TComMv* MvPred, Int& nbP
     }
   }
   MvPred[nbPred] = getLastIntraBCMv(1);
-  if( MvPred[nbPred] != TComMv() ) 
+  if( MvPred[nbPred] != TComMv() )
   {
     nbPred++;
     if ( getDerivedBV( absPartIdx, MvPred[nbPred - 1], MvPred[nbPred], width, height ) )
@@ -3745,7 +3745,7 @@ Bool TComDataCU::getDerivedBV(UInt absPartIdx, const TComMv& currentMv, TComMv& 
 
   Int iRefCtbAddr = (iRY / iCTUHeight) * getPic()->getFrameWidthInCtus() + (iRX / iCTUWidth);
 
-  Int   iRelCUPelX    = iRX&(iCTUWidth-1); 
+  Int   iRelCUPelX    = iRX&(iCTUWidth-1);
   Int   iRelCUPelY    = iRY&(iCTUHeight-1);
   UInt absPartIdxDerived = g_auiRasterToZscan[((iRelCUPelY>>2) <<4) + (iRelCUPelX>>2)];
   TComDataCU *pRefCU = getPic()->getCtu(iRefCtbAddr);
@@ -3844,8 +3844,8 @@ Bool TComDataCU::is8x8BipredRestriction(TComMv mvL0,TComMv mvL1, Int iRefIdxL0, 
     Bool mvL1Int = (((mvL1.getHor()&0x3)==0) && ((mvL1.getVer()&0x3)==0));
     Bool IdenticalMV = ((mvL0==mvL1) && (RefPOCL0==RefPOCL1));
     b8x8BiPredRestricted = (
-      !mvL0Int && !mvL1Int && !IdenticalMV && 
-      (getSlice()->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy()) 
+      !mvL0Int && !mvL1Int && !IdenticalMV &&
+      (getSlice()->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy())
       &&(getSlice()->getSPS()->getUseSAO() || !getSlice()->getPPS()->getPPSDeblockingFilterDisabledFlag() || getSlice()->getPPS()->getDeblockingFilterOverrideEnabledFlag())
       );
   }

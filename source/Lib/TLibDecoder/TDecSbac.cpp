@@ -2437,7 +2437,7 @@ Void TDecSbac::parsePaletteModeSyntax(TComDataCU *pcCU, UInt absPartIdx, UInt de
         {
           xC = (x>>scaleY);
           yC = (y>>scaleX);
-          traIdxC = yC * (height>>scaleY) + xC;  
+          traIdxC = yC * (height>>scaleY) + xC;
         }
 
         if(comp == compBegin)

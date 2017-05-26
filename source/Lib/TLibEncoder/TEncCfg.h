@@ -1111,7 +1111,7 @@ public:
   Bool      getDisableIntraBoundaryFilter       () const            { return m_disableIntraBoundaryFilter; }
   Void      setTransquantBypassInferTUSplit     (Bool flag)         { m_bTransquantBypassInferTUSplit = flag; }
   Bool      getNoTUSplitIntraACTEnabled         () const            { return m_bNoTUSplitIntraACTEnabled; }
-  Void      setNoTUSplitIntraACTEnabled         (Bool flag)         { m_bNoTUSplitIntraACTEnabled = flag; } 
+  Void      setNoTUSplitIntraACTEnabled         (Bool flag)         { m_bNoTUSplitIntraACTEnabled = flag; }
 };
 
 //! \}

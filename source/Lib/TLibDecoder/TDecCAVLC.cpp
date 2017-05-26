@@ -423,7 +423,7 @@ Void TDecCavlc::parsePPS(TComPPS* pcPPS)
               ppsScreenExtension.setUsePalettePredictor(uiCode);
               if ( uiCode )
               {
-                READ_UVLC( uiCode, "pps_num_palette_entries" );  
+                READ_UVLC( uiCode, "pps_num_palette_entries" );
                 ppsScreenExtension.setNumPalettePred( uiCode );
                 if( uiCode )
                 {
@@ -916,7 +916,7 @@ Void TDecCavlc::parseSPS(TComSPS* pcSPS)
                 MaxDPBSize = 7;
               }
 
-              UInt uiPicSizeInSamplesY = pcSPS->getPicWidthInLumaSamples()*pcSPS->getPicHeightInLumaSamples(); 
+              UInt uiPicSizeInSamplesY = pcSPS->getPicWidthInLumaSamples()*pcSPS->getPicHeightInLumaSamples();
               UInt uiMaxLumaPs = 36864;
               Level::Name lLevel = pcSPS->getPTL()->getGeneralPTL()->getLevelIdc();
               UInt uiMaxDPBSize = MaxDPBSize; // from Annex A
@@ -1642,7 +1642,7 @@ Void TDecCavlc::parseSliceHeader (TComSlice* pcSlice, ParameterSetManager *param
     else
     {
       iCode = 0;
-      
+
       pcSlice->setSliceActQpDelta(COMPONENT_Y, iCode);
       assert( pcSlice->getSliceActQpDelta(COMPONENT_Y) >= -12 );
       assert( pcSlice->getSliceActQpDelta(COMPONENT_Y) <=  12 );

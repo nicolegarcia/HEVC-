@@ -380,7 +380,7 @@ public:
                                   Int& bestMVPIndex,
                                   Bool& isPerfectMatch
                                  );
-  
+
   Int  xHashInterPredME         ( const TComDataCU* const pcCU,
                                   Int width,
                                   Int height,
@@ -432,7 +432,7 @@ public:
     const Int tileAreaTop    = tileAreaBottom - curTile->getTileHeightInCtus() * uiMaxCuHeight;
 
     if( (cuPelX + predX + roiWidth > tileAreaRight) || (cuPelY + predY + roiHeight > tileAreaBottom) ||
-      (cuPelX + predX < tileAreaLeft) || (cuPelY + predY < tileAreaTop) )        
+      (cuPelX + predX < tileAreaLeft) || (cuPelY + predY < tileAreaTop) )
     {
       return false;
     }
@@ -475,7 +475,7 @@ public:
                                   Distortion&  ruiSAD,
                                   Int          iRoiWidth,
                                   Int          iRoiHeight,
-                                  TComMv*      mvPreds, 
+                                  TComMv*      mvPreds,
                                   Bool         bUse1DSearchFor8x8
                                 , Bool         testOnlyPred
                                 );

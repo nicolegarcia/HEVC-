@@ -857,12 +857,12 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
                 }
               }
               Bool bSkipRGBCoding = pStoredBestCU == rpcBestCU ? !rpcTempCU->getQtRootCbf( 0 ): !rpcBestCU->getQtRootCbf( 0 );
-              if(!bSkipRGBCoding) 
+              if(!bSkipRGBCoding)
               {
                 rpcTempCU->initRQTData( uiDepth, rpcBestCU, (pStoredBestCU != rpcBestCU), false, true );
                 if(m_pcEncCfg->getRGBFormatFlag())
                 {
-                  if( !getEnableIntraTUACT() ) 
+                  if( !getEnableIntraTUACT() )
                   {
                     xCheckRDCostIntra( rpcBestCU, rpcTempCU, intraCost, SIZE_2Nx2N DEBUG_STRING_PASS_INTO(sDebug), true );
                   }
@@ -910,7 +910,7 @@ Void TEncCu::xCompressCU( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, const 
                     }
                   }
                   Bool bSkipRGBCoding = pStoredBestCU == rpcBestCU ? !rpcTempCU->getQtRootCbf( 0 ) : !rpcBestCU->getQtRootCbf( 0 );
-                  if(!bSkipRGBCoding) 
+                  if(!bSkipRGBCoding)
                   {
                     rpcTempCU->initRQTData( uiDepth, rpcBestCU, (pStoredBestCU != rpcBestCU), false, true );
                     if(m_pcEncCfg->getRGBFormatFlag())
