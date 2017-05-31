@@ -245,6 +245,7 @@ Void TDecEntropy::decodePUWise( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDept
         pcSubCU->getInterMergeCandidates( uiSubPartIdx-uiAbsPartIdx, uiPartIdx, cMvFieldNeighbours, uhInterDirNeighbours, numValidMergeCand, uiMergeIndex );
       }
       pcSubCU->xRestrictBipredMergeCand(0,cMvFieldNeighbours, uhInterDirNeighbours, numValidMergeCand);
+      pcSubCU->roundMergeCandidates(cMvFieldNeighbours, numValidMergeCand);
       pcCU->setInterDirSubParts( uhInterDirNeighbours[uiMergeIndex], uiSubPartIdx, uiPartIdx, uiDepth );
 
       TComMv cTmpMv( 0, 0 );

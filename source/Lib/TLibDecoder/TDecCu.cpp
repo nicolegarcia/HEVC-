@@ -284,6 +284,7 @@ Void TDecCu::xDecodeCU( TComDataCU*const pcCU, const UInt uiAbsPartIdx, const UI
     UInt uiMergeIndex = pcCU->getMergeIndex(uiAbsPartIdx);
     m_ppcCU[uiDepth]->getInterMergeCandidates( 0, 0, cMvFieldNeighbours, uhInterDirNeighbours, numValidMergeCand, uiMergeIndex );
     m_ppcCU[uiDepth]->xRestrictBipredMergeCand(0,cMvFieldNeighbours, uhInterDirNeighbours, numValidMergeCand);
+    m_ppcCU[uiDepth]->roundMergeCandidates(cMvFieldNeighbours, numValidMergeCand);
     pcCU->setInterDirSubParts( uhInterDirNeighbours[uiMergeIndex], uiAbsPartIdx, 0, uiDepth );
 
     TComMv cTmpMv( 0, 0 );

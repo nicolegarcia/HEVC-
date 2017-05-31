@@ -512,6 +512,7 @@ public:
   UInt          getIntraBCSearchAreaWidth( UInt uiMaxSearchWidthToLeftInCTUs );
   Bool          is8x8BipredRestriction(TComMv mvL0,TComMv mvL1, Int iRefIdxL0, Int iRefIdxL1 ) const;
   Void          xRestrictBipredMergeCand( UInt puIdx, TComMvField* mvFieldNeighbours, UChar* interDirNeighbours, Int numValidMergeCand );
+  Void          roundMergeCandidates(TComMvField* pcMvFieldNeighbours, Int iCount) const;
   Bool          hasAssociatedACTFlag ( UInt absPartIdx );
   UInt          getCtxEscapeFlag( UInt   absPartIdx, UInt idx,  Pel *pEscapeFlag );
 
