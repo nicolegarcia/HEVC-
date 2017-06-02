@@ -2335,26 +2335,26 @@ Void TDecCavlc::parseExplicitRdpcmMode( TComTU& /*rTu*/, ComponentID /*compID*/ 
   assert(0);
 }
 
-Void TDecCavlc::parsePaletteModeSyntax( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj )
+Void TDecCavlc::parsePaletteModeSyntax( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiDepth*/, UInt /*uiNumComp*/, Bool& /*bCodeDQP*/, Bool& /*codeChromaQpAdj*/ )
 {
   assert(0);
 }
 
-Void TDecCavlc::parsePaletteModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+Void TDecCavlc::parsePaletteModeFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiDepth*/ )
 {
   assert(0);
 }
 
-Void  TDecCavlc::parseColourTransformFlag( UInt absPartIdx, Bool& flag )
+Void  TDecCavlc::parseColourTransformFlag( Bool& /*flag*/ )
 {
   assert(0);
 }
 
-Void TDecCavlc::parseScanRotationModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+Void TDecCavlc::parseScanRotationModeFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiDepth*/ )
 {
   assert(0);
 }
-Void TDecCavlc::parseScanTraverseModeFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
+Void TDecCavlc::parseScanTraverseModeFlag( TComDataCU* /*pcCU*/, UInt /*uiAbsPartIdx*/, UInt /*uiDepth*/ )
 {
   assert(0);
 }

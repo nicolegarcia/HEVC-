@@ -109,7 +109,7 @@ public:
 
   virtual Void parseExplicitRdpcmMode ( TComTU &rTu, ComponentID compID ) = 0;
 
-  virtual Void parseColourTransformFlag( UInt absPartIdx, Bool& flag ) = 0;
+  virtual Void parseColourTransformFlag( Bool& flag ) = 0;
   virtual Void parsePaletteModeFlag      ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth ) = 0;
   virtual Void parsePaletteModeSyntax    ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, UInt uiNumComp, Bool& bCodeDQP, Bool& codeChromaQpAdj ) = 0;
   virtual Void parseScanRotationModeFlag ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth ) = 0;

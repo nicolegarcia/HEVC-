@@ -1055,7 +1055,7 @@ TDecCu::xIntraRecQT(TComYuv*    pcRecoYuv,
   }
 }
 
-Void TDecCu::xDecodePaletteTexture( TComDataCU* pcCU, const UInt partIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt stride, const UInt width, const UInt height, const ComponentID compID, UChar* pEscapeFlag )
+Void TDecCu::xDecodePaletteTexture( TComDataCU* pcCU, const UInt partIdx, Pel* pPalette,  Pel* pLevel, Pel *pPixelValue, Pel* piReco,const UInt stride, const UInt width, const UInt height, const ComponentID compID, UChar* pEscapeFlag )
 {
   Bool bLossless = pcCU->getCUTransquantBypass (partIdx);
   Pel* piPicReco         = pcCU->getPic()->getPicYuvRec()->getAddr(compID, pcCU->getCtuRsAddr(), pcCU->getZorderIdxInCtu()+partIdx);
@@ -1154,7 +1154,7 @@ Void TDecCu::xReconPaletteMode(TComDataCU *pcCU, UInt depth)
     pRecChannel = m_ppcYuvReco[depth]->getAddr(compID);
 
     Pel *pPixelValue = pcCU->getLevel(compID);
-    xDecodePaletteTexture(pcCU, 0, pPalette, pLevel, pcCU->getSPoint(COMPONENT_Y), pPixelValue, pRecChannel, stride, width, height, compID, pcCU->getEscapeFlag(COMPONENT_Y));
+    xDecodePaletteTexture(pcCU, 0, pPalette, pLevel, pPixelValue, pRecChannel, stride, width, height, compID, pcCU->getEscapeFlag(COMPONENT_Y));
   }
 }
 

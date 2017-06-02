@@ -789,7 +789,6 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
   }
 #endif
 
-  UChar lastPaletteUsedSize[MAX_NUM_COMPONENT] = { PALETTE_SIZE_INVALID, PALETTE_SIZE_INVALID, PALETTE_SIZE_INVALID };
   UChar lastPaletteSize[MAX_NUM_COMPONENT] = { 0, 0, 0 };
   Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE];
   for(UChar comp=0; comp < MAX_NUM_COMPONENT; comp++)
@@ -879,7 +878,6 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
     //if (step > 1) pcPic->getPicYuvOrg()->copyToPic( pcPic->getPicYuvRec() );
     if( !pcSlice->getPOC() )
     {
-      memset(lastPaletteUsedSize, PALETTE_SIZE_INVALID, sizeof(lastPaletteUsedSize));
       memset(lastPaletteSize, 0, sizeof(lastPaletteSize));
     }
     for( UInt ctuRsAddr = 0; ctuRsAddr < offset; ctuRsAddr++)
@@ -931,7 +929,7 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
       ((TEncBinCABAC*)m_pcRDGoOnSbacCoder->getEncBinIf())->setBinCountingEnableFlag(false);
 
       // run CTU trial encoder
-      m_pcCuEncoder->compressCtu( pCtu, lastPaletteSize, lastPaletteUsedSize, lastPalette );
+      m_pcCuEncoder->compressCtu( pCtu, lastPaletteSize, lastPalette );
 
       // All CTU decisions have now been made. Restore entropy coder to an initial stage, ready to make a true encode,
       // which will result in the state of the contexts being correct. It will also count up the number of bits coded,
@@ -1224,7 +1222,7 @@ Void TEncSlice::compressSlice( TComPic* pcPic, const Bool bCompressEntireSlice, 
     }
 
     // run CTU trial encoder
-    m_pcCuEncoder->compressCtu( pCtu, lastPaletteSize, lastPaletteUsedSize, lastPalette );
+    m_pcCuEncoder->compressCtu( pCtu, lastPaletteSize, lastPalette );
 
 
     // All CTU decisions have now been made. Restore entropy coder to an initial stage, ready to make a true encode,

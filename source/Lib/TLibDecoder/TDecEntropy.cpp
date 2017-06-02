@@ -557,9 +557,9 @@ Void TDecEntropy::xDecodeTransform        ( Bool& bCodeDQP, Bool& isChromaQpAdjC
     {
       if ( pcCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans() && pcCU->hasAssociatedACTFlag(uiAbsPartIdx) )
       {
-        Bool uiFlag = 0;
-        m_pcEntropyDecoderIf->parseColourTransformFlag(uiAbsPartIdx, uiFlag );
-        pcCU->setColourTransformSubParts(uiFlag, uiAbsPartIdx, uiDepth);
+        Bool flag = false;
+        m_pcEntropyDecoderIf->parseColourTransformFlag( flag );
+        pcCU->setColourTransformSubParts(flag, uiAbsPartIdx, uiDepth);
       }
       else
       {

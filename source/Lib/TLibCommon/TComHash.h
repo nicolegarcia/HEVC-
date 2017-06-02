@@ -99,8 +99,8 @@ public:
   Bool hasExactMatch( UInt hashValue1, UInt hashValue2 );
 
   Void generateBlock2x2HashValue( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, const BitDepths bitDepths, UInt* picBlockHash[2], Bool* picBlockSameInfo[3]);
-  Void generateBlockHashValue( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, Int width, Int height, const BitDepths bitDepths, UInt* srcPicBlockHash[2], UInt* dstPicBlockHash[2], Bool* srcPicBlockSameInfo[3], Bool* dstPicBlockSameInfo[3]);
-  Void addToHashMapByRowWithPrecalData( UInt* srcHash[2], Bool* srcIsSame, Int picWidth, Int picHeight, Int width, Int height, const BitDepths& bitDepths);
+  Void generateBlockHashValue( Int picWidth, Int picHeight, Int width, Int height, UInt* srcPicBlockHash[2], UInt* dstPicBlockHash[2], Bool* srcPicBlockSameInfo[3], Bool* dstPicBlockSameInfo[3]);
+  Void addToHashMapByRowWithPrecalData( UInt* srcHash[2], Bool* srcIsSame, Int picWidth, Int picHeight, Int width, Int height);
 
 public:
   static UInt   getCRCValue1( UChar* p, Int length );

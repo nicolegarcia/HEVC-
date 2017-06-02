@@ -95,7 +95,7 @@ public:
                  );
   Void  create  ();
   Void  destroy ();
-  Void  decompressSlice(TComInputBitstream* pcBitstream, TComPic* pcPic, TComPic* pcPicAfterILF );
+  Void  decompressSlice(TComInputBitstream* pcBitstream, TComPic* pcPic );
   Void  filterPicture  (TComPic* pcPic );
 
   Void setDecodedPictureHashSEIEnabled(Int enabled) { m_decodedPictureHashSEIEnabled = enabled; }

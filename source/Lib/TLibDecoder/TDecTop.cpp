@@ -863,7 +863,7 @@ Bool TDecTop::xDecodeSlice(InputNALUnit &nalu, Int &iSkipFrame, Int iPOCLastDisp
   }
 
   //  Decode a picture
-  m_cGopDecoder.decompressSlice(&(nalu.getBitstream()), m_pcPic, m_pcPicAfterILF);
+  m_cGopDecoder.decompressSlice(&(nalu.getBitstream()), m_pcPic);
 
   m_bFirstSliceInPicture = false;
   m_uiSliceIdx++;

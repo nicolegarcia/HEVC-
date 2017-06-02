@@ -103,7 +103,7 @@ protected:
   Void xIntraRecBlk             ( TComYuv* pcRecoYuv, TComYuv* pcPredYuv, TComYuv* pcResiYuv, TComTU &rTu );
   Void xIntraRecQT              ( TComYuv* pcRecoYuv, TComYuv* pcPredYuv, TComYuv* pcResiYuv, TComTU &rTu );
   Void xReconPaletteMode        ( TComDataCU* pcCU, UInt depth );
-  Void xDecodePaletteTexture    ( TComDataCU* pcCU, const UInt partIdx, Pel* pPalette,  Pel* pLevel, UChar *pSPoint, Pel *pPixelValue, Pel* piReco,const UInt stride, const UInt width, const UInt height, const ComponentID compID, UChar* pEscapeFlag);
+  Void xDecodePaletteTexture    ( TComDataCU* pcCU, const UInt partIdx, Pel* pPalette,  Pel* pLevel, Pel *pPixelValue, Pel* piReco,const UInt stride, const UInt width, const UInt height, const ComponentID compID, UChar* pEscapeFlag);
 
   Void xReconPCM                ( TComDataCU* pcCU, UInt uiDepth );
 

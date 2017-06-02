@@ -315,7 +315,7 @@ public:
                                             Pel         resiLuma[NUMBER_OF_STORED_RESIDUAL_TYPES][MAX_CU_SIZE * MAX_CU_SIZE]
                                           );
 
-  Bool isBlockVectorValid( Int xPos, Int yPos, Int width, Int height, TComDataCU *pcCU, UInt absPartIdx,
+  Bool isBlockVectorValid( Int xPos, Int yPos, Int width, Int height, TComDataCU *pcCU,
                            Int xStartInCU, Int yStartInCU, Int xBv, Int yBv, Int ctuSize );
 
   Bool predIntraBCSearch        ( TComDataCU* pcCU,
@@ -365,7 +365,6 @@ public:
                                 );
 
   Bool predInterHashSearch      ( TComDataCU* pcCU,
-                                  TComYuv* pcOrg,
                                   TComYuv*& rpcPredYuv,
                                   Bool& isPerfectMatch
                                 );
@@ -389,8 +388,7 @@ public:
                                   TComMv bestMv[5]
                                 );
 
-  Void selectMatchesInter       ( const TComDataCU* const pcCU,
-                                  const MapIterator& itBegin,
+  Void selectMatchesInter       ( const MapIterator& itBegin,
                                   Int count,
                                   list<BlockHash>& vecBlockHash,
                                   const BlockHash& currBlockHash
@@ -415,7 +413,7 @@ public:
     const Int  cuPelX        = pcCU->getCUPelX() + g_auiRasterToPelX[ g_auiZscanToRaster[ uiPartOffset ] ];
     const Int  cuPelY        = pcCU->getCUPelY() + g_auiRasterToPelY[ g_auiZscanToRaster[ uiPartOffset ] ];
 
-    if ( !isBlockVectorValid(cuPelX,cuPelY,roiWidth,roiHeight,pcCU,uiPartOffset,g_auiRasterToPelX[ g_auiZscanToRaster[ uiPartOffset ] ],g_auiRasterToPelY[ g_auiZscanToRaster[ uiPartOffset ] ],predX,predY,pcCU->getSlice()->getSPS()->getMaxCUWidth()))
+    if ( !isBlockVectorValid(cuPelX,cuPelY,roiWidth,roiHeight,pcCU,g_auiRasterToPelX[ g_auiZscanToRaster[ uiPartOffset ] ],g_auiRasterToPelY[ g_auiZscanToRaster[ uiPartOffset ] ],predX,predY,pcCU->getSlice()->getSPS()->getMaxCUWidth()))
     {
       return false;
     }
@@ -475,14 +473,13 @@ public:
                                   Distortion&  SAD,
                                   Int          roiWidth,
                                   Int          roiHeight,
-                                  TComMv*      mvPreds,
                                   Bool         bUse1DSearchFor8x8,
                                   Bool         testOnlyPred
                                 );
 
   Void updateBVMergeCandLists(int roiWidth, int roiHeight, TComMv* mvCand);
 
-  UInt paletteSearch  (TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPredYuv, TComYuv*& rpcResiYuv,TComYuv *& rpcResiBestYuv, TComYuv*& rpcRecoYuv, Bool forcePalettePrediction, UInt iterNumber, UInt *paletteSize);
+  UInt paletteSearch  (TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rpcPredYuv, TComYuv*& rpcResiYuv, TComYuv*& rpcRecoYuv, Bool forcePalettePrediction, UInt iterNumber, UInt *paletteSize);
 
   Void deriveRunAndCalcBits( TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* pcRecoYuv, UInt& minBits, Bool bReset, PaletteScanMode paletteScanMode);
 
@@ -803,31 +800,30 @@ protected:
   UShort xGetTruncBinBits                  ( const UInt index, const UInt maxSymbolP1 );
   UShort xGetEscapeNumBins                 ( const Pel val );
 
-  Void  xDerivePaletteLossy                ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
-  Void  xDerivePaletteLossyIterative       ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
+  Void  xDerivePaletteLossy                ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt &paletteSize, TComRdCost *pcCost );
+  Void  xDerivePaletteLossyIterative       ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt &paletteSize, TComRdCost *pcCost );
   UInt  xFindCandidatePalettePredictors    ( UInt paletteIndBest[], TComDataCU* pcCU, Pel *Palette[3], Pel* pPred[3], UInt paletteSizeTemp, UInt maxNoPredInd );
-  Void  xDerivePaletteLossyForcePrediction ( TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, TComRdCost *pcCost );
-  Void  xDerivePaletteLossless             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt stride, UInt &paletteSize, Bool forcePalettePrediction );
+  Void  xDerivePaletteLossyForcePrediction ( TComDataCU *pcCU, Pel *Palette[3], Pel *pSrc[3], UInt width, UInt height, UInt &paletteSize, TComRdCost *pcCost );
+  Void  xDerivePaletteLossless             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt &paletteSize );
   Bool  xCalLeftRun                        ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt startPos, UInt total, UInt &run, UChar* pEscapeFlag );
   Bool  xCalAboveRun                       ( TComDataCU* pcCU, Pel* pValue, UChar * pSPoint, UInt width, UInt startPos, UInt total, UInt &run, UChar* pEscapeFlag );
-  Void  xCalcPixelPred                     ( TComDataCU* pcCU, Pel* pOrg [3], Pel *pPalette[3], Pel* pValue, Pel*paPixelValue[3], Pel*paRecoValue[3], UInt width, UInt height, UInt strideOrg, UInt startPos );
+  Void  xCalcPixelPred                     ( TComDataCU* pcCU, Pel* pOrg [3], Pel*paPixelValue[3], Pel*paRecoValue[3], UInt width, UInt strideOrg, UInt startPos );
   Double xCalcPixelPredRD                  ( TComDataCU* pcCU, Pel pOrg[3], TComRdCost *pcCost, UInt *error, Bool discardChroma = false );
   UInt  xGetTruncatedBinBits               ( UInt symbol, UInt maxSymbol );
   UInt  xGetEpExGolombNumBins              ( UInt symbol, UInt count );
   Void  xPreCalcPaletteIndex               ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize );
   Void  xPreCalcPaletteIndexRD             ( TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, UInt calcErrorBits );
   Void  xReorderPalette                    ( TComDataCU* pcCU, Pel *Palette[3], UInt numComp );
-  Void  xRotationScan                      ( Pel* pLevel, UInt width, UInt height, Bool isInverse );
+  Void  xRotationScan                      ( Pel* pLevel, UInt width, UInt height );
 
-  Void  xDeriveRun (TComDataCU* pcCU, Pel* pOrg [3],  Pel *pPalette [3],  Pel* pValue, UChar* pSPoint, Pel *pRecoValue[], Pel *pPixelRec[], TCoeff* pRun, UInt width, UInt height,  UInt strideOrg, UInt paletteSize);
+  Void  xDeriveRun (TComDataCU* pcCU, Pel* pOrg [3],  Pel* pValue, UChar* pSPoint, Pel *pRecoValue[], Pel *pPixelRec[], TCoeff* pRun, UInt width, UInt height,  UInt strideOrg);
   Double xGetRunBits(TComDataCU* pcCU, Pel *pValue, UInt startPos, UInt run, PaletteRunMode paletteRunMode, UInt64 *allBits, UInt64 *indexBits, UInt64 *runBits);
-  UInt preCalcRD(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, UInt iterNumber);
-  Void preCalcRDMerge(TComDataCU* pcCU, Pel *Palette[3], Pel* pSrc[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost,
-                      UInt *errorOrig, UInt *errorNew, UInt calcErrBits);
+  UInt preCalcRD(TComDataCU* pcCU, Pel *Palette[3], UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, UInt iterNumber);
+  Void preCalcRDMerge(TComDataCU* pcCU, UInt width, UInt height, UInt paletteSize, TComRdCost *pcCost, UInt *errorOrig, UInt *errorNew, UInt calcErrBits);
   UInt calcPaletteIndexPredAndBits(Int iMaxSymbol, UInt idxStart, UInt width, UInt *predIndex, UInt *currIndex);
   UInt calcPaletteEndPosition(UInt copyPixels[], UInt positionInit, UInt run);
   UInt calcPaletteStartCopy(UInt positionInit, UInt positionCurrSegment, UInt width);
-  UInt findPaletteSegment(PaletteInfoStruct *paletteElement, TComDataCU* pcCU, UInt idxStart, UInt indexMaxSize, UInt width, UInt total,
+  UInt findPaletteSegment(PaletteInfoStruct *paletteElement, UInt idxStart, UInt indexMaxSize, UInt width, UInt total,
                           UInt copyPixels[], Int restrictLevelRun, UInt calcErrBits);
   UInt calcPaletteErrorCopy(UInt idxStart, UInt run, UInt width, UInt *mode);
   UInt64 calcPaletteErrorLevel(Int idxStart, UInt run, UInt paletteIdx);

@@ -2263,7 +2263,7 @@ Void TEncSbac::saveRestorePaletteCtx(UInt saveState)
   }
 }
 
-Void TEncSbac::encodeSPoint( TComDataCU *pcCU, UInt absPartIdx, UInt idx, UInt width, UChar *pSPoint, UInt *refScanOrder )
+Void TEncSbac::encodeSPoint( UInt idx, UInt width, UChar *pSPoint, UInt *refScanOrder )
 {
   if( refScanOrder )
   {
@@ -2347,7 +2347,7 @@ Void TEncSbac::codePaletteModeSyntax( TComDataCU* pcCU, UInt absPartIdx, UInt nu
   Bool isLossless = pcCU->getCUTransquantBypass( absPartIdx );
 
   {
-    pcCU->getPalettePred( pcCU, absPartIdx, compBegin, paletteSizePrev );
+    pcCU->getPalettePred( pcCU, compBegin, paletteSizePrev );
     Bool *bReusedPrev;
     UInt numPaletteRceived = dictMaxSize, numPalettePredicted = 0;
 

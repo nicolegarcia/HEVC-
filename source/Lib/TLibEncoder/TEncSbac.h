@@ -169,7 +169,7 @@ public:
   Void codePaletteModeSyntax   ( TComDataCU* pcCU, UInt absPartIdx, UInt numComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag );
   Void encodeSPointRD          (UInt idx, UInt width, UChar *pSPoint, UInt mode, UInt *refScanOrder);
   Void saveRestorePaletteCtx   (UInt saveState);
-  Void encodeSPoint            ( TComDataCU *pcCU, UInt absPartIdx, UInt idx, UInt width, UChar *pSPoint, UInt *refScanOrder );
+  Void encodeSPoint            ( UInt idx, UInt width, UChar *pSPoint, UInt *refScanOrder );
   Void codeColourTransformFlag ( TComDataCU* pcCU, UInt absPartIdx );
 
   // -------------------------------------------------------------------------------------------------------------------

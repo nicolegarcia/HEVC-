@@ -68,7 +68,7 @@ Void TDecSlice::init(TDecEntropy* pcEntropyDecoder, TDecCu* pcCuDecoder, TDecCon
   m_pDecConformanceCheck = pDecConformanceCheck;
 }
 
-Void TDecSlice::decompressSlice(TComInputBitstream** ppcSubstreams, TComPic* pcPic, TComPic* pcPicAfterILF, TDecSbac* pcSbacDecoder)
+Void TDecSlice::decompressSlice(TComInputBitstream** ppcSubstreams, TComPic* pcPic, TDecSbac* pcSbacDecoder)
 {
   TComSlice* pcSlice                 = pcPic->getSlice(pcPic->getCurrSliceIdx());
 
@@ -112,7 +112,7 @@ Void TDecSlice::decompressSlice(TComInputBitstream** ppcSubstreams, TComPic* pcP
   }
   else if (pcSlice->getSPS()->getSpsScreenExtension().getUsePalettePredictor())
   {
-    xSetPredFromSPS(lastPalette, lastPaletteSize, pcSlice->getPPS(), pcSlice->getSPS());
+    xSetPredFromSPS(lastPalette, lastPaletteSize, pcSlice->getSPS());
   }
   else
   {
@@ -183,7 +183,7 @@ Void TDecSlice::decompressSlice(TComInputBitstream** ppcSubstreams, TComPic* pcP
         }
         else if (pcSlice->getSPS()->getSpsScreenExtension().getUsePalettePredictor())
         {
-          xSetPredFromSPS(lastPalette, lastPaletteSize, pcSlice->getPPS(), pcSlice->getSPS());
+          xSetPredFromSPS(lastPalette, lastPaletteSize, pcSlice->getSPS());
         }
         else
         {
@@ -374,7 +374,7 @@ Void TDecSlice::xSetPredFromPPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_P
   }
 }
 
-Void TDecSlice::xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], const TComPPS *pcPPS, const TComSPS *pcSPS)
+Void TDecSlice::xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], const TComSPS *pcSPS)
 {
   UInt num = std::min(pcSPS->getSpsScreenExtension().getNumPalettePred(), pcSPS->getSpsScreenExtension().getPaletteMaxPredSize());
   if( num )

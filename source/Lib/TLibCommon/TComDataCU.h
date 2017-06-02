@@ -551,7 +551,7 @@ public:
   Void          setPrevPaletteReusedFlag  (UChar ucCh, UInt idx, Bool b, UInt paletteIdx)        { m_bPrevPaletteReusedFlag[ucCh][(idx >> 2) * m_paletteMaxPredSize + paletteIdx] = b; }
   Void          setPrevPaletteReusedFlagSubParts(UChar ucCh, Bool b, UInt paletteIdx, UInt absPartIdx, UInt depth);
 
-  Pel*          getPalettePred(TComDataCU* pcCU, UInt absPartIdx, UInt ch, UInt& paletteSizePrev);
+  Pel*          getPalettePred(TComDataCU* pcCU, UInt ch, UInt& paletteSizePrev);
   UChar         getLastPaletteInLcuSizeFinal     (UChar ucCh)           { return m_lastPaletteSizeFinal[ucCh]; }
   Void          setLastPaletteInLcuSizeFinal     (UChar ucCh, UChar uh) { m_lastPaletteSizeFinal[ucCh] = uh;   }
 

@@ -121,7 +121,7 @@ public:
   Void  destroy             ();
 
   /// CTU analysis function
-  Void  compressCtu         ( TComDataCU* pCtu, UChar* lastPaletteSize, UChar* lastPaletteUsedSize, Pel lastPalette[][MAX_PALETTE_PRED_SIZE] );
+  Void  compressCtu         ( TComDataCU* pCtu, UChar* lastPaletteSize, Pel lastPalette[][MAX_PALETTE_PRED_SIZE] );
 
   /// CTU encoding function
   Void  encodeCtu           ( TComDataCU*  pCtu );

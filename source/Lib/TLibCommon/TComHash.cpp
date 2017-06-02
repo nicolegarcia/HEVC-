@@ -250,7 +250,7 @@ Void TComHash::generateBlock2x2HashValue( TComPicYuv* pPicYuv, Int picWidth, Int
   delete[] p;
 }
 
-Void TComHash::generateBlockHashValue( TComPicYuv* pPicYuv, Int picWidth, Int picHeight, Int width, Int height, const BitDepths bitDepths, UInt* srcPicBlockHash[2], UInt* dstPicBlockHash[2], Bool* srcPicBlockSameInfo[3], Bool* dstPicBlockSameInfo[3])
+Void TComHash::generateBlockHashValue( Int picWidth, Int picHeight, Int width, Int height, UInt* srcPicBlockHash[2], UInt* dstPicBlockHash[2], Bool* srcPicBlockSameInfo[3], Bool* dstPicBlockSameInfo[3])
 {
   Int xEnd = picWidth - width + 1;
   Int yEnd = picHeight - height + 1;
@@ -312,7 +312,7 @@ Void TComHash::generateBlockHashValue( TComPicYuv* pPicYuv, Int picWidth, Int pi
 
 }
 
-Void TComHash::addToHashMapByRowWithPrecalData( UInt* picHash[2], Bool* picIsSame, Int picWidth, Int picHeight, Int width, Int height, const BitDepths& bitDepths)
+Void TComHash::addToHashMapByRowWithPrecalData( UInt* picHash[2], Bool* picIsSame, Int picWidth, Int picHeight, Int width, Int height)
 {
   Int xEnd = picWidth - width + 1;
   Int yEnd = picHeight - height + 1;

@@ -159,7 +159,7 @@ public:
 
   Void  parseExplicitRdpcmMode( TComTU &rTu, ComponentID compID );
 
-  Void parseColourTransformFlag  ( UInt absPartIdx, Bool& flag );
+  Void parseColourTransformFlag  ( Bool& flag );
   Void parsePaletteModeFlag      ( TComDataCU* pcCU, UInt absPartIdx, UInt depth );
   Void parsePaletteModeSyntax    ( TComDataCU* pcCU, UInt absPartIdx, UInt depth, UInt numComp, Bool& bCodeDQP, Bool& codeChromaQpAdj );
   Void parseScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx, UInt depth );

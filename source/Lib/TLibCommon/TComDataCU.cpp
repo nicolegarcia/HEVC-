@@ -3863,7 +3863,7 @@ Void TComDataCU::saveLastPaletteInLcuFinal( TComDataCU *pcSrc, UInt absPartIdx, 
   }
 }
 
-Pel* TComDataCU::getPalettePred(TComDataCU *pcCU, UInt absPartIdx, UInt ch, UInt& paletteSizePrev)
+Pel* TComDataCU::getPalettePred(TComDataCU *pcCU, UInt ch, UInt& paletteSizePrev)
 {
   Pel *pPalettePrev = pcCU->getLastPaletteInLcuFinal(ch);
   paletteSizePrev = pcCU->getLastPaletteInLcuSizeFinal(ch);

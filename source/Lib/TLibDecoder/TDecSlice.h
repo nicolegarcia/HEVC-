@@ -74,7 +74,7 @@ private:
   PaletteInfoBuffer m_entropyCodingSyncPaletteState;
 
   Void xSetPredFromPPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], const TComPPS *pcPPS, const TComSPS *pcSPS);
-  Void xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], const TComPPS *pcPPS, const TComSPS *pcSPS);
+  Void xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], const TComSPS *pcSPS);
   Void xSetPredDefault(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], const TComSPS *pcSPS);
 
 public:
@@ -85,7 +85,7 @@ public:
   Void  create            ();
   Void  destroy           ();
 
-  Void  decompressSlice   ( TComInputBitstream** ppcSubstreams,   TComPic* pcPic, TComPic* pcPicAfterILF, TDecSbac* pcSbacDecoder );
+  Void  decompressSlice   ( TComInputBitstream** ppcSubstreams,   TComPic* pcPic, TDecSbac* pcSbacDecoder );
 };
 
 //! \}

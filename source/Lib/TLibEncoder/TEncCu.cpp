@@ -239,7 +239,7 @@ Void TEncCu::init( TEncTop* pcEncTop )
 /** 
  \param  pCtu pointer of CU data class
  */
-Void TEncCu::compressCtu( TComDataCU* pCtu, UChar* lastPaletteSize, UChar* lastPaletteUsedSize, Pel lastPalette[][MAX_PALETTE_PRED_SIZE] )
+Void TEncCu::compressCtu( TComDataCU* pCtu, UChar* lastPaletteSize, Pel lastPalette[][MAX_PALETTE_PRED_SIZE] )
 {
   // initialize CU data
   m_ppcBestCU[0]->initCtu( pCtu->getPic(), pCtu->getCtuRsAddr() );
@@ -2695,7 +2695,7 @@ Void TEncCu::xCheckRDCostIntraBCMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*&
             continue;
           }
 
-          if ( !m_pcPredSearch->isBlockVectorValid( xPos, yPos, width, height, rpcTempCU, 0,
+          if ( !m_pcPredSearch->isBlockVectorValid( xPos, yPos, width, height, rpcTempCU,
             0, 0, (cMvFieldNeighbours[mergeCand<<1].getHor() >> 2), (cMvFieldNeighbours[mergeCand<<1].getVer()>>2), sps.getMaxCUWidth() ) )
           {
             continue;
@@ -3242,7 +3242,7 @@ Void TEncCu::xCheckRDCostHashInter( TComDataCU*& rpcBestCU, TComDataCU*& rpcTemp
   rpcTempCU->setPredModeSubParts( MODE_INTER, 0, depth );
   rpcTempCU->setMergeFlagSubParts( false, 0, 0, depth );
 
-  if ( m_pcPredSearch->predInterHashSearch( rpcTempCU, m_ppcOrigYuv[depth], m_ppcPredYuvTemp[depth], isPerfectMatch ) )
+  if ( m_pcPredSearch->predInterHashSearch( rpcTempCU, m_ppcPredYuvTemp[depth], isPerfectMatch ) )
   {
     TComDataCU *rpcTempCUPre = NULL;
     Bool   bEnableTrans      = rpcBestCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans();
@@ -3374,7 +3374,7 @@ UInt TEncCu::xCheckPaletteMode(TComDataCU *&rpcBestCU, TComDataCU *&rpcTempCU, B
   rpcTempCU->setChromaQpAdjSubParts( rpcTempCU->getCUTransquantBypass(0) ? 0 : m_cuChromaQpOffsetIdxPlus1, 0, depth );
 
   UInt testedModes=m_pcPredSearch->paletteSearch(rpcTempCU, m_ppcOrigYuv[depth], m_ppcPredYuvTemp[depth], m_ppcResiYuvTemp[depth],
-                                                 m_ppcResiYuvBest[depth], m_ppcRecoYuvTemp[depth], forcePalettePrediction, iterNumber, paletteSize);
+                                                 m_ppcRecoYuvTemp[depth], forcePalettePrediction, iterNumber, paletteSize);
 
   xCheckDQP( rpcTempCU );
   DEBUG_STRING_NEW(a)

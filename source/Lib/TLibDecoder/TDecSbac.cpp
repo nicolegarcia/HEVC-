@@ -1916,7 +1916,7 @@ Void TDecSbac::parseExplicitRdpcmMode( TComTU &rTu, ComponentID compID )
   }
 }
 
-Void TDecSbac::parseColourTransformFlag( UInt absPartIdx, Bool & flag )
+Void TDecSbac::parseColourTransformFlag( Bool & flag )
 {
   UInt symbol;
   const UInt ctx = 0;
@@ -2164,7 +2164,7 @@ Void TDecSbac::parsePaletteModeSyntax(TComDataCU *pcCU, UInt absPartIdx, UInt de
   for (UInt comp = compBegin; comp < compBegin + numComp; comp++)
   {
     ComponentID compID = (ComponentID)comp;
-    pPalettePrev[comp] = pcCU->getPalettePred(pcCU, absPartIdx, comp, paletteSizePrev);
+    pPalettePrev[comp] = pcCU->getPalettePred(pcCU, comp, paletteSizePrev);
 
     if ( comp == compBegin )
     {
@@ -2182,7 +2182,7 @@ Void TDecSbac::parsePaletteModeSyntax(TComDataCU *pcCU, UInt absPartIdx, UInt de
   {
     Bool *bReusedPrev = pcCU->getPrevPaletteReusedFlag( compBegin, absPartIdx );
     UInt numPaletteRceived = 0, numPalettePredicted = 0;
-    memset( bReusedPrev, 0, sizeof( UChar ) * paletteSizePrev );
+    memset( bReusedPrev, 0, sizeof( Bool ) * paletteSizePrev );
     if ( paletteSizePrev )
     {
       xDecodePalettePredIndicator(bReusedPrev, paletteSizePrev, pcCU->getSlice()->getSPS()->getSpsScreenExtension().getPaletteMaxSize() RExt__DECODER_DEBUG_BIT_STATISTICS_PASS_OPT_ARG(STATS__CABAC_BITS__PALETTE_MODE));
