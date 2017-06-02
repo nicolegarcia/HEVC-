@@ -8154,7 +8154,7 @@ UInt TEncSearch::paletteSearch(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv*& rp
 Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComYuv* pcRecoYuv, UInt& minBits, Bool bReset, PaletteScanMode paletteScanMode)
 {
   UInt depth = pcCU->getDepth(0);
-  Pel *paOrig[3], *paPalette[3], *paLevel[3];
+  Pel *paOrig[3], *paLevel[3];
   TCoeff *pRun;
   UChar *paSPoint[3];
   Pel *pPixelValue[3];
@@ -8175,7 +8175,6 @@ Void TEncSearch::deriveRunAndCalcBits(TComDataCU* pcCU, TComYuv* pcOrgYuv, TComY
   for (UInt ch = 0; ch < 3; ch++)
   {
     paOrig[ch] = pcOrgYuv->getAddr((ComponentID)ch, 0);
-    paPalette[ch] = pcCU->getPalette(ch, 0);
     pPixelValue[ch] = pcCU->getLevel(ComponentID (ch));
     pRecoValue[ch] = pcRecoYuv->getAddr(ComponentID (ch), 0);
   }
