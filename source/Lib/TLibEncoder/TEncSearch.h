@@ -325,8 +325,8 @@ public:
                                   TComYuv*&   rpcRecoYuv
                                   DEBUG_STRING_FN_DECLARE(sDebug),
                                   Bool        bUse1DSearchFor8x8,
-                                  Bool        bUseRes
-                                , Bool        testOnlyPred
+                                  Bool        bUseRes,
+                                  Bool        testOnlyPred
                                 );
 
   Bool predMixedIntraBCInterSearch( TComDataCU* pcCU,
