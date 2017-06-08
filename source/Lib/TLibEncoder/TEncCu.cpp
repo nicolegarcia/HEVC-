@@ -2635,7 +2635,6 @@ Void TEncCu::setEnableInterTUACT(UInt depth, TComSlice* pcSlice)
   }
 }
 
-
 Void TEncCu::xCheckRDCostIntraBCMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU )
 {
   TComMvField  cMvFieldNeighbours[2 * MRG_MAX_NUM_CANDS]; // double length for mv of both lists
@@ -2717,7 +2716,9 @@ Void TEncCu::xCheckRDCostIntraBCMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*&
           Bool bColourTrans = (m_pcEncCfg->getRGBFormatFlag() && rpcBestCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans())? true : false;
 
           if( bTransquantBypassFlag && (sps.getBitDepth( CHANNEL_TYPE_LUMA ) != sps.getBitDepth( CHANNEL_TYPE_CHROMA )) )
+          {
             bColourTrans = false;
+          }
 
           TComYuv* pcTmpPredYuv = m_ppcPredYuvTemp[depth];
           if( rpcBestCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans() && (!bTransquantBypassFlag || sps.getBitDepth( CHANNEL_TYPE_LUMA ) == sps.getBitDepth( CHANNEL_TYPE_CHROMA )) )
@@ -2905,7 +2906,7 @@ Void TEncCu::xCheckRDCostIntraBC( TComDataCU *&rpcBestCU,
   if( rpcTempCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans () && m_pcEncCfg->getRGBFormatFlag() && (!rpcTempCU->getCUTransquantBypass(0) || (sps.getBitDepth( CHANNEL_TYPE_LUMA ) == sps.getBitDepth( CHANNEL_TYPE_CHROMA ))) )
   {
     m_ppcOrigYuv[depth]->copyFromPicYuv( rpcTempCU->getPic()->getPicYuvResi(), rpcTempCU->getCtuRsAddr(), rpcTempCU->getZorderIdxInCtu() );
-    rpcTempCU->getPic()->exchangePicYuvRec();                                                                          //YCgCo reference picture
+    rpcTempCU->getPic()->exchangePicYuvRec();  //YCgCo reference picture
   }
 
   Bool bValid = m_pcPredSearch->predIntraBCSearch ( rpcTempCU,
