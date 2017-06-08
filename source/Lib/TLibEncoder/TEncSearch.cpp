@@ -9394,18 +9394,13 @@ Bool TEncSearch::isBlockVectorValid( Int xPos, Int yPos, Int width, Int height, 
     return false;
   }
 
-  TComSlice *pcSlice = pcCU->getSlice();
-  if( pcSlice->getSliceMode() )
+  // check same slice and tile
+  TComPicSym *pcSym = pcCU->getPic()->getPicSym();
+  TComDataCU* tlCtu = pcSym->getCtu(((xPos + xBv - interpolationSamplesX) >> ctuSizeLog2) + ((yPos + yBv - interpolationSamplesY) >> ctuSizeLog2) * pcSym->getFrameWidthInCtus());
+  TComDataCU* rbCtu = pcSym->getCtu((refRightX >> ctuSizeLog2) + (refBottomY >> ctuSizeLog2) * pcSym->getFrameWidthInCtus());
+  if (!pcCU->CUIsFromSameSliceAndTile(tlCtu) || !pcCU->CUIsFromSameSliceAndTile(rbCtu))
   {
-    TComPicSym *pcSym = pcCU->getPic()->getPicSym();
-    Int      ctuX = (xPos + xBv) / ctuSize;
-    Int      ctuY = (yPos + yBv) / ctuSize;
-    UInt   refCtu = ctuX + pcSym->getFrameWidthInCtus()*ctuY;
-    UInt startCtu = pcSym->getCtuTsToRsAddrMap( pcCU->getSlice()->getSliceSegmentCurStartCtuTsAddr() );
-    if (refCtu < startCtu)
-    {
-      return false;
-    }
+    return false;
   }
 
   if ( refBottomY>>ctuSizeLog2 < yPos>>ctuSizeLog2 )
