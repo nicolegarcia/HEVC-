@@ -77,6 +77,7 @@ private:
   TComYuv**               m_ppcResiYuvTemp; ///< Temporary Residual Yuv for each depth
   TComYuv**               m_ppcRecoYuvTemp; ///< Temporary Reconstruction Yuv for each depth
   TComYuv**               m_ppcOrigYuv;     ///< Original Yuv for each depth
+  TComYuv**               m_ppcNoCorrYuv;
 
   //  Data : encoder control
   Bool                    m_bEncodeDQP;
@@ -100,6 +101,9 @@ private:
   TEncSbac***             m_pppcRDSbacCoder;
   TEncSbac*               m_pcRDGoOnSbacCoder;
   TEncRateCtrl*           m_pcRateCtrl;
+  Bool                    m_bEnableIntraTUACTRD;
+  Bool                    m_bEnableIBCTUACTRD;
+  Bool                    m_bEnableInterTUACTRD;
 
 public:
   /// copy parameters from encoder class
@@ -111,13 +115,13 @@ public:
   Int        calculateLumaDQP( TComDataCU *pCU, const UInt absPartIdx, const TComYuv * pOrgYuv );
 
   /// create internal buffers
-  Void  create              ( UChar uhTotalDepth, UInt iMaxWidth, UInt iMaxHeight, ChromaFormat chromaFormat );
+  Void  create              ( UChar uhTotalDepth, UInt iMaxWidth, UInt iMaxHeight, ChromaFormat chromaFormat, UInt paletteMaxSize, UInt paletteMaxPredSize );
 
   /// destroy internal buffers
   Void  destroy             ();
 
   /// CTU analysis function
-  Void  compressCtu         ( TComDataCU*  pCtu );
+  Void  compressCtu         ( TComDataCU* pCtu, UChar* lastPaletteSize, Pel lastPalette[][MAX_PALETTE_PRED_SIZE] );
 
   /// CTU encoding function
   Void  encodeCtu           ( TComDataCU*  pCtu );
@@ -138,25 +142,65 @@ protected:
   Int   xComputeQP          ( TComDataCU* pcCU, UInt uiDepth );
   Void  xCheckBestMode      ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, UInt uiDepth DEBUG_STRING_FN_DECLARE(sParent) DEBUG_STRING_FN_DECLARE(sTest) DEBUG_STRING_PASS_INTO(Bool bAddSizeInfo=true));
 
-  Void  xCheckRDCostMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU DEBUG_STRING_FN_DECLARE(sDebug), Bool *earlyDetectionSkipMode );
+  Void  xCheckRDCostMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU DEBUG_STRING_FN_DECLARE(sDebug), Bool *earlyDetectionSkipMode, Bool checkSkipOnly );
 
 #if AMP_MRG
-  Void  xCheckRDCostInter   ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, PartSize ePartSize DEBUG_STRING_FN_DECLARE(sDebug), Bool bUseMRG = false  );
+  Void  xCheckRDCostInter   ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, PartSize ePartSize DEBUG_STRING_FN_DECLARE(sDebug), Bool bUseMRG = false, TComMv *iMVCandList = NULL );
 #else
-  Void  xCheckRDCostInter   ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, PartSize ePartSize  );
+  Void  xCheckRDCostInter   ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, PartSize ePartSize, TComMv *iMVCandList = NULL );
 #endif
 
   Void  xCheckRDCostIntra   ( TComDataCU *&rpcBestCU,
                               TComDataCU *&rpcTempCU,
+                              Double      &cost,
                               PartSize     ePartSize
+                              DEBUG_STRING_FN_DECLARE(sDebug),
+                              Bool         bRGBIntraModeReuse = false
+                             );
+
+  Void  xCheckRDCostIntraCSC ( TComDataCU    *&rpcBestCU,
+                               TComDataCU    *&rpcTempCU,
+                               Double         &cost,
+                               PartSize       ePartSize,
+                               ACTRDTestTypes eACTRDTestType,
+                               Bool           bReuseIntraMode
+                               DEBUG_STRING_FN_DECLARE(sDebug)
+                             );
+
+  Void  xCheckRDCostIntraBC ( TComDataCU*& rpcBestCU,
+                              TComDataCU*& rpcTempCU,
+                              Bool         bUse1DSearchFor8x8,
+                              PartSize     eSize,
+                              Double&      rdCost,
+                              Bool         testPredOnly=false,
+                              TComMv*      iMVCandList = NULL
                               DEBUG_STRING_FN_DECLARE(sDebug)
                             );
+  Void  xCheckRDCostIntraBCMixed( TComDataCU*& rpcBestCU,
+                                  TComDataCU*& rpcTempCU,
+                                  PartSize     eSize,
+                                  Double&      rdCost
+                                  DEBUG_STRING_FN_DECLARE( sDebug ),
+                                  TComMv*      iMVCandList
+                                 );
+
+  Void  xCheckRDCostIntraBCMerge2Nx2N( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU );
+  Void  xCheckRDCostHashInter( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU, Bool& isPerfectMatch DEBUG_STRING_FN_DECLARE(sDebug) );
+  UInt  xCheckPaletteMode    ( TComDataCU *&rpcBestCU, TComDataCU*& rpcTempCU, Bool forcePalettePrediction, UInt iterNumber, UInt *paletteSize);
+
+  Void setEnableIntraTUACT(UInt depth, TComSlice* pcSlice);
+  Void setEnableIBCTUACT(UInt depth, TComSlice* pcSlice);
+  Void setEnableInterTUACT(UInt depth, TComSlice* pcSlice);
+
+  Bool getEnableIntraTUACT()           { return m_bEnableIntraTUACTRD; }
+  Bool getEnableIBCTUACT()             { return m_bEnableIBCTUACTRD; }
+  Bool getEnableInterTUACT()           { return m_bEnableInterTUACTRD; }
 
   Void  xCheckDQP           ( TComDataCU*  pcCU );
 
   Void  xCheckIntraPCM      ( TComDataCU*& rpcBestCU, TComDataCU*& rpcTempCU                      );
   Void  xCopyAMVPInfo       ( AMVPInfo* pSrc, AMVPInfo* pDst );
-  Void  xCopyYuv2Pic        (TComPic* rpcPic, UInt uiCUAddr, UInt uiAbsPartIdx, UInt uiDepth, UInt uiSrcDepth );
+  Void  xCopyYuv2Pic        (TComPic* rpcPic, UInt uiCUAddr, UInt uiAbsPartIdx, UInt uiDepth, UInt uiSrcDepth, TComDataCU* pcCU );
   Void  xCopyYuv2Tmp        ( UInt uhPartUnitIdx, UInt uiDepth );
 
   Bool getdQPFlag           ()                        { return m_bEncodeDQP;        }

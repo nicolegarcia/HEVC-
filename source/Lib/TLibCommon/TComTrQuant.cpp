@@ -99,23 +99,51 @@ QpParam::QpParam(const Int           qpy,
   rem=baseQp%6;
 }
 
-QpParam::QpParam(const TComDataCU &cu, const ComponentID compID)
+QpParam::QpParam(const TComDataCU &cu, const ComponentID compID, UInt absPartIdx)
 {
   Int chromaQpOffset = 0;
+  Bool cuACTFlag = cu.getColourTransform(absPartIdx);
 
-  if (isChroma(compID))
+  if( !cuACTFlag )
   {
-    chromaQpOffset += cu.getSlice()->getPPS()->getQpOffset(compID);
-    chromaQpOffset += cu.getSlice()->getSliceChromaQpDelta(compID);
+    if (isChroma(compID))
+    {
+      chromaQpOffset += cu.getSlice()->getPPS()->getQpOffset(compID);
+      chromaQpOffset += cu.getSlice()->getSliceChromaQpDelta(compID);
 
-    chromaQpOffset += cu.getSlice()->getPPS()->getPpsRangeExtension().getChromaQpOffsetListEntry(cu.getChromaQpAdj(0)).u.offset[Int(compID)-1];
+      chromaQpOffset += cu.getSlice()->getPPS()->getPpsRangeExtension().getChromaQpOffsetListEntry(cu.getChromaQpAdj(0)).u.offset[Int(compID)-1];
+    }
+
+    *this = QpParam(cu.getQP( 0 ),
+                    toChannelType(compID),
+                    cu.getSlice()->getSPS()->getQpBDOffset(toChannelType(compID)),
+                    chromaQpOffset,
+                    cu.getPic()->getChromaFormat());
   }
+  else
+  {
+    chromaQpOffset += cu.getSlice()->getPPS()->getPpsScreenExtension().getActQpOffset(compID);
+    chromaQpOffset += cu.getSlice()->getSliceActQpDelta(compID);
 
-  *this = QpParam(cu.getQP( 0 ),
-                  toChannelType(compID),
-                  cu.getSlice()->getSPS()->getQpBDOffset(toChannelType(compID)),
-                  chromaQpOffset,
-                  cu.getPic()->getChromaFormat());
+    if (isChroma(compID))
+    {
+      chromaQpOffset += cu.getSlice()->getPPS()->getPpsRangeExtension().getChromaQpOffsetListEntry(cu.getChromaQpAdj(0)).u.offset[Int(compID)-1];
+
+      *this = QpParam(cu.getQP( 0 ),
+                      toChannelType(compID),
+                      cu.getSlice()->getSPS()->getQpBDOffset(toChannelType(compID)),
+                      chromaQpOffset,
+                      cu.getPic()->getChromaFormat());
+    }
+    else
+    {
+      Int baseQp = Clip3( 0, 51 + cu.getSlice()->getSPS()->getQpBDOffset(toChannelType(compID)), (cu.getQP( 0 ) + cu.getSlice()->getSPS()->getQpBDOffset(toChannelType(compID)) + chromaQpOffset));
+      
+      Qp =baseQp;
+      per=baseQp/6;
+      rem=baseQp%6;
+    }
+  }
 }
 
 
@@ -1212,7 +1240,7 @@ Void TComTrQuant::xQuant(       TComTU       &rTu,
     }
 #endif
 
-    const Int iAdd   = (pcCU->getSlice()->getSliceType()==I_SLICE ? 171 : 85) << (iQBits-9);
+    const Int iAdd   = (pcCU->getSlice()->getSliceType()==I_SLICE || pcCU->getSlice()->isOnlyCurrentPictureAsReference() ? 171 : 85) << (iQBits-9);
     const Int qBits8 = iQBits - 8;
 
     for( Int uiBlockPos = 0; uiBlockPos < uiWidth*uiHeight; uiBlockPos++ )
@@ -1691,7 +1719,8 @@ Void TComTrQuant::invRecurTransformNxN( const ComponentID compID,
           Pel           *pResi       = rpcResidual + uiAddr;
           TCoeff        *pcCoeff     = pcCU->getCoeff(compID) + rTu.getCoefficientOffset(compID);
 
-    const QpParam cQP(*pcCU, compID);
+    assert(!pcCU->getColourTransform(absPartIdxTU));
+    const QpParam cQP(*pcCU, compID, absPartIdxTU);
 
     if(pcCU->getCbf(absPartIdxTU, compID, uiTrMode) != 0)
     {
@@ -1734,6 +1763,77 @@ Void TComTrQuant::invRecurTransformNxN( const ComponentID compID,
       invRecurTransformNxN( compID, pResidual, tuRecurseChild );
     } while (tuRecurseChild.nextSection(rTu));
   }
+}
+
+Void TComTrQuant::invRecurTransformACTNxN( TComYuv *pResidual, TComTU &rTu )
+{
+  TComDataCU* pcCU  = rTu.getCU();
+  UInt absPartIdxTU = rTu.GetAbsPartIdxTU();
+  UInt trMode       = rTu.GetTransformDepthRel();
+  const TComRectangle& rect = rTu.getRect(COMPONENT_Y);
+  const Bool extendedPrecision = rTu.getCU()->getSlice()->getSPS()->getSpsRangeExtension().getExtendedPrecisionProcessingFlag();
+
+  if( trMode == pcCU->getTransformIdx( absPartIdxTU ) )
+  {
+    for( UInt ch = 0; ch < pcCU->getPic()->getNumberValidComponents(); ch++ )
+    {
+      ComponentID compID               = ComponentID(ch);
+      const TComRectangle &tuRect      = rTu.getRect(compID);
+      const Int            stride      = pResidual->getStride( compID );
+      Pel                 *rpcResidual = pResidual->getAddr( compID );
+      UInt                 addr        = (tuRect.x0 + stride*tuRect.y0);
+      Pel                 *pResi       = rpcResidual + addr;
+      TCoeff              *rpcCoeff    = pcCU->getCoeff(compID) + rTu.getCoefficientOffset(compID);
+
+      QpParam cQP(*pcCU, compID, absPartIdxTU);
+
+      if ( pcCU->getCbf( absPartIdxTU, compID, trMode ) != 0 )
+      {
+        invTransformNxN( rTu, compID, pResi, stride, rpcCoeff, cQP DEBUG_STRING_PASS_INTO( psDebug ) );
+      }
+
+      if (isChroma(compID) && (pcCU->getCrossComponentPredictionAlpha(absPartIdxTU, compID) != 0))
+      {
+        const Pel *piResiLuma = pResidual->getAddr( COMPONENT_Y );
+        const Int  strideLuma = pResidual->getStride( COMPONENT_Y );
+        const Int  tuWidth    = rTu.getRect( compID ).width;
+        const Int  tuHeight   = rTu.getRect( compID ).height;
+
+        if(pcCU->getCbf(absPartIdxTU, COMPONENT_Y, trMode) != 0)
+        {
+          pResi = rpcResidual + addr;
+          const Pel *pResiLuma = piResiLuma + addr;
+
+          crossComponentPrediction( rTu, compID, pResiLuma, pResi, pResi, tuWidth, tuHeight, strideLuma, stride, stride, true );
+        }
+      }
+    }
+
+    if( pcCU->getColourTransform(absPartIdxTU) && ( pcCU->getCbf(absPartIdxTU,COMPONENT_Y, trMode) || pcCU->getCbf(absPartIdxTU,COMPONENT_Cb, trMode) || pcCU->getCbf(absPartIdxTU,COMPONENT_Cr, trMode) ) )
+    {
+      pResidual->convert(extendedPrecision, rect.x0, rect.y0, rect.width, false, pcCU->getSlice()->getSPS()->getBitDepths(), pcCU->isLosslessCoded(absPartIdxTU));
+    }
+  }
+  else
+  {
+    TComTURecurse tuRecurseChild(rTu, false);
+    do
+    {
+      invRecurTransformACTNxN( pResidual, tuRecurseChild );
+    }
+    while (tuRecurseChild.nextSection(rTu));
+  }
+}
+
+Void TComTrQuant::adjustBitDepthandLambdaForColourTrans(Int delta_QP)
+{
+  Double lamdbaAdjustRate = pow(2.0, delta_QP / 3.0);
+
+  for (UInt component = 0; component < MAX_NUM_COMPONENT; component++)
+  {
+    m_lambdas[component] = m_lambdas[component] * lamdbaAdjustRate;
+  }
+  m_dLambda = m_dLambda * lamdbaAdjustRate;
 }
 
 Void TComTrQuant::applyForwardRDPCM( TComTU& rTu, const ComponentID compID, Pel* pcResidual, const UInt uiStride, const QpParam& cQP, TCoeff* pcCoeff, TCoeff &uiAbsSum, const RDPCMMode mode )
@@ -3340,7 +3440,7 @@ Void TComTrQuant::transformSkipQuantOneSample(TComTU &rTu, const ComponentID com
   const Int iQBits = QUANT_SHIFT + cQP.per + iTransformShift;
   // QBits will be OK for any internal bit depth as the reduction in transform shift is balanced by an increase in Qp_per due to QpBDOffset
 
-  const Int iAdd = ( bUseHalfRoundingPoint ? 256 : (pcCU->getSlice()->getSliceType() == I_SLICE ? 171 : 85) ) << (iQBits - 9);
+  const Int iAdd = ( bUseHalfRoundingPoint ? 256 : (pcCU->getSlice()->getSliceType() == I_SLICE || pcCU->getSlice()->isOnlyCurrentPictureAsReference() ? 171 : 85) ) << (iQBits - 9);
 
   TCoeff transformedCoefficient;
 

@@ -127,6 +127,7 @@ protected:
   Bool m_interlacedSourceFlag;
   Bool m_nonPackedConstraintFlag;
   Bool m_frameOnlyConstraintFlag;
+  Bool m_sccHighThroughputFlag;
 
   // coding structure
   Int       m_iIntraPeriod;                                   ///< period of I-slice (random access period)
@@ -236,7 +237,6 @@ protected:
   UInt      m_uiPCMLog2MinSize;                               ///< log2 of minimum PCM block size
   Bool      m_bPCMFilterDisableFlag;                          ///< PCM filter disable flag
   Bool      m_enableIntraReferenceSmoothing;                  ///< flag for enabling(default)/disabling intra reference smoothing/filtering
-
   // coding tools (encoder-only parameters)
   Bool      m_bUseASR;                                        ///< flag for using adaptive motion search range
   Bool      m_bUseHADME;                                      ///< flag for using HAD in sub-pel ME
@@ -415,6 +415,30 @@ protected:
   std::string m_summaryOutFilename;                           ///< filename to use for producing summary output file.
   std::string m_summaryPicFilenameBase;                       ///< Base filename to use for producing summary picture output files. The actual filenames used will have I.txt, P.txt and B.txt appended.
   UInt        m_summaryVerboseness;                           ///< Specifies the level of the verboseness of the text output.
+
+  // SCM new added variables
+  Bool      m_printClippedPSNR;
+  Bool      m_bRGBformat;
+  Bool      m_useColourTrans;
+  Int       m_actYQpOffset;
+  Int       m_actCbQpOffset;
+  Int       m_actCrQpOffset;
+  Bool      m_useLL;
+  Bool      m_usePaletteMode;
+  UInt      m_paletteMaxSize;
+  UInt      m_paletteMaxPredSize;
+  Int       m_motionVectorResolutionControlIdc;
+  Bool      m_palettePredInSPSEnabled;
+  Bool      m_palettePredInPPSEnabled;
+  Bool      m_useIntraBlockCopy;
+  Bool      m_intraBlockCopyFastSearch;                       ///< Use a restricted search range for intra block-copy motion vectors to reduce the encoding time
+  Bool      m_useHashBasedIntraBlockCopySearch;               ///< Enable the use of hash based search for intra block copying on 8x8 blocks
+  Int       m_intraBlockCopySearchWidthInCTUs;                ///< Search range for IBC hash search method (-1: full frame search)
+  UInt      m_intraBlockCopyNonHashSearchWidthInCTUs;         ///< Search range for IBC non-hash search method (i.e., fast/full search)
+  Bool      m_useHashBasedME;                                 ///< flag for using hash based inter search
+  Bool      m_disableIntraBoundaryFilter;                     ///  flag for enabling(default)/disabling intra boundary filtering
+  Bool      m_bTransquantBypassInferTUSplit;                  ///< Infer TU splitting for transquant bypass CUs
+  Bool      m_bNoTUSplitIntraACTEnabled;
 
 #if EXTENSION_360_VIDEO
   TExt360AppEncCfg m_ext360;

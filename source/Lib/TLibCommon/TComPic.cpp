@@ -55,6 +55,9 @@ TComPic::TComPic()
 , m_bNeededForOutput                      (false)
 , m_uiCurrSliceIdx                        (0)
 , m_bCheckLTMSB                           (false)
+, m_bCurPic                               (false)
+, m_bInDPB                                (false)
+, m_apcPicYuvCSC                          (NULL)
 {
   for(UInt i=0; i<NUM_PIC_YUV; i++)
   {
@@ -108,6 +111,7 @@ Void TComPic::create( const TComSPS &sps, const TComPPS &pps, const Bool bIsVirt
     deleteSEIs (m_SEIs);
   }
   m_bUsedByCurr = false;
+  m_hashMap.clearAll();
 }
 
 #if REDUCED_ENCODER_MEMORY
@@ -200,6 +204,14 @@ Void TComPic::destroy()
     }
   }
 
+  m_hashMap.clearAll();
+  if (m_apcPicYuvCSC)
+  {
+    m_apcPicYuvCSC->destroy();
+    delete m_apcPicYuvCSC;
+    m_apcPicYuvCSC = NULL;
+  }
+
   deleteSEIs(m_SEIs);
 }
 
@@ -257,5 +269,111 @@ UInt TComPic::getSubstreamForCtuAddr(const UInt ctuAddr, const Bool bAddressInRa
   return subStrm;
 }
 
+Void TComPic::copyPicInfo( const TComPic& sComPic )
+{
+  UInt i = 0;
+
+  m_uiTLayer = sComPic.m_uiTLayer;
+
+  m_bNeededForOutput = sComPic.m_bNeededForOutput;
+  m_bReconstructed = sComPic.m_bReconstructed;
+
+  m_uiCurrSliceIdx = sComPic.m_uiCurrSliceIdx;
+  m_bCheckLTMSB = sComPic.m_bCheckLTMSB;
+
+  m_isTop = sComPic.m_isTop;
+  m_isField = sComPic.m_isField;
+
+  for ( i = 0; i < NUM_PIC_YUV; i++ )
+  {
+    if ( sComPic.m_apcPicYuv[i] != NULL )
+    {
+      *m_apcPicYuv[i] = *(sComPic.m_apcPicYuv[i]);
+    }
+  }
+}
+
+Void TComPic::allocateCSCBuffer(Int iWidth, Int iHeight, ChromaFormat chromaFormatIDC, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth)
+{
+  assert(m_apcPicYuvCSC == NULL);
+  m_apcPicYuvCSC = new TComPicYuv; m_apcPicYuvCSC->create(iWidth, iHeight, chromaFormatIDC, uiMaxWidth, uiMaxHeight, uiMaxDepth, true);
+}
+
+Void TComPic::releaseCSCBuffer()
+{
+  m_apcPicYuvCSC->destroy();
+  delete m_apcPicYuvCSC;
+  m_apcPicYuvCSC = NULL;
+}
+
+Void TComPic::exchangePicYuvRec()
+{
+  TComPicYuv* pcTmpPicYuv;
+  pcTmpPicYuv = m_apcPicYuv[PIC_YUV_REC];
+  m_apcPicYuv[PIC_YUV_REC] = m_apcPicYuvCSC;
+  m_apcPicYuvCSC = pcTmpPicYuv;
+}
+
+#if REDUCED_ENCODER_MEMORY
+Void TComPic::storeMotionForIBCEnc()
+{
+  TComPicSym* pPicSym = getPicSym();
+  for ( UInt uiCUAddr = 0; uiCUAddr < pPicSym->getNumberOfCtusInFrame(); uiCUAddr++ )
+  {
+    TComDataCU* pCtu = pPicSym->getCtu(uiCUAddr);
+    pCtu->storeMVForIBCEnc();
+  }
+}
+#endif
+
+Void TComPic::addPictureToHashMapForInter()
+{
+  Int picWidth = getSlice( 0 )->getSPS()->getPicWidthInLumaSamples();
+  Int picHeight = getSlice( 0 )->getSPS()->getPicHeightInLumaSamples();
+  UInt* blockHashValues[2][2];
+  Bool* bIsBlockSame[2][3];
+
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      blockHashValues[i][j] = new UInt[picWidth*picHeight];
+    }
+
+    for (Int j = 0; j < 3; j++)
+    {
+      bIsBlockSame[i][j] = new Bool[picWidth*picHeight];
+    }
+  }
+
+  m_hashMap.create();
+  m_hashMap.generateBlock2x2HashValue(getPicYuvOrg(), picWidth, picHeight, getSlice(0)->getSPS()->getBitDepths(), blockHashValues[0], bIsBlockSame[0]);//2x2
+  m_hashMap.generateBlockHashValue(picWidth, picHeight, 4, 4, blockHashValues[0], blockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//4x4
+
+  m_hashMap.generateBlockHashValue(picWidth, picHeight, 8, 8, blockHashValues[1], blockHashValues[0], bIsBlockSame[1], bIsBlockSame[0]);//8x8
+  m_hashMap.addToHashMapByRowWithPrecalData(blockHashValues[0], bIsBlockSame[0][2], picWidth, picHeight, 8, 8);
+
+  m_hashMap.generateBlockHashValue(picWidth, picHeight, 16, 16, blockHashValues[0], blockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//16x16
+  m_hashMap.addToHashMapByRowWithPrecalData(blockHashValues[1], bIsBlockSame[1][2], picWidth, picHeight, 16, 16);
+
+  m_hashMap.generateBlockHashValue(picWidth, picHeight, 32, 32, blockHashValues[1], blockHashValues[0], bIsBlockSame[1], bIsBlockSame[0]);//32x32
+  m_hashMap.addToHashMapByRowWithPrecalData(blockHashValues[0], bIsBlockSame[0][2], picWidth, picHeight, 32, 32);
+
+  m_hashMap.generateBlockHashValue(picWidth, picHeight, 64, 64, blockHashValues[0], blockHashValues[1], bIsBlockSame[0], bIsBlockSame[1]);//64x64
+  m_hashMap.addToHashMapByRowWithPrecalData(blockHashValues[1], bIsBlockSame[1][2], picWidth, picHeight, 64, 64);
+
+  for (Int i = 0; i < 2; i++)
+  {
+    for (Int j = 0; j < 2; j++)
+    {
+      delete[] blockHashValues[i][j];
+    }
+
+    for (Int j = 0; j<3; j++)
+    {
+      delete[] bIsBlockSame[i][j];
+    }
+  }
+}
 
 //! \}

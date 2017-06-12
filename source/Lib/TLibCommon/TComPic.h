@@ -43,6 +43,7 @@
 #include "TComPicSym.h"
 #include "TComPicYuv.h"
 #include "TComBitStream.h"
+#include "TComHash.h"
 
 //! \ingroup TLibCommon
 //! \{
@@ -80,6 +81,11 @@ private:
   std::vector<std::vector<TComDataCU*> > m_vSliceCUDataLink;
 
   SEIMessages  m_SEIs; ///< Any SEI messages that have been received.  If !NULL we own the object.
+
+  TComHash              m_hashMap;
+  Bool                  m_bCurPic;
+  Bool                  m_bInDPB;
+  TComPicYuv*           m_apcPicYuvCSC;
 
 public:
   TComPic();
@@ -157,6 +163,24 @@ public:
   Bool          getSAOMergeAvailability(Int currAddr, Int mergeAddr);
 
   UInt          getSubstreamForCtuAddr(const UInt ctuAddr, const Bool bAddressInRaster, TComSlice *pcSlice);
+
+  Void          copyPicInfo(const TComPic& sComPic);
+  const TComPicYuv* getPicYuvOrg() const { return  m_apcPicYuv[PIC_YUV_ORG]; }
+  TComPicYuv*   getPicYuvCSC()        { return  m_apcPicYuvCSC; }
+  Void          allocateCSCBuffer(Int iWidth, Int iHeight, ChromaFormat chromaFormatIDC, UInt uiMaxWidth, UInt uiMaxHeight, UInt uiMaxDepth);
+  Void          releaseCSCBuffer();
+  Void          exchangePicYuvRec();
+#if REDUCED_ENCODER_MEMORY
+  Void          storeMotionForIBCEnc();
+#endif
+  Void          addPictureToHashMapForInter();
+  TComHash*     getHashMap() { return &m_hashMap; }
+  const TComHash* getHashMap() const { return &m_hashMap; }
+
+  Bool          getCurrentPicFlag()         { return m_bCurPic; }
+  Void          setCurrentPicFlag(Bool b)   { m_bCurPic = b; }
+  Bool          getCurrPicInDPBFlag()       { return m_bInDPB; }
+  Void          setCurrPicInDPBFlag(Bool b) { m_bInDPB = b; }
 
   /* field coding parameters*/
 

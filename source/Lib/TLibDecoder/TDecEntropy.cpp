@@ -57,6 +57,10 @@ Void TDecEntropy::setEntropyDecoder         ( TDecEntropyIf* p )
 
 Void TDecEntropy::decodeSkipFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
+  if ( pcCU->getPaletteModeFlag(uiAbsPartIdx) )
+  {
+    return;
+  }
   m_pcEntropyDecoderIf->parseSkipFlag( pcCU, uiAbsPartIdx, uiDepth );
 }
 
@@ -106,11 +110,20 @@ Void TDecEntropy::decodePredMode( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
 
 Void TDecEntropy::decodePartSize( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth )
 {
+  if (pcCU->getPaletteModeFlag(uiAbsPartIdx))
+  {
+    return;
+  }
   m_pcEntropyDecoderIf->parsePartSize( pcCU, uiAbsPartIdx, uiDepth );
 }
 
 Void TDecEntropy::decodePredInfo    ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, TComDataCU* pcSubCU )
 {
+  if ( pcCU->getPaletteModeFlag(uiAbsPartIdx) )
+  {
+    return;
+  }
+
   if( pcCU->isIntra( uiAbsPartIdx ) )                                 // If it is Intra mode, encode intra prediction mode.
   {
     decodeIntraDirModeLuma  ( pcCU, uiAbsPartIdx, uiDepth );
@@ -143,6 +156,11 @@ Void TDecEntropy::decodeIPCMInfo( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDe
   if(!pcCU->getSlice()->getSPS()->getUsePCM()
     || pcCU->getWidth(uiAbsPartIdx) > (1<<pcCU->getSlice()->getSPS()->getPCMLog2MaxSize())
     || pcCU->getWidth(uiAbsPartIdx) < (1<<pcCU->getSlice()->getSPS()->getPCMLog2MinSize()) )
+  {
+    return;
+  }
+
+  if ( pcCU->getPaletteModeFlag(uiAbsPartIdx) )
   {
     return;
   }
@@ -226,7 +244,8 @@ Void TDecEntropy::decodePUWise( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDept
       {
         pcSubCU->getInterMergeCandidates( uiSubPartIdx-uiAbsPartIdx, uiPartIdx, cMvFieldNeighbours, uhInterDirNeighbours, numValidMergeCand, uiMergeIndex );
       }
-
+      pcSubCU->xRestrictBipredMergeCand(0,cMvFieldNeighbours, uhInterDirNeighbours, numValidMergeCand);
+      pcSubCU->roundMergeCandidates(cMvFieldNeighbours, numValidMergeCand);
       pcCU->setInterDirSubParts( uhInterDirNeighbours[uiMergeIndex], uiSubPartIdx, uiPartIdx, uiDepth );
 
       TComMv cTmpMv( 0, 0 );
@@ -251,7 +270,7 @@ Void TDecEntropy::decodePUWise( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDept
         {
           decodeRefFrmIdxPU( pcCU,    uiSubPartIdx,              uiDepth, uiPartIdx, RefPicList( uiRefListIdx ) );
           decodeMvdPU      ( pcCU,    uiSubPartIdx,              uiDepth, uiPartIdx, RefPicList( uiRefListIdx ) );
-          decodeMVPIdxPU   ( pcSubCU, uiSubPartIdx-uiAbsPartIdx, uiDepth, uiPartIdx, RefPicList( uiRefListIdx ) );
+          decodeMVPIdxPU   ( pcSubCU, uiSubPartIdx-uiAbsPartIdx, uiDepth, uiPartIdx, RefPicList( uiRefListIdx ), pcCU );
 #if ENVIRONMENT_VARIABLE_DEBUG_AND_TEST
           if (bDebugPredEnabled)
           {
@@ -266,7 +285,19 @@ Void TDecEntropy::decodePUWise( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDept
       }
     }
 
-    if ( (pcCU->getInterDir(uiSubPartIdx) == 3) && pcSubCU->isBipredRestriction(uiPartIdx) )
+    Bool b8x8BiPredRestricted = false;
+    if(pcCU->getInterDir(uiSubPartIdx) == 3)
+    {
+      TComMv cMv[2];
+      Int    iRefIdxBi[2];
+      cMv[0] = pcCU->getCUMvField( REF_PIC_LIST_0 )->getMv(uiSubPartIdx);
+      cMv[1] = pcCU->getCUMvField( REF_PIC_LIST_1 )->getMv(uiSubPartIdx);
+      iRefIdxBi[0] = pcCU->getCUMvField( REF_PIC_LIST_0 )->getRefIdx(uiSubPartIdx);
+      iRefIdxBi[1] = pcCU->getCUMvField( REF_PIC_LIST_1 )->getRefIdx(uiSubPartIdx);
+      b8x8BiPredRestricted = pcCU->is8x8BipredRestriction(cMv[0],cMv[1],iRefIdxBi[0],iRefIdxBi[1]);
+    }
+
+    if ( (pcCU->getInterDir(uiSubPartIdx) == 3) && pcSubCU->isBipredRestriction(uiPartIdx,b8x8BiPredRestricted) )
     {
       pcCU->getCUMvField( REF_PIC_LIST_1 )->setAllMv( TComMv(0,0), ePartSize, uiSubPartIdx, uiDepth, uiPartIdx);
       pcCU->getCUMvField( REF_PIC_LIST_1 )->setAllRefIdx( -1, ePartSize, uiSubPartIdx, uiDepth, uiPartIdx);
@@ -287,7 +318,7 @@ Void TDecEntropy::decodeInterDirPU( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt ui
 {
   UInt uiInterDir;
 
-  if ( pcCU->getSlice()->isInterP() )
+  if ( !pcCU->getSlice()->isInterB() )
   {
     uiInterDir = 1;
   }
@@ -337,7 +368,7 @@ Void TDecEntropy::decodeMvdPU( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth
   }
 }
 
-Void TDecEntropy::decodeMVPIdxPU( TComDataCU* pcSubCU, UInt uiPartAddr, UInt uiDepth, UInt uiPartIdx, RefPicList eRefList )
+Void TDecEntropy::decodeMVPIdxPU( TComDataCU* pcSubCU, UInt uiPartAddr, UInt uiDepth, UInt uiPartIdx, RefPicList eRefList, TComDataCU* pcCU )
 {
   Int iMVPIdx = -1;
 
@@ -361,7 +392,16 @@ Void TDecEntropy::decodeMVPIdxPU( TComDataCU* pcSubCU, UInt uiPartAddr, UInt uiD
   if ( iRefIdx >= 0 )
   {
     m_pcPrediction->getMvPredAMVP( pcSubCU, uiPartIdx, uiPartAddr, eRefList, cMv);
-    cMv += pcSubCUMvField->getMvd( uiPartAddr );
+    if( pcSubCU->getSlice()->getUseIntegerMv() || (pcSubCU->getSlice()->getRefPic( eRefList, iRefIdx )->getPOC() == pcSubCU->getSlice()->getPOC()) )
+    {
+      cMv >>= 2;
+      cMv += pcSubCUMvField->getMvd( uiPartAddr );
+      cMv <<= 2;
+    }
+    else
+    {
+      cMv += pcSubCUMvField->getMvd( uiPartAddr );
+    }
   }
 
   PartSize ePartSize = pcSubCU->getPartitionSize( uiPartAddr );
@@ -515,6 +555,20 @@ Void TDecEntropy::xDecodeTransform        ( Bool& bCodeDQP, Bool& isChromaQpAdjC
 
     if ( validCbf )
     {
+      if ( pcCU->getSlice()->getPPS()->getPpsScreenExtension().getUseColourTrans() && pcCU->hasAssociatedACTFlag(uiAbsPartIdx) )
+      {
+        Bool flag = false;
+        m_pcEntropyDecoderIf->parseColourTransformFlag( flag );
+        pcCU->setColourTransformSubParts(flag, uiAbsPartIdx, uiDepth);
+      }
+      else
+      {
+        pcCU->setColourTransformSubParts(false, uiAbsPartIdx, uiDepth);
+      }
+      if ( pcCU->getCUTransquantBypass( uiAbsPartIdx ) && (pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_LUMA] != pcCU->getSlice()->getSPS()->getBitDepths().recon[CHANNEL_TYPE_CHROMA]) )
+      {
+        assert( !pcCU->getColourTransform( uiAbsPartIdx ) );
+      }
 
       // dQP: only for CTU
       if ( pcCU->getSlice()->getPPS()->getUseDQP() )
@@ -626,6 +680,7 @@ Void TDecEntropy::decodeCoeff( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth
       static const UInt cbfZero[MAX_NUM_COMPONENT]={0,0,0};
       pcCU->setCbfSubParts( cbfZero, uiAbsPartIdx, uiDepth );
       pcCU->setTrIdxSubParts( 0 , uiAbsPartIdx, uiDepth );
+      pcCU->setColourTransformSubParts(0, uiAbsPartIdx, uiDepth);
       return;
     }
 
@@ -643,6 +698,21 @@ Void TDecEntropy::decodeCoeff( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth
   Int quadtreeTULog2MinSizeInCU = pcCU->getQuadtreeTULog2MinSizeInCU(uiAbsPartIdx);
   
   xDecodeTransform( bCodeDQP, isChromaQpAdjCoded, tuRecurse, quadtreeTULog2MinSizeInCU );
+}
+
+Void TDecEntropy::decodePaletteModeInfo( TComDataCU* pcCU, UInt absPartIdx, UInt depth, Bool& bCodeDQP, Bool& isChromaQpAdjCoded )
+{
+  const UChar cuWidth =UChar(pcCU->getSlice()->getSPS()->getMaxCUWidth()>>depth);
+  const UInt log2CbSize = g_aucConvertToBit[cuWidth] + 2;
+  if( pcCU->getSlice()->getSPS()->getSpsScreenExtension().getUsePaletteMode() && pcCU->isIntra( absPartIdx ) && log2CbSize <= pcCU->getSlice()->getSPS()->getQuadtreeTULog2MaxSize() )
+  {
+    m_pcEntropyDecoderIf->parsePaletteModeFlag( pcCU, absPartIdx, depth );
+    if ( pcCU->getPaletteModeFlag( absPartIdx ) )
+    {
+      m_pcEntropyDecoderIf->parsePaletteModeSyntax( pcCU, absPartIdx, depth, 3, bCodeDQP, isChromaQpAdjCoded );
+      pcCU->saveLastPaletteInLcuFinal( pcCU, absPartIdx, MAX_NUM_COMPONENT );
+    }
+  }
 }
 
 //! \}

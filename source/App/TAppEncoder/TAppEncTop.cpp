@@ -102,6 +102,7 @@ Void TAppEncTop::xInitLibCfg()
   m_cTEncTop.setPrintMSEBasedSequencePSNR                         ( m_printMSEBasedSequencePSNR);
   m_cTEncTop.setPrintFrameMSE                                     ( m_printFrameMSE);
   m_cTEncTop.setPrintSequenceMSE                                  ( m_printSequenceMSE);
+  m_cTEncTop.setPrintClippedPSNR                                  ( m_printClippedPSNR );
   m_cTEncTop.setCabacZeroWordPaddingEnabled                       ( m_cabacZeroWordPaddingEnabled );
 
   m_cTEncTop.setFrameRate                                         ( m_iFrameRate );
@@ -427,6 +428,29 @@ Void TAppEncTop::xInitLibCfg()
   m_cTEncTop.setSummaryOutFilename                                ( m_summaryOutFilename );
   m_cTEncTop.setSummaryPicFilenameBase                            ( m_summaryPicFilenameBase );
   m_cTEncTop.setSummaryVerboseness                                ( m_summaryVerboseness );
+
+  // SCM new added variables
+  m_cTEncTop.setUseIntraBlockCopy                                 ( m_useIntraBlockCopy );
+  m_cTEncTop.setUseIntraBlockCopyFastSearch                       ( m_intraBlockCopyFastSearch );
+  m_cTEncTop.setUseHashBasedIntraBCSearch                         ( m_useHashBasedIntraBlockCopySearch );
+  m_cTEncTop.setIntraBCSearchWidthInCTUs                          ( m_intraBlockCopySearchWidthInCTUs );
+  m_cTEncTop.setIntraBCNonHashSearchWidthInCTUs                   ( m_intraBlockCopyNonHashSearchWidthInCTUs );
+  m_cTEncTop.setUseHashBasedME                                    ( m_useHashBasedME );
+  m_cTEncTop.setDisableIntraBoundaryFilter                        ( m_disableIntraBoundaryFilter );
+  m_cTEncTop.setUseColourTrans                                    ( m_useColourTrans );
+  m_cTEncTop.setRGBFormatFlag                                     ( m_bRGBformat );
+  m_cTEncTop.setUseLossless                                       ( m_useLL );
+  m_cTEncTop.setActQpYOffset                                      ( m_actYQpOffset  );
+  m_cTEncTop.setActQpCbOffset                                     ( m_actCbQpOffset );
+  m_cTEncTop.setActQpCrOffset                                     ( m_actCrQpOffset );
+  m_cTEncTop.setTransquantBypassInferTUSplit                      ( m_bTransquantBypassInferTUSplit );
+  m_cTEncTop.setNoTUSplitIntraACTEnabled                          ( m_bNoTUSplitIntraACTEnabled );
+  m_cTEncTop.setMotionVectorResolutionControlIdc                  ( m_motionVectorResolutionControlIdc );
+  m_cTEncTop.setUsePaletteMode                                    ( m_usePaletteMode );
+  m_cTEncTop.setPaletteMaxSize                                    ( m_paletteMaxSize );
+  m_cTEncTop.setPaletteMaxPredSize                                ( m_paletteMaxPredSize );
+  m_cTEncTop.setPalettePredInSPSEnabled                           ( m_palettePredInSPSEnabled );
+  m_cTEncTop.setPalettePredInPPSEnabled                           ( m_palettePredInPPSEnabled );
 }
 
 Void TAppEncTop::xCreateLib()

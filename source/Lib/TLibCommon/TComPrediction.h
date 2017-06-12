@@ -63,6 +63,20 @@ typedef enum PRED_BUF_E
   NUM_PRED_BUF=2
 } PRED_BUF;
 
+struct PaletteInfoStruct{
+  UInt   position;
+  UChar  paletteMode;
+  UInt   index;
+  UInt   indexPred;
+  UInt   run;
+  UInt64 bitsRun;
+  UInt64 bitsInd;
+  UInt64 bitsAll;
+  Double error;
+  UInt   escape;
+  UInt   usedForCopy;
+};
+
 static const UInt MAX_INTRA_FILTER_DEPTHS=5;
 
 class TComPrediction : public TComWeightPrediction
@@ -78,6 +92,8 @@ protected:
   TComYuv   m_cYuvPredTemp;
   TComYuv m_filteredBlock[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS];
   TComYuv m_filteredBlockTmp[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS];
+  UInt*     m_pScanOrder;
+  Int       m_prevQP;
 
   TComInterpolationFilter m_if;
 

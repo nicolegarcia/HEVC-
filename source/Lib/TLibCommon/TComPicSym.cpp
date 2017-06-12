@@ -137,6 +137,7 @@ Void TComPicSym::create  ( const TComSPS &sps, const TComPPS &pps, UInt uiMaxDep
   {
     m_pictureCtuArray[i] = new TComDataCU;
     m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
+      , paletteMaxSize, paletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
       , m_pParentARLBuffer
 #endif
@@ -168,6 +169,8 @@ Void TComPicSym::prepareForReconstruction()
   const ChromaFormat chromaFormatIDC = m_sps.getChromaFormatIdc();
   const UInt uiMaxCuWidth  = m_sps.getMaxCUWidth();
   const UInt uiMaxCuHeight = m_sps.getMaxCUHeight();
+  const UInt paletteMaxSize     = m_sps.getSpsScreenExtension().getPaletteMaxSize();
+  const UInt paletteMaxPredSize = m_sps.getSpsScreenExtension().getPaletteMaxPredSize();
   if (m_pictureCtuArray == NULL)
   {
     m_pictureCtuArray = new TComDataCU*[m_numCtusInFrame];
@@ -176,6 +179,7 @@ Void TComPicSym::prepareForReconstruction()
     {
       m_pictureCtuArray[i] = new TComDataCU;
       m_pictureCtuArray[i]->create( chromaFormatIDC, m_numPartitionsInCtu, uiMaxCuWidth, uiMaxCuHeight, false, uiMaxCuWidth >> m_uhTotalDepth
+        , paletteMaxSize, paletteMaxPredSize
 #if ADAPTIVE_QP_SELECTION
         , m_pParentARLBuffer
 #endif

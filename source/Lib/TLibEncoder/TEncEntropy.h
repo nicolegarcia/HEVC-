@@ -109,6 +109,11 @@ public:
   virtual Void estBit               (estBitsSbacStruct* pcEstBitsSbac, Int width, Int height, ChannelType chType, COEFF_SCAN_TYPE scanType) = 0;
   virtual Void codeExplicitRdpcmMode ( TComTU &rTu, const ComponentID compID ) = 0;
 
+  virtual Void codePaletteModeFlag          ( TComDataCU* pcCU, UInt absPartIdx ) = 0;
+  virtual Void codePaletteModeSyntax        (TComDataCU* pcCU, UInt absPartIdx, UInt numComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag) = 0;
+  virtual Void codeScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx ) = 0;
+  virtual Void codeColourTransformFlag( TComDataCU* pcCU, UInt absPartIdx ) = 0;
+
   virtual ~TEncEntropyIf() {}
 };
 
@@ -136,6 +141,7 @@ public:
   Void encodePPS               ( const TComPPS* pcPPS );
   Void encodeSplitFlag         ( TComDataCU* pcCU, UInt uiAbsPartIdx, UInt uiDepth, Bool bRD = false );
   Void encodeCUTransquantBypassFlag( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false );
+  Void encodePaletteModeInfo   ( TComDataCU* pcCU, UInt absPartIdx, Bool bRD = false, Bool* bCodeDQP = NULL, Bool* codeChromaQpAdj = NULL );
   Void encodeSkipFlag          ( TComDataCU* pcCU, UInt uiAbsPartIdx, Bool bRD = false );
   Void encodePUWise       ( TComDataCU* pcCU, UInt uiAbsPartIdx );
   Void encodeInterDirPU   ( TComDataCU* pcSubCU, UInt uiAbsPartIdx  );

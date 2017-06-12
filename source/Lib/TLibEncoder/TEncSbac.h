@@ -106,6 +106,12 @@ public:
                     , Bool onlyEstMergeInfo = false
                     );
 
+  UInt64  getNumPartialBits () { return m_pcBinIf->getNumPartialBits(); }
+  Void  storeNumPartialBits () { m_pcBinIf->storeNumPartialBits(); };
+  Void  restoreNumPartialBits () { m_pcBinIf->restoreNumPartialBits(); };
+  Pel   writePaletteIndex      ( UInt idx, Pel *pLevel, Int maxSymbol, UChar *pSPoint = 0, Int width = 0, UChar *pEscapeFlag = 0);
+  Void  encodeRun              ( UInt run, Bool bCopyTopMode, const UInt paletteIdx, const UInt maxRun );
+
 private:
   Void  xWriteUnarySymbol    ( UInt uiSymbol, ContextModel* pcSCModel, Int iOffset );
   Void  xWriteUnaryMaxSymbol ( UInt uiSymbol, ContextModel* pcSCModel, Int iOffset, UInt uiMaxSymbol );
@@ -114,6 +120,12 @@ private:
 
   Void  xCopyFrom            ( const TEncSbac* pSrc );
   Void  xCopyContextsFrom    ( const TEncSbac* pSrc );
+
+  Void xEncodePalettePredIndicator(Bool *bReusedPrev, UInt paletteSizePrev, UInt &numPalettePredicted, UInt maxPaletteSize);
+  Void xWriteTruncBinCode      ( UInt symbol, UInt maxSymbol );
+  Void codeScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx );
+  UInt xWriteTruncMsbP1      ( UInt symbol, ContextModel* pcSCModel, UInt maxVal, UInt ctxT, UChar *ucCtxLut);
+  Void xWriteTruncMsbP1RefinementBits ( UInt symbol, ContextModel* pcSCModel, UInt maxVal, UInt ctxT, UChar *ucCtxLut);
 
 protected:
   TComBitIf*    m_pcBitIf;
@@ -152,6 +164,13 @@ public:
   Void codeLastSignificantXY ( UInt uiPosX, UInt uiPosY, Int width, Int height, ComponentID component, UInt uiScanIdx );
   Void codeCoeffNxN            ( TComTU &rTu, TCoeff* pcCoef, const ComponentID compID );
   Void codeTransformSkipFlags ( TComTU &rTu, ComponentID component );
+
+  Void codePaletteModeFlag     ( TComDataCU* pcCU, UInt absPartIdx );
+  Void codePaletteModeSyntax   ( TComDataCU* pcCU, UInt absPartIdx, UInt numComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag );
+  Void encodeSPointRD          (UInt idx, UInt width, UChar *pSPoint, UInt mode, UInt *refScanOrder);
+  Void saveRestorePaletteCtx   (UInt saveState);
+  Void encodeSPoint            ( UInt idx, UInt width, UChar *pSPoint, UInt *refScanOrder );
+  Void codeColourTransformFlag ( TComDataCU* pcCU, UInt absPartIdx );
 
   // -------------------------------------------------------------------------------------------------------------------
   // for RD-optimizatioon
@@ -206,6 +225,16 @@ private:
 
   ContextModel3DBuffer m_ChromaQpAdjFlagSCModel;
   ContextModel3DBuffer m_ChromaQpAdjIdcSCModel;
+  ContextModel3DBuffer m_paletteModeFlagSCModel;
+  ContextModel3DBuffer m_SPointSCModel;
+  ContextModel3DBuffer m_cCopyTopRunSCModel;
+  ContextModel3DBuffer m_cRunSCModel;
+  ContextModel3DBuffer m_paletteScanRotationModeFlagSCModel;
+  ContextModel3DBuffer m_cCUColourTransformFlagSCModel;
+
+  UInt* m_pScanOrder;
+  UChar m_runTopLut[5];
+  UChar m_runLeftLut[5];
 
   UInt m_golombRiceAdaptationStatistics[RExt__GOLOMB_RICE_ADAPTATION_STATISTICS_SETS];
 };
