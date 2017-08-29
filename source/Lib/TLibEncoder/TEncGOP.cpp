@@ -87,7 +87,7 @@ TEncGOP::TEncGOP()
   m_pcSbacCoder         = NULL;
   m_pcBinCABAC          = NULL;
 
-  m_bSeqFirst           = true;
+  m_uiSeqOrder          = 0;
 
   m_bRefreshPending     = 0;
   m_pocCRA            = 0;
@@ -98,6 +98,8 @@ TEncGOP::TEncGOP()
   m_bufferingPeriodSEIPresentInAU = false;
   m_associatedIRAPType = NAL_UNIT_CODED_SLICE_IDR_N_LP;
   m_associatedIRAPPOC  = 0;
+  m_numPalettePred = 0;
+  m_encodePPSPalette = false;
   m_pcDeblockingTempPicYuv = NULL;
 }
 
@@ -142,6 +144,11 @@ Void TEncGOP::init ( TEncTop* pcTEncTop )
   m_lastBPSEI          = 0;
   m_totalCoded         = 0;
 
+  for ( Int i=0; i < ( m_pcCfg->getChromaFormatIdc() == CHROMA_400 ? 1 : MAX_NUM_COMPONENT ); i++ )
+  {
+    m_hasLosslessPSNR[i] = false;
+    m_losslessPSNR[i] = 999.99;
+  }
 }
 
 Int TEncGOP::xWriteVPS (AccessUnit &accessUnit, const TComVPS *vps)
@@ -502,7 +509,7 @@ Void TEncGOP::xCreatePerPictureSEIMessages (Int picInGOP, SEIMessages& seiMessag
     if( m_pcEncTop->getGradualDecodingRefreshInfoEnabled() && !slice->getRapPicFlag() )
     {
       // Gradual decoding refresh SEI
-      SEIGradualDecodingRefreshInfo *gradualDecodingRefreshInfoSEI = new SEIGradualDecodingRefreshInfo();
+      SEIRegionRefreshInfo *gradualDecodingRefreshInfoSEI = new SEIRegionRefreshInfo();
       gradualDecodingRefreshInfoSEI->m_gdrForegroundFlag = true; // Indicating all "foreground"
       seiMessages.push_back(gradualDecodingRefreshInfoSEI);
     }
@@ -1089,7 +1096,11 @@ printHash(const HashType hashType, const std::string &digestStr)
 // ====================================================================================================================
 Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rcListPic,
                            TComList<TComPicYuv*>& rcListPicYuvRecOut, std::list<AccessUnit>& accessUnitsInGOP,
+#if JVET_F0064_MSSSIM            
+                           Bool isField, Bool isTff, const InputColourSpaceConversion snr_conversion, const Bool printFrameMSE, const Bool printMSSSIM )
+#else
                            Bool isField, Bool isTff, const InputColourSpaceConversion snr_conversion, const Bool printFrameMSE )
+#endif
 {
   // TODO: Split this function up.
 
@@ -1200,12 +1211,17 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
       pcSlice->setSliceType(I_SLICE);
     }
     
+    if ( pcSlice->getSliceType() == I_SLICE && pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
+    {
+      pcSlice->setSliceType( P_SLICE );
+    }
+
     // Set the nal unit type
     pcSlice->setNalUnitType(getNalUnitType(pocCurr, m_iLastIDR, isField));
     if(pcSlice->getTemporalLayerNonReferenceFlag())
     {
       if (pcSlice->getNalUnitType() == NAL_UNIT_CODED_SLICE_TRAIL_R &&
-          !(m_iGopSize == 1 && pcSlice->getSliceType() == I_SLICE))
+          !( m_iGopSize == 1 && ( pcSlice->getSliceType() == I_SLICE || pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() ) ) )
         // Add this condition to avoid POC issues with encoder_intra_main.cfg configuration (see #1127 in bug tracker)
       {
         pcSlice->setNalUnitType(NAL_UNIT_CODED_SLICE_TRAIL_N);
@@ -1333,6 +1349,22 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     pcSlice->setNumRefIdx(REF_PIC_LIST_0,min(m_pcCfg->getGOPEntry(iGOPid).m_numRefPicsActive,pcSlice->getRPS()->getNumberOfPictures()));
     pcSlice->setNumRefIdx(REF_PIC_LIST_1,min(m_pcCfg->getGOPEntry(iGOPid).m_numRefPicsActive,pcSlice->getRPS()->getNumberOfPictures()));
 
+    if ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
+    {
+      if ( m_pcCfg->getIntraPeriod() > 0 && pcSlice->getPOC() % m_pcCfg->getIntraPeriod() == 0 )
+      {
+        pcSlice->setNumRefIdx( REF_PIC_LIST_0, 0 );
+        pcSlice->setNumRefIdx( REF_PIC_LIST_1, 0 );
+      }
+
+      pcSlice->setNumRefIdx( REF_PIC_LIST_0, pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) + 1 );
+    }
+
+    if (pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy())
+    {
+      pcSlice->setCurPicLongTerm( pcPic );
+      pcPic->setIsLongTerm( true );
+    }
     //  Set reference list
     pcSlice->setRefPicList ( rcListPic );
 
@@ -1340,6 +1372,10 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     if ( (pcSlice->getSliceType() == B_SLICE) && (pcSlice->getNumRefIdx(REF_PIC_LIST_1) == 0) )
     {
       pcSlice->setSliceType ( P_SLICE );
+    }
+    if ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() && pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) == 1 )
+    {
+      m_pcSliceEncoder->setEncCABACTableIdx(P_SLICE);
     }
     pcSlice->setEncCABACTableIdx(m_pcSliceEncoder->getEncCABACTableIdx());
 
@@ -1416,7 +1452,22 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     Bool bGPBcheck=false;
     if ( pcSlice->getSliceType() == B_SLICE)
     {
-      if ( pcSlice->getNumRefIdx(RefPicList( 0 ) ) == pcSlice->getNumRefIdx(RefPicList( 1 ) ) )
+      if ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() )
+      {
+        if ( pcSlice->getNumRefIdx( RefPicList( 0 ) ) - 1 == pcSlice->getNumRefIdx( RefPicList( 1 ) ) )
+        {
+          bGPBcheck=true;
+          for ( Int i=0; i < pcSlice->getNumRefIdx( RefPicList( 1 ) ); i++ )
+          {
+            if ( pcSlice->getRefPOC( RefPicList( 1 ), i ) != pcSlice->getRefPOC( RefPicList( 0 ), i ) )
+            {
+              bGPBcheck=false;
+              break;
+            }
+          }
+        }
+      }
+      else if ( pcSlice->getNumRefIdx(RefPicList( 0 ) ) == pcSlice->getNumRefIdx(RefPicList( 1 ) ) )
       {
         bGPBcheck=true;
         Int i;
@@ -1439,6 +1490,30 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
       pcSlice->setMvdL1ZeroFlag(false);
     }
 
+    pcSlice->setUseIntegerMv( false );
+    if ( ( !pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() && !pcSlice->isIntra() ) ||
+         ( pcSlice->getPPS()->getPpsScreenExtension().getUseIntraBlockCopy() && !pcSlice->isOnlyCurrentPictureAsReference() ) )
+    {
+      if ( m_pcCfg->getMotionVectorResolutionControlIdc() == 2 )
+      {
+        pcSlice->setUseIntegerMv( xGetUseIntegerMv( pcSlice ) );
+      }
+      else
+      {
+        pcSlice->setUseIntegerMv( m_pcCfg->getMotionVectorResolutionControlIdc() == 0 ? false : true );
+      }
+    }
+
+    if ( !pcSlice->isIntra() && pcSlice->getEnableTMVPFlag() )
+    {
+      TComPic *pColPic = pcSlice->getRefPic( RefPicList( pcSlice->isInterB() ? 1-pcSlice->getColFromL0Flag() : 0 ), pcSlice->getColRefIdx() );
+      if ( pColPic->getPOC() == pcSlice->getPOC() )
+      {
+        // 7.4.7.1
+        // It is a requirement of bitstream conformance that the picture referred to by collocated_ref_idx ...... shall not be the current picture itself.
+        pcSlice->setEnableTMVPFlag( false );
+      }
+    }
 
     Double lambda            = 0.0;
     Int actualHeadBits       = 0;
@@ -1552,6 +1627,11 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
       pcSlice->setSliceCurStartCtuTsAddr( 0 );
       pcSlice->setSliceSegmentCurStartCtuTsAddr( 0 );
 
+      if( pcSlice->getPPS()->getPpsScreenExtension().getUseColourTrans () && m_pcCfg->getRGBFormatFlag() ) 
+      {
+        pcPic->getPicYuvResi()->DefaultConvertPix( pcPic->getPicYuvOrg(), pcSlice->getSPS()->getBitDepths() );
+      }
+
       for(UInt nextCtuTsAddr = 0; nextCtuTsAddr < numberOfCtusInFrame; )
       {
         m_pcSliceEncoder->precompressSlice( pcPic );
@@ -1620,8 +1700,8 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
 
     // write various parameter sets
 #if JCTVC_Y0038_PARAMS
-    //bool writePS = m_bSeqFirst || (m_pcCfg->getReWriteParamSetsFlag() && (pcPic->getSlice(0)->getSliceType() == I_SLICE));
-    bool writePS = m_bSeqFirst || (m_pcCfg->getReWriteParamSetsFlag() && (pcSlice->isIRAP()));
+    //bool writePS = m_uiSeqOrder == 0 ? true : false || (m_pcCfg->getReWriteParamSetsFlag() && (pcPic->getSlice(0)->getSliceType() == I_SLICE));
+    bool writePS = m_uiSeqOrder == 0 ? true : false || (m_pcCfg->getReWriteParamSetsFlag() && (pcSlice->isIRAP()));
     if (writePS)
     {
       m_pcEncTop->setParamSetChanged(pcSlice->getSPS()->getSPSId(), pcSlice->getPPS()->getPPSId());
@@ -1630,16 +1710,26 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
 
     if (writePS)
 #else
-    actualTotalBits += xWriteParameterSets(accessUnit, pcSlice, m_bSeqFirst);
+    actualTotalBits += xWriteParameterSets(accessUnit, pcSlice, m_uiSeqOrder == 0 ? true : false);
 
-    if ( m_bSeqFirst )
+    if ( m_uiSeqOrder == 0 )
 #endif
     {
       // create prefix SEI messages at the beginning of the sequence
       assert(leadingSeiMessages.empty());
       xCreateIRAPLeadingSEIMessages(leadingSeiMessages, pcSlice->getSPS(), pcSlice->getPPS());
 
-      m_bSeqFirst = false;
+      m_uiSeqOrder = 1;
+    }
+    else if( m_uiSeqOrder < pcSlice->getPPS()->getPPSId()+1 )
+    {
+      OutputNALUnit nalu(NAL_UNIT_PPS);
+      printf("  => sending PPS %u with %u elements\n", pcSlice->getPPS()->getPPSId(), pcSlice->getPPS()->getPpsScreenExtension().getNumPalettePred());
+      m_pcEntropyCoder->setBitstream(&nalu.m_Bitstream);
+      m_pcEntropyCoder->encodePPS(pcSlice->getPPS());
+      accessUnit.push_back(new NALUnitEBSP(nalu));
+      actualTotalBits += UInt(accessUnit.back()->m_nalUnitData.str().size()) * 8;
+      m_uiSeqOrder = pcSlice->getPPS()->getPPSId()+1;
     }
     if (m_pcCfg->getAccessUnitDelimiter())
     {
@@ -1797,7 +1887,28 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     // cabac_zero_words processing
     cabac_zero_word_padding(pcSlice, pcPic, binCountsInNalUnits, numBytesInVclNalUnits, accessUnit.back()->m_nalUnitData, m_pcCfg->getCabacZeroWordPaddingEnabled());
 
-    pcPic->compressMotion();
+    if(m_pcCfg->getIntraPeriod() != 1)
+    {
+      pcPic->compressMotion();
+    }
+#if REDUCED_ENCODER_MEMORY
+    if ( m_pcCfg->getIntraPeriod() == 1 && m_pcCfg->getUseIntraBlockCopy() )
+    {
+      // at the encoder side, do not compress mv for AI coding when IBC is enabled.
+      pcPic->storeMotionForIBCEnc();
+    }
+#endif
+    if ( m_pcCfg->getUseHashBasedME() )
+    {
+      if ( m_pcCfg->getGOPEntry(iGOPid).m_refPic )
+      {
+        pcPic->addPictureToHashMapForInter();
+      }
+      else
+      {
+        pcPic->getHashMap()->clearAll();
+      }
+    }
 
     //-- For time output for each slice
     Double dEncTime = (Double)(clock()-iBeforeTime) / CLOCKS_PER_SEC;
@@ -1813,7 +1924,11 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     m_pcCfg->setEncodedFlag(iGOPid, true);
 
     Double PSNR_Y;
+#if JVET_F0064_MSSSIM
+    xCalculateAddPSNRs( isField, isTff, iGOPid, pcPic, accessUnit, rcListPic, dEncTime, snr_conversion, printFrameMSE, printMSSSIM, &PSNR_Y );
+#else
     xCalculateAddPSNRs( isField, isTff, iGOPid, pcPic, accessUnit, rcListPic, dEncTime, snr_conversion, printFrameMSE, &PSNR_Y );
+#endif
     
     // Only produce the Green Metadata SEI message with the last picture.
     if( m_pcCfg->getSEIGreenMetadataInfoSEIEnable() && pcSlice->getPOC() == ( m_pcCfg->getFramesToBeEncoded() - 1 )  )
@@ -1866,6 +1981,7 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     pcPic->getPicYuvRec()->copyToPic(pcPicYuvRecOut);
 
     pcPic->setReconMark   ( true );
+    pcPic->setIsLongTerm( false );
     m_bFirst = false;
     m_iNumPicCoded++;
     m_totalCoded ++;
@@ -1882,7 +1998,11 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
     pcPic->releaseReconstructionIntermediateData();
     if (!isField) // don't release the source data for field-coding because the fields are dealt with in pairs. // TODO: release source data for interlace simulations.
     {
-      pcPic->releaseEncoderSourceImageData();
+      if ( m_pcCfg->getMotionVectorResolutionControlIdc() != 2 )
+      {
+        // source picture will be further used if m_pcCfg->getMotionVectorResolutionControlIdc() == 2
+        pcPic->releaseEncoderSourceImageData();
+      }
     }
 
 #endif
@@ -1893,10 +2013,24 @@ Void TEncGOP::compressGOP( Int iPOCLast, Int iNumPicRcvd, TComList<TComPic*>& rc
   assert ( (m_iNumPicCoded == iNumPicRcvd) );
 }
 
+#if JVET_F0064_MSSSIM
+Void TEncGOP::printOutSummary(UInt uiNumAllPicCoded, Bool isField, const Bool printMSEBasedSNR, const Bool printSequenceMSE, const Bool printMSSSIM, const BitDepths &bitDepths)
+#else
 Void TEncGOP::printOutSummary(UInt uiNumAllPicCoded, Bool isField, const Bool printMSEBasedSNR, const Bool printSequenceMSE, const BitDepths &bitDepths)
+#endif
 {
   assert (uiNumAllPicCoded == m_gcAnalyzeAll.getNumPic());
 
+  if ( m_pcCfg->getPrintClippedPSNR() )
+  {
+    for ( Int i=0; i< (m_pcCfg->getChromaFormatIdc() == CHROMA_400 ? 1 : MAX_NUM_COMPONENT); i++ )
+    {
+      if ( m_hasLosslessPSNR[i] )
+      {
+        printf( "\nComponent %d of some picture(s) are coded as lossless, PSNR shown as %8.4lf.", i, m_losslessPSNR[i] );
+      }
+    }
+  }
 
   //--CFG_KDY
   const Int rateMultiplier=(isField?2:1);
@@ -1906,6 +2040,20 @@ Void TEncGOP::printOutSummary(UInt uiNumAllPicCoded, Bool isField, const Bool pr
   m_gcAnalyzeB.setFrmRate( m_pcCfg->getFrameRate()*rateMultiplier / (Double)m_pcCfg->getTemporalSubsampleRatio());
   const ChromaFormat chFmt = m_pcCfg->getChromaFormatIdc();
 
+#if JVET_F0064_MSSSIM
+  //-- all
+  printf( "\n\nSUMMARY --------------------------------------------------------\n" );
+  m_gcAnalyzeAll.printOut('a', chFmt, printMSEBasedSNR, printSequenceMSE, printMSSSIM, bitDepths);
+
+  printf( "\n\nI Slices--------------------------------------------------------\n" );
+  m_gcAnalyzeI.printOut('i', chFmt, printMSEBasedSNR, printSequenceMSE, printMSSSIM, bitDepths);
+
+  printf( "\n\nP Slices--------------------------------------------------------\n" );
+  m_gcAnalyzeP.printOut('p', chFmt, printMSEBasedSNR, printSequenceMSE, printMSSSIM, bitDepths);
+
+  printf( "\n\nB Slices--------------------------------------------------------\n" );
+  m_gcAnalyzeB.printOut('b', chFmt, printMSEBasedSNR, printSequenceMSE, printMSSSIM, bitDepths);
+#else
   //-- all
   printf( "\n\nSUMMARY --------------------------------------------------------\n" );
   m_gcAnalyzeAll.printOut('a', chFmt, printMSEBasedSNR, printSequenceMSE, bitDepths);
@@ -1918,6 +2066,7 @@ Void TEncGOP::printOutSummary(UInt uiNumAllPicCoded, Bool isField, const Bool pr
 
   printf( "\n\nB Slices--------------------------------------------------------\n" );
   m_gcAnalyzeB.printOut('b', chFmt, printMSEBasedSNR, printSequenceMSE, bitDepths);
+#endif
 
   if (!m_pcCfg->getSummaryOutFilename().empty())
   {
@@ -1939,7 +2088,11 @@ Void TEncGOP::printOutSummary(UInt uiNumAllPicCoded, Bool isField, const Bool pr
     // prior to the above statement, the interlace analyser does not contain the correct total number of bits.
 
     printf( "\n\nSUMMARY INTERLACED ---------------------------------------------\n" );
+#if JVET_F0064_MSSSIM
+    m_gcAnalyzeAll_in.printOut('a', chFmt, printMSEBasedSNR, printSequenceMSE, printMSSSIM, bitDepths);
+#else
     m_gcAnalyzeAll_in.printOut('a', chFmt, printMSEBasedSNR, printSequenceMSE, bitDepths);
+#endif
 
     if (!m_pcCfg->getSummaryOutFilename().empty())
     {
@@ -2058,10 +2211,15 @@ UInt64 TEncGOP::xFindDistortionFrame (TComPicYuv* pcPic0, TComPicYuv* pcPic1, co
 
   return uiTotalDiff;
 }
-
+#if JVET_F0064_MSSSIM
+Void TEncGOP::xCalculateAddPSNRs( const Bool isField, const Bool isFieldTopFieldFirst, const Int iGOPid, TComPic* pcPic, const AccessUnit&accessUnit, TComList<TComPic*> &rcListPic, const Double dEncTime, const InputColourSpaceConversion snr_conversion, const Bool printFrameMSE, const Bool printMSSSIM, Double* PSNR_Y )
+{
+  xCalculateAddPSNR( pcPic, pcPic->getPicYuvRec(), accessUnit, dEncTime, snr_conversion, printFrameMSE, printMSSSIM, PSNR_Y );
+#else
 Void TEncGOP::xCalculateAddPSNRs( const Bool isField, const Bool isFieldTopFieldFirst, const Int iGOPid, TComPic* pcPic, const AccessUnit&accessUnit, TComList<TComPic*> &rcListPic, const Double dEncTime, const InputColourSpaceConversion snr_conversion, const Bool printFrameMSE, Double* PSNR_Y )
 {
   xCalculateAddPSNR( pcPic, pcPic->getPicYuvRec(), accessUnit, dEncTime, snr_conversion, printFrameMSE, PSNR_Y );
+#endif
 
   //In case of field coding, compute the interlaced PSNR for both fields
   if(isField)
@@ -2116,17 +2274,29 @@ Void TEncGOP::xCalculateAddPSNRs( const Bool isField, const Bool isFieldTopField
 
       if( (pcPic->isTopField() && isFieldTopFieldFirst) || (!pcPic->isTopField() && !isFieldTopFieldFirst))
       {
+#if JVET_F0064_MSSSIM
+        xCalculateInterlacedAddPSNR(pcPic, correspondingFieldPic, pcPic->getPicYuvRec(), correspondingFieldPic->getPicYuvRec(), snr_conversion, printFrameMSE, printMSSSIM, PSNR_Y );
+#else
         xCalculateInterlacedAddPSNR(pcPic, correspondingFieldPic, pcPic->getPicYuvRec(), correspondingFieldPic->getPicYuvRec(), snr_conversion, printFrameMSE, PSNR_Y );
+#endif
       }
       else
       {
+#if JVET_F0064_MSSSIM
+        xCalculateInterlacedAddPSNR(correspondingFieldPic, pcPic, correspondingFieldPic->getPicYuvRec(), pcPic->getPicYuvRec(), snr_conversion, printFrameMSE, printMSSSIM, PSNR_Y );
+#else
         xCalculateInterlacedAddPSNR(correspondingFieldPic, pcPic, correspondingFieldPic->getPicYuvRec(), pcPic->getPicYuvRec(), snr_conversion, printFrameMSE, PSNR_Y );
+#endif
       }
     }
   }
 }
 
+#if JVET_F0064_MSSSIM
+Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const AccessUnit& accessUnit, Double dEncTime, const InputColourSpaceConversion conversion, const Bool printFrameMSE, const Bool printMSSSIM, Double* PSNR_Y )
+#else
 Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const AccessUnit& accessUnit, Double dEncTime, const InputColourSpaceConversion conversion, const Bool printFrameMSE, Double* PSNR_Y )
+#endif
 {
   Double  dPSNR[MAX_NUM_COMPONENT];
 
@@ -2172,13 +2342,58 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
     }
     const Int maxval = 255 << (pcPic->getPicSym()->getSPS().getBitDepth(toChannelType(ch)) - 8);
     const Double fRefValue = (Double) maxval * maxval * iSize;
-    dPSNR[ch]         = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+
+    if ( m_pcCfg->getPrintClippedPSNR() )
+    {
+      if ( uiSSDtemp == 0 )
+      {
+        if ( m_losslessPSNR[chan] < 999.0 )
+        {
+          dPSNR[ch] = m_losslessPSNR[chan];
+        }
+        else
+        {
+          m_losslessPSNR[chan] = 10.0 * log10( fRefValue * 2 );
+          dPSNR[ch] = m_losslessPSNR[chan];
+          m_hasLosslessPSNR[chan] = true;
+        }
+      }
+      else
+      {
+        dPSNR[ch] = 10.0 * log10( fRefValue / (Double)uiSSDtemp );
+      }
+    }
+    else
+    {
+      dPSNR[ch] = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+    }
     MSEyuvframe[ch]   = (Double)uiSSDtemp/(iSize);
   }
 #if EXTENSION_360_VIDEO
   m_ext360.calculatePSNRs(pcPic);
 #endif
 
+#if JVET_F0064_MSSSIM
+  //===== calculate MS-SSIM =====
+  Double  MSSSIM[MAX_NUM_COMPONENT] = {0,0,0};
+  if (printMSSSIM) 
+  {
+    for(Int chan=0; chan<pcPicD->getNumberValidComponents(); chan++)
+    {
+      const ComponentID ch  = ComponentID(chan);
+      const TComPicYuv *pOrgPicYuv =(conversion!=IPCOLOURSPACE_UNCHANGED) ? pcPic ->getPicYuvTrueOrg() : pcPic ->getPicYuvOrg();
+      const Pel*  pOrg      = pOrgPicYuv->getAddr(ch);
+      const Int   orgStride = pOrgPicYuv->getStride(ch);
+      const Pel*  pRec      = picd.getAddr(ch);
+      const Int   recStride = picd.getStride(ch);
+      const Int   width     = pcPicD->getWidth (ch) - (m_pcEncTop->getPad(0) >> pcPic->getComponentScaleX(ch));
+      const Int   height    = pcPicD->getHeight(ch) - ((m_pcEncTop->getPad(1) >> (pcPic->isField()?1:0)) >> pcPic->getComponentScaleY(ch));
+      const UInt  bitDepth  = pcPic->getPicSym()->getSPS().getBitDepth(toChannelType(ch));
+ 
+      MSSSIM[ch] = xCalculateMSSSIM (pOrg, orgStride, pRec, recStride, width, height, bitDepth);
+    }
+  }
+#endif
 
   /* calculate the size of the access unit, excluding:
    *  - SEI NAL units
@@ -2210,7 +2425,11 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
   m_vRVM_RP.push_back( uibits );
 
   //===== add PSNR =====
+#if JVET_F0064_MSSSIM
+  m_gcAnalyzeAll.addResult (dPSNR, (Double)uibits, MSEyuvframe, MSSSIM);
+#else
   m_gcAnalyzeAll.addResult (dPSNR, (Double)uibits, MSEyuvframe);
+#endif
 #if EXTENSION_360_VIDEO
   m_ext360.addResult(m_gcAnalyzeAll);
 #endif
@@ -2218,7 +2437,11 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
   TComSlice*  pcSlice = pcPic->getSlice(0);
   if (pcSlice->isIntra())
   {
+#if JVET_F0064_MSSSIM
+    m_gcAnalyzeI.addResult (dPSNR, (Double)uibits, MSEyuvframe, MSSSIM);
+#else
     m_gcAnalyzeI.addResult (dPSNR, (Double)uibits, MSEyuvframe);
+#endif
 #if EXTENSION_360_VIDEO
     m_ext360.addResult(m_gcAnalyzeI);
 #endif
@@ -2226,7 +2449,11 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
   }
   if (pcSlice->isInterP())
   {
+#if JVET_F0064_MSSSIM
+    m_gcAnalyzeP.addResult (dPSNR, (Double)uibits, MSEyuvframe, MSSSIM);
+#else
     m_gcAnalyzeP.addResult (dPSNR, (Double)uibits, MSEyuvframe);
+#endif
 #if EXTENSION_360_VIDEO
     m_ext360.addResult(m_gcAnalyzeP);
 #endif
@@ -2234,7 +2461,11 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
   }
   if (pcSlice->isInterB())
   {
+#if JVET_F0064_MSSSIM
+    m_gcAnalyzeB.addResult (dPSNR, (Double)uibits, MSEyuvframe, MSSSIM);
+#else
     m_gcAnalyzeB.addResult (dPSNR, (Double)uibits, MSEyuvframe);
+#endif
 #if EXTENSION_360_VIDEO
     m_ext360.addResult(m_gcAnalyzeB);
 #endif
@@ -2265,6 +2496,12 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
 #endif
 
   printf(" [Y %6.4lf dB    U %6.4lf dB    V %6.4lf dB]", dPSNR[COMPONENT_Y], dPSNR[COMPONENT_Cb], dPSNR[COMPONENT_Cr] );
+#if JVET_F0064_MSSSIM
+  if (printMSSSIM)
+  {
+    printf(" [MS-SSIM Y %1.6lf    U %1.6lf    V %1.6lf]", MSSSIM[COMPONENT_Y], MSSSIM[COMPONENT_Cb], MSSSIM[COMPONENT_Cr] );
+  }  
+#endif
   if (printFrameMSE)
   {
     printf(" [Y MSE %6.4lf  U MSE %6.4lf  V MSE %6.4lf]", MSEyuvframe[COMPONENT_Y], MSEyuvframe[COMPONENT_Cb], MSEyuvframe[COMPONENT_Cr] );
@@ -2289,9 +2526,186 @@ Void TEncGOP::xCalculateAddPSNR( TComPic* pcPic, TComPicYuv* pcPicD, const Acces
   cscd.destroy();
 }
 
+#if JVET_F0064_MSSSIM
+Double TEncGOP::xCalculateMSSSIM (const Pel *pOrg, const Int orgStride, const Pel* pRec, const Int recStride, const Int width, const Int height, const UInt bitDepth)
+{
+  const Int MAX_MSSSIM_SCALE  = 5;
+  const Int WEIGHTING_MID_TAP = 5;
+  const Int WEIGHTING_SIZE    = WEIGHTING_MID_TAP*2+1;
+
+  UInt maxScale;
+
+  // For low resolution videos determine number of scales 
+  if (width < 22 || height < 22)
+  {
+    maxScale = 1; 
+  }
+  else if (width < 44 || height < 44)
+  {
+    maxScale = 2; 
+  }
+  else if (width < 88 || height < 88)
+  {
+    maxScale = 3; 
+  }
+  else if (width < 176 || height < 176)
+  {
+    maxScale = 4; 
+  }
+  else
+  {
+    maxScale = 5;
+  }
+
+  assert(maxScale>0 && maxScale<=MAX_MSSSIM_SCALE);
+
+  //Normalized Gaussian mask design, 11*11, s.d. 1.5
+  Double weights[WEIGHTING_SIZE][WEIGHTING_SIZE];
+  {
+    Double coeffSum=0.0;
+    for(Int y=0; y<WEIGHTING_SIZE; y++)
+    {
+      for(Int x=0; x<WEIGHTING_SIZE; x++)
+      {
+        weights[y][x]=exp(-((y-WEIGHTING_MID_TAP)*(y-WEIGHTING_MID_TAP)+(x-WEIGHTING_MID_TAP)*(x-WEIGHTING_MID_TAP))/(WEIGHTING_MID_TAP-0.5));
+        coeffSum +=weights[y][x];
+      }
+    }
+
+    for(Int y=0; y<WEIGHTING_SIZE; y++)
+    {
+      for(Int x=0; x<WEIGHTING_SIZE; x++)
+      {
+        weights[y][x] /=coeffSum;
+      }
+    }
+  }
+
+  //Resolution based weights
+  const Double exponentWeights[MAX_MSSSIM_SCALE][MAX_MSSSIM_SCALE] = {{1.0,    0,      0,      0,      0     },
+                                                                      {0.1356, 0.8644, 0,      0,      0     },
+                                                                      {0.0711, 0.4530, 0.4760, 0,      0     },
+                                                                      {0.0517, 0.3295, 0.3462, 0.2726, 0     },
+                                                                      {0.0448, 0.2856, 0.3001, 0.2363, 0.1333}};
+
+  //Downsampling of data:
+  std::vector<Double> original[MAX_MSSSIM_SCALE];
+  std::vector<Double> recon[MAX_MSSSIM_SCALE];
+
+  for(UInt scale=0; scale<maxScale; scale++)
+  {
+    const Int scaledHeight = height >> scale;
+    const Int scaledWidth  = width  >> scale;
+    original[scale].resize(scaledHeight*scaledWidth, Double(0));
+    recon[scale].resize(scaledHeight*scaledWidth, Double(0));
+  }
+
+  // Initial [0] arrays to be a copy of the source data (but stored in array "Double", not Pel array).
+  for(Int y=0; y<height; y++)
+  {
+    for(Int x=0; x<width; x++)
+    {
+      original[0][y*width+x] = pOrg[y*orgStride+x];
+      recon[0][   y*width+x] = pRec[y*recStride+x];
+    }
+  }
+
+  // Set up other arrays to be average value of each 2x2 sample.
+  for(UInt scale=1; scale<maxScale; scale++)
+  {
+    const Int scaledHeight = height >> scale;
+    const Int scaledWidth  = width  >> scale;
+    for(Int y=0; y<scaledHeight; y++)
+    {
+      for(Int x=0; x<scaledWidth; x++)
+      {
+        original[scale][y*scaledWidth+x]= (original[scale-1][ 2*y   *(2*scaledWidth)+2*x  ] +
+                                           original[scale-1][ 2*y   *(2*scaledWidth)+2*x+1] +
+                                           original[scale-1][(2*y+1)*(2*scaledWidth)+2*x  ] +
+                                           original[scale-1][(2*y+1)*(2*scaledWidth)+2*x+1]) / 4.0;
+        recon[scale][y*scaledWidth+x]=    (   recon[scale-1][ 2*y   *(2*scaledWidth)+2*x  ] +
+                                              recon[scale-1][ 2*y   *(2*scaledWidth)+2*x+1] +
+                                              recon[scale-1][(2*y+1)*(2*scaledWidth)+2*x  ] +
+                                              recon[scale-1][(2*y+1)*(2*scaledWidth)+2*x+1]) / 4.0;
+      }
+    }
+  }
+  
+  // Calculate MS-SSIM:
+  const UInt   maxValue  = (1<<bitDepth)-1;
+  const Double c1        = (0.01*maxValue)*(0.01*maxValue);
+  const Double c2        = (0.03*maxValue)*(0.03*maxValue);
+  
+  Double finalMSSSIM = 1.0;
+
+  for(UInt scale=0; scale<maxScale; scale++)
+  {
+    const Int scaledHeight    = height >> scale;
+    const Int scaledWidth     = width  >> scale;
+    const Int blocksPerRow    = scaledWidth-WEIGHTING_SIZE+1;
+    const Int blocksPerColumn = scaledHeight-WEIGHTING_SIZE+1;
+    const Int totalBlocks     = blocksPerRow*blocksPerColumn;
+
+    Double meanSSIM= 0.0;
+
+    for(Int blockIndexY=0; blockIndexY<blocksPerColumn; blockIndexY++)
+    {
+      for(Int blockIndexX=0; blockIndexX<blocksPerRow; blockIndexX++)
+      {
+        Double muOrg          =0.0;
+        Double muRec          =0.0;
+        Double muOrigSqr      =0.0;
+        Double muRecSqr       =0.0;
+        Double muOrigMultRec  =0.0;
+
+        for(Int y=0; y<WEIGHTING_SIZE; y++)
+        {
+          for(Int x=0;x<WEIGHTING_SIZE; x++)
+          {
+            const Double gaussianWeight=weights[y][x];
+            const Int    sampleOffset=(blockIndexY+y)*scaledWidth+(blockIndexX+x);
+            const Double orgPel=original[scale][sampleOffset];
+            const Double recPel=   recon[scale][sampleOffset];
+
+            muOrg        +=orgPel*       gaussianWeight;
+            muRec        +=recPel*       gaussianWeight;
+            muOrigSqr    +=orgPel*orgPel*gaussianWeight;
+            muRecSqr     +=recPel*recPel*gaussianWeight;
+            muOrigMultRec+=orgPel*recPel*gaussianWeight;
+          }
+        }
+
+        const Double sigmaSqrOrig = muOrigSqr    -(muOrg*muOrg);
+        const Double sigmaSqrRec  = muRecSqr     -(muRec*muRec);
+        const Double sigmaOrigRec = muOrigMultRec-(muOrg*muRec);
+
+        Double blockSSIMVal = ((2.0*sigmaOrigRec + c2)/(sigmaSqrOrig+sigmaSqrRec + c2));
+        if(scale == maxScale-1)
+        {
+          blockSSIMVal*=(2.0*muOrg*muRec + c1)/(muOrg*muOrg+muRec*muRec + c1);
+        }
+
+        meanSSIM += blockSSIMVal;
+      }
+    }
+
+    meanSSIM /=totalBlocks;
+
+    finalMSSSIM *= pow(meanSSIM, exponentWeights[maxScale-1][scale]);
+  }
+
+  return finalMSSSIM;
+}
+#endif
+
+
 Void TEncGOP::xCalculateInterlacedAddPSNR( TComPic* pcPicOrgFirstField, TComPic* pcPicOrgSecondField,
                                            TComPicYuv* pcPicRecFirstField, TComPicYuv* pcPicRecSecondField,
+#if JVET_F0064_MSSSIM
+                                           const InputColourSpaceConversion conversion, const Bool printFrameMSE, const Bool printMSSSIM, Double* PSNR_Y )
+#else
                                            const InputColourSpaceConversion conversion, const Bool printFrameMSE, Double* PSNR_Y )
+#endif
 {
   const TComSPS &sps=pcPicOrgFirstField->getPicSym()->getSPS();
   Double  dPSNR[MAX_NUM_COMPONENT];
@@ -2356,18 +2770,86 @@ Void TEncGOP::xCalculateInterlacedAddPSNR( TComPic* pcPicOrgFirstField, TComPic*
     }
     const Int maxval = 255 << (sps.getBitDepth(toChannelType(ch)) - 8);
     const Double fRefValue = (Double) maxval * maxval * iSize*2;
-    dPSNR[ch]         = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+
+    if ( m_pcCfg->getPrintClippedPSNR() )
+    {
+      if ( uiSSDtemp == 0 )
+      {
+        if ( m_losslessPSNR[chan] < 999.0 )
+        {
+          dPSNR[ch] = m_losslessPSNR[chan];
+        }
+        else
+        {
+          m_losslessPSNR[chan] = 10.0 * log10( fRefValue * 2 );
+          dPSNR[ch] = m_losslessPSNR[chan];
+          m_hasLosslessPSNR[chan] = true;
+        }
+      }
+      else
+      {
+        dPSNR[ch] = 10.0 * log10( fRefValue / (Double)uiSSDtemp );
+      }
+    }
+    else
+    {
+      dPSNR[ch] = ( uiSSDtemp ? 10.0 * log10( fRefValue / (Double)uiSSDtemp ) : 999.99 );
+    }
     MSEyuvframe[ch]   = (Double)uiSSDtemp/(iSize*2);
   }
+
+#if JVET_F0064_MSSSIM
+  //===== calculate MS-SSIM =====
+  Double MSSSIM[MAX_NUM_COMPONENT] = {0,0,0};
+  if (printMSSSIM)
+  {
+    for(Int chan=0; chan<numValidComponents; chan++)
+    {
+      const ComponentID ch=ComponentID(chan);
+      assert(apcPicRecFields[0]->getWidth(ch) ==apcPicRecFields[1]->getWidth(ch) );
+      assert(apcPicRecFields[0]->getHeight(ch)==apcPicRecFields[1]->getHeight(ch));
+
+      Double sumOverFieldsMSSSIM = 0.0;
+      const Int   width  = apcPicRecFields[0]->getWidth (ch) - ( m_pcEncTop->getPad(0)       >> apcPicRecFields[0]->getComponentScaleX(ch));
+      const Int   height = apcPicRecFields[0]->getHeight(ch) - ((m_pcEncTop->getPad(1) >> 1) >> apcPicRecFields[0]->getComponentScaleY(ch));
+
+      for(UInt fieldNum=0; fieldNum<2; fieldNum++)
+      {
+        TComPic    *pcPic      = apcPicOrgFields[fieldNum];
+        TComPicYuv *pcPicD     = apcPicRecFields[fieldNum];
+
+        const Pel*  pOrg       = (conversion!=IPCOLOURSPACE_UNCHANGED) ? pcPic ->getPicYuvTrueOrg()->getAddr(ch)   : pcPic ->getPicYuvOrg()->getAddr(ch);
+        const Int   orgStride  = (conversion!=IPCOLOURSPACE_UNCHANGED) ? pcPic ->getPicYuvTrueOrg()->getStride(ch) : pcPic ->getPicYuvOrg()->getStride(ch);
+        Pel*        pRec       = pcPicD->getAddr(ch);
+        const Int   recStride  = pcPicD->getStride(ch);
+        const UInt  bitDepth   = sps.getBitDepth(toChannelType(ch));
+
+        sumOverFieldsMSSSIM += xCalculateMSSSIM (pOrg, orgStride, pRec, recStride, width, height, bitDepth);
+      }
+
+      MSSSIM[ch] = sumOverFieldsMSSSIM/2;
+    }
+  }
+#endif
 
   UInt uibits = 0; // the number of bits for the pair is not calculated here - instead the overall total is used elsewhere.
 
   //===== add PSNR =====
+#if JVET_F0064_MSSSIM
+  m_gcAnalyzeAll_in.addResult (dPSNR, (Double)uibits, MSEyuvframe, MSSSIM);
+#else
   m_gcAnalyzeAll_in.addResult (dPSNR, (Double)uibits, MSEyuvframe);
+#endif
 
   *PSNR_Y = dPSNR[COMPONENT_Y];
 
   printf("\n                                      Interlaced frame %d: [Y %6.4lf dB    U %6.4lf dB    V %6.4lf dB]", pcPicOrgSecondField->getPOC()/2 , dPSNR[COMPONENT_Y], dPSNR[COMPONENT_Cb], dPSNR[COMPONENT_Cr] );
+#if JVET_F0064_MSSSIM  
+  if (printMSSSIM)
+  {
+    printf(" [MS-SSIM Y %1.6lf    U %1.6lf    V %1.6lf]", MSSSIM[COMPONENT_Y], MSSSIM[COMPONENT_Cb], MSSSIM[COMPONENT_Cr] );
+  }
+#endif
   if (printFrameMSE)
   {
     printf(" [Y MSE %6.4lf  U MSE %6.4lf  V MSE %6.4lf]", MSEyuvframe[COMPONENT_Y], MSEyuvframe[COMPONENT_Cb], MSEyuvframe[COMPONENT_Cr] );
@@ -2845,4 +3327,155 @@ Void TEncGOP::applyDeblockingFilterParameterSelection( TComPic* pcPic, const UIn
   }
 }
 
+// SCM new added functions
+Bool TEncGOP::xGetUseIntegerMv( TComSlice* pcSlice )
+{
+  if ( !m_pcCfg->getUseHashBasedME() )
+  {
+    return false;
+  }
+
+  const Int blockSize = 8;
+  const Double thresholdCurrent = 0.8;
+  const Double thresholdAverage = 0.95;
+  const Int maxHistorySize = 32;
+  Int T = 0;  // total block
+  Int C = 0;  // match with collocated block
+  Int S = 0;  // smooth region but not match with collocated block
+  Int M = 0;  // match with other block
+  TComPic* pcPic = pcSlice->getPic();
+  const Int picWidth = pcPic->getPicYuvOrg()->getWidth( COMPONENT_Y );
+  const Int picHeight = pcPic->getPicYuvOrg()->getHeight( COMPONENT_Y );
+  for ( Int i=0; i+blockSize <= picHeight; i+=blockSize )
+  {
+    for ( Int j=0; j+blockSize <= picWidth; j+=blockSize )
+    {
+      T++;
+      Int xPos = j;
+      Int yPos = i;
+      UInt hashValue1;
+      UInt hashValue2;
+
+      // check whether collocated block match with current
+      Pel* pCur = pcPic->getPicYuvOrg()->getAddr( COMPONENT_Y );
+      Pel* pRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getAddr( COMPONENT_Y );
+      Int strideCur = pcPic->getPicYuvOrg()->getStride( COMPONENT_Y );
+      Int strideRef = pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getPicYuvOrg()->getStride( COMPONENT_Y );
+      pCur += ( yPos*strideCur + xPos );
+      pRef += ( yPos*strideRef + xPos );
+
+      Bool match = true;
+      for ( Int tmpY = 0; tmpY < blockSize && match; tmpY++ )
+      {
+        for ( Int tmpX = 0; tmpX < blockSize && match; tmpX++ )
+        {
+          if ( pCur[tmpX] != pRef[tmpX] )
+          {
+            match = false;
+          }
+        }
+        pCur += strideCur;
+        pRef += strideRef;
+      }
+
+      if ( match )
+      {
+        C++;
+        continue;
+      }
+
+      if ( TComHash::isHorizontalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) ||
+        TComHash::isVerticalPerfect( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos ) )
+      {
+        S++;
+        continue;
+      }
+
+      TComHash::getBlockHashValue( pcPic->getPicYuvOrg(), blockSize, blockSize, xPos, yPos, pcSlice->getSPS()->getBitDepths(), hashValue1, hashValue2 );
+      if ( pcSlice->getRefPic( REF_PIC_LIST_0, 0 )->getHashMap()->hasExactMatch( hashValue1, hashValue2 ) )
+      {
+        M++;
+      }
+    }
+  }
+
+  assert( T > 0 );
+  Double csmRate = static_cast<Double>(C+S+M) / static_cast<Double>(T);
+  Double mRate   = static_cast<Double>(M)     / static_cast<Double>(T);
+
+  if ( m_CSMRate.size() >= maxHistorySize )
+  {
+    m_CSMRate.pop_front();
+  }
+  m_CSMRate.push_back( csmRate );
+
+  if ( m_MRate.size() >= maxHistorySize )
+  {
+    m_MRate.pop_front();
+  }
+  m_MRate.push_back( mRate );
+
+  if ( csmRate < thresholdCurrent )
+  {
+    return false;
+  }
+
+  if ( C == T )
+  {
+    return true;
+  }
+
+  Double CSMAverage = 0.0;
+  Double MAverage = 0.0;
+  list<Double>::iterator it;
+  for ( it = m_CSMRate.begin(); it != m_CSMRate.end(); it++ )
+  {
+    CSMAverage += (*it);
+  }
+  CSMAverage /= m_CSMRate.size();
+
+  for ( it = m_MRate.begin(); it != m_MRate.end(); it++ )
+  {
+    MAverage += (*it);
+  }
+  MAverage /= m_MRate.size();
+
+  if ( CSMAverage < thresholdAverage )
+  {
+    return false;
+  }
+
+  if ( M > (T-C-S)/3 )
+  {
+    return true;
+  }
+
+  if ( csmRate > 0.99 && mRate > 0.01 )
+  {
+    return true;
+  }
+
+
+  if ( CSMAverage + MAverage > 1.01 )
+  {
+    return true;
+  }
+
+  return false;
+}
+
+TComPPS* TEncGOP::getPPS(Int id)
+{
+  return m_pcEncTop->getPPS(id);
+}
+
+TComPPS* TEncGOP::copyToNewPPS(Int ppsId, TComPPS* pps0)
+{
+  return m_pcEncTop->copyToNewPPS(ppsId, pps0);
+}
+
+TComSPS* TEncGOP::getSPS(Int id)
+{
+  return m_pcEncTop->getSPS(id);
+}
 //! \}

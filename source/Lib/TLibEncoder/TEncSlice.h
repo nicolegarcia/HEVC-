@@ -99,6 +99,9 @@ private:
   TEncSbac                m_entropyCodingSyncContextState;      ///< context storate for state of contexts at the wavefront/WPP/entropy-coding-sync second CTU of tile-row
   SliceType               m_encCABACTableIdx;
   Int                     m_gopID;
+  PaletteInfoBuffer       m_lastSliceSegmentEndPaletteState;
+  PaletteInfoBuffer       m_entropyCodingSyncPaletteState;
+  Int                     m_numIDRs, m_numFrames;
 
   Double   calculateLambda( const TComSlice* pSlice, const Int GOPid, const Int depth, const Double refQP, const Double dQP, Int &iQP );
   Void     setUpLambda(TComSlice* slice, const Double dLambda, Int iQP);
@@ -135,9 +138,13 @@ public:
   Void    setSliceIdx(UInt i)   { m_uiSliceIdx = i;                       }
 
   SliceType getEncCABACTableIdx() const           { return m_encCABACTableIdx;        }
+  Void      setEncCABACTableIdx( SliceType idx )  { m_encCABACTableIdx = idx;         }
 
 private:
   Double  xGetQPValueAccordingToLambda ( Double lambda );
+  Void    xSetPredFromPPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
+  Void    xSetPredFromSPS(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
+  Void    xSetPredDefault(Pel lastPalette[MAX_NUM_COMPONENT][MAX_PALETTE_PRED_SIZE], UChar lastPaletteSize[MAX_NUM_COMPONENT], TComSlice *pcSlice);
 };
 
 //! \}

@@ -126,6 +126,10 @@ protected:
   Bool      m_printMSEBasedSequencePSNR;
   Bool      m_printFrameMSE;
   Bool      m_printSequenceMSE;
+  Bool      m_printClippedPSNR;
+#if JVET_F0064_MSSSIM
+  Bool      m_printMSSSIM;
+#endif
   Bool      m_cabacZeroWordPaddingEnabled;
 
   /* profile & level */
@@ -420,6 +424,29 @@ protected:
   std::string m_summaryPicFilenameBase;                       ///< Base filename to use for producing summary picture output files. The actual filenames used will have I.txt, P.txt and B.txt appended.
   UInt        m_summaryVerboseness;                           ///< Specifies the level of the verboseness of the text output.
 
+  // SCM new added variables
+  Bool      m_useIntraBlockCopy;
+  Bool      m_intraBlockCopyFastSearch;
+  Bool      m_useHashBasedIntraBlockCopySearch; // Enable the use of hash based search is applied to 8x8 blocks
+  Int       m_intraBlockCopySearchWidthInCTUs;  // Search range for IBC (-1: full frame search)
+  UInt      m_intraBlockCopyNonHashSearchWidthInCTUs; // IBC search range for conventional non-hash based method (i.e., fast/full search)
+  Bool      m_useHashBasedME;                   //  Hash based inter search
+  Bool      m_bRGBformat;
+  Bool      m_useColourTrans;
+  Int       m_actYQpOffset;
+  Int       m_actCbQpOffset;
+  Int       m_actCrQpOffset;
+  Bool      m_useLL;
+  Bool      m_bTransquantBypassInferTUSplit;
+  Bool      m_bNoTUSplitIntraACTEnabled;
+  Bool      m_usePaletteMode;
+  UInt      m_paletteMaxSize;
+  UInt      m_paletteMaxPredSize;
+  Int       m_motionVectorResolutionControlIdc;
+  Bool      m_palettePredInPPSEnabled;
+  Bool      m_palettePredInSPSEnabled;
+  Bool      m_disableIntraBoundaryFilter;
+
 public:
   TEncCfg()
   : m_tileColumnWidth()
@@ -455,6 +482,13 @@ public:
   Bool      getPrintSequenceMSE             ()         const { return m_printSequenceMSE;           }
   Void      setPrintSequenceMSE             (Bool value)     { m_printSequenceMSE = value;          }
 
+#if JVET_F0064_MSSSIM
+  Bool      getPrintMSSSIM                  ()         const { return m_printMSSSIM;               }
+  Void      setPrintMSSSIM                  (Bool value)     { m_printMSSSIM = value;              }
+#endif
+
+  Bool      getPrintClippedPSNR             ()         const { return m_printClippedPSNR;           }
+  Void      setPrintClippedPSNR             (Bool value)     { m_printClippedPSNR = value;          }
   Bool      getCabacZeroWordPaddingEnabled()           const { return m_cabacZeroWordPaddingEnabled;  }
   Void      setCabacZeroWordPaddingEnabled(Bool value)       { m_cabacZeroWordPaddingEnabled = value; }
 
@@ -1040,6 +1074,52 @@ public:
 
   Void      setSummaryVerboseness(UInt v)                            { m_summaryVerboseness = v; }
   UInt      getSummaryVerboseness( ) const                           { return m_summaryVerboseness; }
+
+  // SCM new added functions
+  Void      setUseHashBasedIntraBCSearch       ( Bool b )           { m_useHashBasedIntraBlockCopySearch = b; }
+  Void      setIntraBCSearchWidthInCTUs        ( Int  i )           { m_intraBlockCopySearchWidthInCTUs = i; }
+  Void      setIntraBCNonHashSearchWidthInCTUs ( UInt u )           { m_intraBlockCopyNonHashSearchWidthInCTUs = u; }
+  Void      setUseHashBasedME                  ( Bool b )           { m_useHashBasedME = b; }
+
+  Void      setActQpYOffset                    ( Int   i )          { m_actYQpOffset  = i; }
+  Void      setActQpCbOffset                   ( Int   i )          { m_actCbQpOffset = i; }
+  Void      setActQpCrOffset                   ( Int   i )          { m_actCrQpOffset = i; }
+
+  Bool      getUseIntraBlockCopy                () const            { return m_useIntraBlockCopy; }
+  Void      setUseIntraBlockCopy                (Bool value)        { m_useIntraBlockCopy = value; }
+  Bool      getUseIntraBlockCopyFastSearch      () const            { return m_intraBlockCopyFastSearch; }
+  Void      setUseIntraBlockCopyFastSearch      (Bool value)        { m_intraBlockCopyFastSearch = value; }
+
+  Bool      getUseHashBasedIntraBCSearch        () const            { return m_useHashBasedIntraBlockCopySearch; }
+  Bool      getUseIntraBCFullFrameSearch        () const            { return m_intraBlockCopySearchWidthInCTUs == -1; }
+  Int       getIntraBCSearchWidthInCTUs         () const            { return m_intraBlockCopySearchWidthInCTUs; }
+  UInt      getIntraBCNonHashSearchWidthInCTUs  () const            { return m_intraBlockCopyNonHashSearchWidthInCTUs; }
+  Bool      getUseHashBasedME                   () const            { return m_useHashBasedME; }
+  Int       getBitDepth                         (const ChannelType chType) const { return m_bitDepth[chType]; }
+  Void      setRGBFormatFlag                    (const Bool value)  { m_bRGBformat = value; }
+  Bool      getRGBFormatFlag                    () const            { return m_bRGBformat; }
+  Bool      getUseColourTrans                   () const            { return m_useColourTrans; }
+  Void      setUseColourTrans                   (const Bool value)  { m_useColourTrans = value; }
+  Bool      getUseLossless                      () const            { return m_useLL; }
+  Void      setUseLossless                      (const Bool value)  { m_useLL = value; }
+  Void      setUsePaletteMode                   (const Bool value)  { m_usePaletteMode = value; }
+  Bool      getUsePaletteMode                   () const            { return m_usePaletteMode; }
+  Void      setPaletteMaxSize                   (const UInt value)  { m_paletteMaxSize = value; }
+  UInt      getPaletteMaxSize                   () const            { return m_paletteMaxSize; }
+  Void      setPaletteMaxPredSize               (const UInt value)  { m_paletteMaxPredSize = value; }
+  UInt      getPaletteMaxPredSize               () const            { return m_paletteMaxPredSize; }
+  Void      setMotionVectorResolutionControlIdc ( Int idc )         { m_motionVectorResolutionControlIdc = idc; }
+  Int       getMotionVectorResolutionControlIdc () const            { return m_motionVectorResolutionControlIdc; }
+  Void      setPalettePredInPPSEnabled          ( Bool b )          { m_palettePredInPPSEnabled = b; }
+  Bool      getPalettePredInPPSEnabled          () const            { return m_palettePredInPPSEnabled; }
+  Void      setPalettePredInSPSEnabled          ( Bool b )          { m_palettePredInSPSEnabled = b; }
+  Bool      getPalettePredInSPSEnabled          () const            { return m_palettePredInSPSEnabled; }
+  Bool      getTransquantBypassInferTUSplit     () const            { return m_bTransquantBypassInferTUSplit; }
+  Void      setDisableIntraBoundaryFilter       (Bool bValue)       { m_disableIntraBoundaryFilter=bValue; }
+  Bool      getDisableIntraBoundaryFilter       () const            { return m_disableIntraBoundaryFilter; }
+  Void      setTransquantBypassInferTUSplit     (Bool flag)         { m_bTransquantBypassInferTUSplit = flag; }
+  Bool      getNoTUSplitIntraACTEnabled         () const            { return m_bNoTUSplitIntraACTEnabled; }
+  Void      setNoTUSplitIntraACTEnabled         (Bool flag)         { m_bNoTUSplitIntraACTEnabled = flag; }
 };
 
 //! \}

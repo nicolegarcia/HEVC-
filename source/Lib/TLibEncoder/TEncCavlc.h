@@ -140,6 +140,11 @@ public:
   Void xCodeScalingList ( const TComScalingList* scalingList, UInt sizeId, UInt listId);
 
   Void codeExplicitRdpcmMode( TComTU &rTu, const ComponentID compID );
+
+  Void codePaletteModeFlag      ( TComDataCU* pcCU, UInt absPartIdx );
+  Void codePaletteModeSyntax    ( TComDataCU* pcCU, UInt absPartIdx, UInt numComp, Bool* bCodeDQP, Bool* codeChromaQpAdjFlag );
+  Void codeScanRotationModeFlag ( TComDataCU* pcCU, UInt absPartIdx );
+  Void codeColourTransformFlag  ( TComDataCU* pcCU, UInt absPartIdx );
 };
 
 //! \}

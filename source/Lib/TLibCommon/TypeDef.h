@@ -85,6 +85,9 @@
 #define JCTVC_Y0038_PARAMS                                1
 
 #define JVET_E0059_FLOATING_POINT_QP_FIX                  1 ///< Replace floating point QP with a source-file frame number.
+#define JVET_G0101_QP_SWITCHING                           1 ///< After switching POC, increase base QP instead of frame level QP.
+
+#define JVET_F0064_MSSSIM                                 1 ///< Calculate MS-SSIM scores
 
 #ifndef EXTENSION_360_VIDEO
 #define EXTENSION_360_VIDEO                               0   ///< extension for 360/spherical video coding support; this macro should be controlled by makefile, as it would be used to control whether the library is built and linked
@@ -360,6 +363,7 @@ enum RefPicList
 {
   REF_PIC_LIST_0               = 0,   ///< reference list 0
   REF_PIC_LIST_1               = 1,   ///< reference list 1
+  REF_PIC_LIST_INTRABC         = 0,
   NUM_REF_PIC_LIST_01          = 2,
   REF_PIC_LIST_X               = 100  ///< special mark
 };
@@ -464,7 +468,8 @@ enum COEFF_SCAN_TYPE
   SCAN_DIAG = 0,        ///< up-right diagonal scan
   SCAN_HOR  = 1,        ///< horizontal first scan
   SCAN_VER  = 2,        ///< vertical first scan
-  SCAN_NUMBER_OF_TYPES = 3
+  SCAN_TRAV = 3,
+  SCAN_NUMBER_OF_TYPES = 4
 };
 
 enum COEFF_SCAN_GROUP_TYPE
@@ -572,7 +577,8 @@ namespace Profile
     MAIN10 = 2,
     MAINSTILLPICTURE = 3,
     MAINREXT = 4,
-    HIGHTHROUGHPUTREXT = 5
+    HIGHTHROUGHPUTREXT = 5,
+    MAINSCC  = 9
   };
 }
 
@@ -636,6 +642,7 @@ enum SPSExtensionFlagIndex
   SPS_EXT__REXT           = 0,
 //SPS_EXT__MVHEVC         = 1, //for use in future versions
 //SPS_EXT__SHVC           = 2, //for use in future versions
+  SPS_EXT__SCC            = 3, // place holder
   NUM_SPS_EXTENSION_FLAGS = 8
 };
 
@@ -644,6 +651,7 @@ enum PPSExtensionFlagIndex
   PPS_EXT__REXT           = 0,
 //PPS_EXT__MVHEVC         = 1, //for use in future versions
 //PPS_EXT__SHVC           = 2, //for use in future versions
+  PPS_EXT__SCC            = 3,
   NUM_PPS_EXTENSION_FLAGS = 8
 };
 
@@ -891,6 +899,126 @@ struct WCGChromaQPControl
   Double chromaCrQpScale; ///< Chroma Cr QP Scale (1.0:default)
   Double chromaQpScale;   ///< Chroma QP Scale (0.0:default)
   Double chromaQpOffset;  ///< Chroma QP Offset (0.0:default)
+};
+
+struct TComACTTURDCost
+{
+  Double tmpRDCostCSCEnabled;
+  Double tmpRDCostCSCDisabled;
+  UInt   uiIsCSCEnabled;        //0 - original; 1 - transform; 2 - neutral
+};
+
+enum ACTRDTestTypes
+{
+  ACT_TWO_CLR            = 0,  //two color space
+  ACT_TRAN_CLR           = 1,  //transformed color space
+  ACT_ORG_CLR            = 2   //original color space
+};
+
+enum PaletteRunMode
+{
+  PALETTE_RUN_LEFT  = 0,
+  PALETTE_RUN_ABOVE = 1,
+  NUM_PALETTE_RUN   = 2
+};
+
+enum PaletteScanMode
+{
+  PALETTE_SCAN_HORTRAV = 0,
+  PALETTE_SCAN_VERTRAV = 1,
+  NUM_PALETTE_SCAN     = 2
+};
+
+class SortingElement
+{
+public:
+  UInt cnt;
+  Int data[3];
+  Int shift, lastCnt, sumData[3];
+
+  inline Bool operator<(const SortingElement &other) const
+  {
+    return cnt > other.cnt;
+  }
+
+  SortingElement() {
+    cnt = shift = lastCnt = 0;
+    data[0] = data[1] = data[2] = 0;
+    sumData[0] = sumData[1] = sumData[2] = 0;
+  }
+  Void setAll(UInt ui0, UInt ui1, UInt ui2) {
+    if( !ui0 && !ui1 && !ui2 )
+    {
+      shift = lastCnt = 0;
+      sumData[0] = sumData[1] = sumData[2] = 0;
+    }
+    data[0] = ui0; data[1] = ui1; data[2] = ui2;
+  }
+
+  Bool EqualData(SortingElement sElement)
+  {
+    return (data[0] == sElement.data[0]) && (data[1] == sElement.data[1]) && (data[2] == sElement.data[2]);
+  }
+
+  Void ResetElement()
+  {
+    cnt = shift = lastCnt = 0;
+    data[0] = data[1] = data[2] = 0;
+    sumData[0] = sumData[1] = sumData[2] = 0;
+  }
+
+  Bool almostEqualData(SortingElement sElement, Int iErrorLimit, const BitDepths& bitDepths)
+  {
+    return ( std::abs(data[0] - sElement.data[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) ) <= iErrorLimit
+        && ( std::abs(data[1] - sElement.data[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit
+        && ( std::abs(data[2] - sElement.data[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) ) <= iErrorLimit;
+  }
+  UInt getSAD(SortingElement sElement, const BitDepths& bitDepths)
+  {
+    return ( std::abs(data[0] - sElement.data[0]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_LUMA]  -8) )
+         + ( std::abs(data[1] - sElement.data[1]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) )
+         + ( std::abs(data[2] - sElement.data[2]) >> DISTORTION_PRECISION_ADJUSTMENT(bitDepths.recon[CHANNEL_TYPE_CHROMA]-8) );
+  }
+
+  Void copyDataFrom(SortingElement sElement) {
+    data[0] = sElement.data[0];
+    data[1] = sElement.data[1];
+    data[2] = sElement.data[2];
+    shift = 0; lastCnt = 1; sumData[0] = data[0]; sumData[1] = data[1]; sumData[2] = data[2];
+  }
+  Void copyAllFrom(SortingElement sElement) {
+    copyDataFrom(sElement); cnt = sElement.cnt;
+    sumData[0] = sElement.sumData[0]; sumData[1] = sElement.sumData[1]; sumData[2] = sElement.sumData[2];
+    lastCnt = sElement.lastCnt; shift = sElement.shift;
+  }
+
+  Void addElement(const SortingElement& sElement)
+  {
+    cnt++;
+    for ( int i=0; i<3; i++ )
+    {
+      sumData[i] += sElement.data[i];
+    }
+    if( cnt>1 && cnt==2*lastCnt )
+    {
+      UInt rnd;
+      if( cnt == 2 )
+      {
+        shift = 0;
+        rnd   = 1;
+      }
+      else
+      {
+        rnd = 1<<shift;
+      }
+      shift++;
+      for ( int i=0; i<3; i++ )
+      {
+        data[i] = (sumData[i] + rnd) >> shift;
+      }
+      lastCnt = cnt;
+    }
+  }
 };
 
 //! \}

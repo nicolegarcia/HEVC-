@@ -38,6 +38,7 @@
 
 #ifndef __CONTEXTTABLES__
 #define __CONTEXTTABLES__
+#include <cstring>
 
 //! \ingroup TLibCommon
 //! \{
@@ -162,6 +163,21 @@ static const UInt notFirstGroupNeighbourhoodContextOffset[MAX_NUM_CHANNEL_TYPE] 
 
 #define CNU                          154      ///< dummy initialization value for unused context models 'Context model Not Used'
 
+#define NUM_COLOUR_TRANS_CTX          1
+#define NUM_PALETTE_MODE_FLAG_CTX     1
+#define NUM_SPOINT_CTX                1
+#define NUM_TOP_RUN_CTX               3
+#define NUM_LEFT_RUN_CTX              5
+#define NUM_SCAN_ROTATION_FLAG_CTX    1
+#define MAX_PALETTE_PRED_SIZE         128
+
+struct PaletteInfoBuffer
+{
+  UChar lastPaletteSize[3];
+  Pel   lastPalette[3][MAX_PALETTE_PRED_SIZE];
+
+  PaletteInfoBuffer() { std::memset( this, 0, sizeof( PaletteInfoBuffer ) ); }
+};
 
 // ====================================================================================================================
 // Tables
@@ -495,6 +511,55 @@ INIT_CROSS_COMPONENT_PREDICTION[NUMBER_OF_SLICE_TYPES][NUM_CROSS_COMPONENT_PREDI
   { 154, 154, 154, 154, 154, 154, 154, 154, 154, 154 },
   { 154, 154, 154, 154, 154, 154, 154, 154, 154, 154 },
   { 154, 154, 154, 154, 154, 154, 154, 154, 154, 154 },
+};
+
+// SCM new added contexts
+static const UChar
+INIT_COLOUR_TRANS[NUMBER_OF_SLICE_TYPES][NUM_COLOUR_TRANS_CTX] =
+{
+  { 154, },
+  { 154, },
+  { 154, },
+};
+
+static const UChar
+INIT_PALETTE_MODE_FLAG[NUMBER_OF_SLICE_TYPES][NUM_PALETTE_MODE_FLAG_CTX] =
+{
+  { 154 },
+  { 154 },
+  { 154 },
+};
+
+static const UChar
+INIT_SPOINT[NUMBER_OF_SLICE_TYPES][NUM_SPOINT_CTX] =
+{
+  { 154 },
+  { 154 },
+  { 154 },
+};
+
+static const UChar
+INIT_TOP_RUN[NUMBER_OF_SLICE_TYPES][NUM_TOP_RUN_CTX] =
+{
+  { 154, 154, 154 },
+  { 154, 154, 154 },
+  { 154, 154, 154 },
+};
+
+static const UChar
+INIT_RUN[NUMBER_OF_SLICE_TYPES][NUM_LEFT_RUN_CTX] =
+{
+  { 154, 154, 154, 154, 154 },
+  { 154, 154, 154, 154, 154 },
+  { 154, 154, 154, 154, 154 },
+};
+
+static const UChar
+INIT_SCAN_ROTATION_FLAG[NUMBER_OF_SLICE_TYPES][NUM_SCAN_ROTATION_FLAG_CTX] =
+{
+  { 154 },
+  { 154 },
+  { 154 },
 };
 
 //! \}
