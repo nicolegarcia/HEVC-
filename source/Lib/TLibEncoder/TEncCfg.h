@@ -127,6 +127,9 @@ protected:
   Bool      m_printFrameMSE;
   Bool      m_printSequenceMSE;
   Bool      m_printClippedPSNR;
+#if JVET_F0064_MSSSIM
+  Bool      m_printMSSSIM;
+#endif
   Bool      m_cabacZeroWordPaddingEnabled;
 
   /* profile & level */
@@ -478,6 +481,11 @@ public:
 
   Bool      getPrintSequenceMSE             ()         const { return m_printSequenceMSE;           }
   Void      setPrintSequenceMSE             (Bool value)     { m_printSequenceMSE = value;          }
+
+#if JVET_F0064_MSSSIM
+  Bool      getPrintMSSSIM                  ()         const { return m_printMSSSIM;               }
+  Void      setPrintMSSSIM                  (Bool value)     { m_printMSSSIM = value;              }
+#endif
 
   Bool      getPrintClippedPSNR             ()         const { return m_printClippedPSNR;           }
   Void      setPrintClippedPSNR             (Bool value)     { m_printClippedPSNR = value;          }
